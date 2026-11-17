@@ -1,0 +1,114 @@
+/* Print stylesheet for the tuner design log.
+   Fonts are restricted to families actually installed on this machine so
+   WeasyPrint never silently falls back mid-document. */
+
+@page {
+  size: Letter;
+  margin: 20mm 18mm 18mm 18mm;
+  @top-left   { content: "1500W Doublet Tuner — Design Log";
+                font-family: "Noto Sans", sans-serif; font-size: 7.5pt; color: #5A6360; }
+  @top-right  { content: "Rev 3.7b"; font-family: "Noto Sans", sans-serif;
+                font-size: 7.5pt; color: #5A6360; }
+  @bottom-right { content: counter(page) " / " counter(pages);
+                  font-family: "Noto Sans", sans-serif; font-size: 8pt; color: #5A6360; }
+}
+@page :first { @top-left { content: "" } @top-right { content: "" } }
+
+html { font-size: 10.2pt; }
+body {
+  font-family: "Noto Serif", "Liberation Serif", serif;
+  line-height: 1.45; color: #14191A; hyphens: auto;
+}
+
+h1 {
+  font-family: "Noto Sans", sans-serif; font-size: 23pt; font-weight: 700;
+  line-height: 1.1; margin: 0 0 .3em; color: #0C3B44; letter-spacing: -.02em;
+}
+h2 {
+  font-family: "Noto Sans", sans-serif; font-size: 15pt; font-weight: 700;
+  color: #0C6B7A; border-top: 2pt solid #0C6B7A; padding-top: 6pt;
+  margin: 0 0 10pt; break-before: page; break-after: avoid; letter-spacing: -.01em;
+}
+h1 + h2, body > h2:first-of-type { break-before: avoid; }
+h3 { font-family: "Noto Sans", sans-serif; font-size: 11.5pt; font-weight: 700;
+     margin: 14pt 0 4pt; color: #14191A; break-after: avoid; }
+h4 { font-family: "Noto Sans", sans-serif; font-size: 10pt; font-weight: 700;
+     margin: 11pt 0 3pt; color: #4A5557; break-after: avoid; }
+p { margin: 0 0 6pt; orphans: 3; widows: 3; }
+
+/* tables: the document has ~370 rows, several of them wide */
+table {
+  border-collapse: collapse; width: 100%; margin: 7pt 0 10pt;
+  font-family: "Noto Sans", sans-serif; font-size: 8.2pt;
+  table-layout: auto; break-inside: avoid;
+}
+thead { display: table-header-group; }
+th {
+  text-align: left; font-weight: 700; font-size: 7.4pt; text-transform: uppercase;
+  letter-spacing: .05em; color: #4A5557; border-bottom: 1pt solid #8FA09E;
+  padding: 3.5pt 5pt; background: #EEF1F0;
+}
+td { padding: 3.5pt 5pt; border-bottom: .4pt solid #D3DAD8;
+     vertical-align: top; word-wrap: break-word; }
+tr:nth-child(even) td { background: #F7F9F8; }
+
+pre {
+  background: #F4F6F5; border-left: 2.5pt solid #0C6B7A; padding: 6pt 8pt;
+  font-family: "Liberation Mono", "DejaVu Sans Mono", monospace;
+  font-size: 7.8pt; line-height: 1.35; white-space: pre-wrap; word-wrap: break-word;
+  break-inside: avoid; margin: 7pt 0;
+}
+code { font-family: "Liberation Mono", "DejaVu Sans Mono", monospace;
+       font-size: .87em; background: #F0F3F2; padding: .5pt 2pt; }
+pre code { background: none; padding: 0; font-size: inherit; }
+
+blockquote {
+  margin: 8pt 0; padding: 5pt 10pt; border-left: 2.5pt solid #A82E1E;
+  background: #FBF4F2; color: #3A2420; break-inside: avoid;
+}
+blockquote p { margin: 0 0 4pt; } blockquote p:last-child { margin: 0; }
+
+ul, ol { margin: 0 0 7pt; padding-left: 15pt; }
+li { margin-bottom: 2.5pt; }
+strong { font-weight: 700; }
+hr { border: 0; border-top: .5pt solid #D3DAD8; margin: 10pt 0; }
+
+/* table of contents */
+#TOC { break-after: page; }
+#TOC > ul { list-style: none; padding-left: 0; font-family: "Noto Sans", sans-serif; }
+#TOC ul ul { list-style: none; padding-left: 12pt; font-size: 9pt; color: #4A5557; }
+#TOC > ul > li { margin: 4pt 0 2pt; font-weight: 700; font-size: 10.5pt; }
+#TOC a { text-decoration: none; color: inherit; }
+#TOC a::after { content: leader('.') target-counter(attr(href), page);
+                font-weight: 400; color: #6E797B; }
+
+/* ---- cover page ---- */
+.coverpage { break-after: page; padding-top: 38mm; }
+.cover-eyebrow { font-family: "Noto Sans", sans-serif; font-size: 9pt; font-weight: 700;
+  letter-spacing: .22em; text-transform: uppercase; color: #0C6B7A; margin-bottom: 12pt; }
+.cover-title { font-family: "Noto Sans", sans-serif; font-size: 38pt; font-weight: 700;
+  line-height: 1.02; letter-spacing: -.025em; color: #0C3B44; margin: 0 0 10pt; }
+.cover-sub { font-family: "Noto Serif", serif; font-size: 12pt; color: #4A5557; margin-bottom: 20pt; }
+.cover-rule { border-top: 2.5pt solid #0C6B7A; width: 58mm; margin-bottom: 20pt; }
+table.cover-meta { width: 100%; font-size: 9pt; border: 0; }
+table.cover-meta td { border: 0; padding: 4pt 0; background: none !important; vertical-align: top; }
+table.cover-meta td:first-child { width: 34mm; font-family: "Noto Sans", sans-serif;
+  font-size: 7.6pt; text-transform: uppercase; letter-spacing: .06em; color: #6E797B; padding-top: 5.5pt; }
+#TOC::before { content: "Contents"; display: block; font-family: "Noto Sans", sans-serif;
+  font-size: 15pt; font-weight: 700; color: #0C6B7A; border-top: 2pt solid #0C6B7A;
+  padding-top: 6pt; margin-bottom: 10pt; }
+.anchor-only { display: block; height: 0; overflow: hidden; }
+
+/* ---- rendered diagrams ---- */
+figure.diagram { margin: 10pt 0 12pt; text-align: center; break-inside: avoid; }
+figure.diagram img { max-height: 190mm; }
+figure.diagram figcaption {
+  font-family: "Noto Sans", sans-serif; font-size: 8pt; color: #6E797B;
+  margin-top: 5pt; text-align: left; border-top: .4pt solid #D3DAD8; padding-top: 4pt;
+}
+
+/* Appendix A: the TechDraw sheets (ANSI B, 17 x 11) on landscape Letter pages, scaled to fit. */
+@page drawing { size: Letter landscape; margin: 14mm 12mm 12mm 12mm; }
+.drawing-sheet { page: drawing; break-before: page; text-align: center; margin: 0; }
+.drawing-sheet img { width: 100%; max-height: 172mm; object-fit: contain; }
+.drawing-sheet p { font-family: "Noto Sans", sans-serif; font-size: 8pt; color: #5A6360; margin: 2mm 0 0; }

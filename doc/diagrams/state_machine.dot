@@ -1,0 +1,33 @@
+digraph sm {
+  rankdir=TB; splines=polyline; nodesep=0.38; ranksep=0.42;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+  start [shape=circle, label="", width=0.18, fillcolor="#0C6B7A", color="#0C6B7A"];
+  selftest [label="SELF-TEST"];
+  idle     [label="IDLE"];
+  measure  [label="MEASURE\nfrequency · |Γ| · phase"];
+  solve    [label="SOLVE\nclosed-form T solution"];
+  move     [label="MOVE\nPTT dropped · elements driven"];
+  verify   [label="VERIFY\nre-measure"];
+  matched  [label="MATCHED", fillcolor="#DCEBDF", color="#2C6539"];
+  fault    [label="FAULT", fillcolor="#F6DED9", color="#A82E1E"];
+
+  start    -> selftest;
+  selftest -> idle;
+  selftest -> fault   [label="  fail", color="#A82E1E", fontcolor="#A82E1E"];
+  idle     -> measure [label="  carrier detected"];
+  measure  -> matched [label="  SWR acceptable"];
+  measure  -> solve   [label="  retune needed"];
+  solve    -> move;
+  solve    -> fault   [label="  no feasible\l  solution", color="#A82E1E", fontcolor="#A82E1E"];
+  move     -> verify;
+  move     -> fault   [label="  limit hit /\l  encoder mismatch", color="#A82E1E", fontcolor="#A82E1E"];
+  verify   -> matched [label="  converged"];
+  verify   -> solve   [label="  retry\l  (< 3 attempts)", style=dashed];
+  verify   -> fault   [label="  attempts\l  exhausted", color="#A82E1E", fontcolor="#A82E1E"];
+  matched  -> idle    [label="  carrier ends", style=dashed, constraint=false];
+  { rank=same; matched; fault; }
+}

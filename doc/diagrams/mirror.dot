@@ -1,0 +1,18 @@
+digraph m {
+  rankdir=LR; nodesep=0.3; ranksep=0.55;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+
+  ui   [label="admin changes a setting\nin the web UI"];
+  fl   [label="internal flash\nAUTHORITATIVE · takes effect",
+        fillcolor="#DCEBDF", color="#2C6539"];
+  sd   [label="SD card\nbackup · timestamped", fillcolor="#F7EBCC", color="#8A5D04"];
+  ver  [label="/backup/*.json\nlast 20 retained", shape=note,
+        fillcolor="#FBF7EE", color="#8A5D04"];
+  ui->fl [label="  written"];
+  ui->sd [label="  mirrored"];
+  sd->ver [style=dashed];
+}

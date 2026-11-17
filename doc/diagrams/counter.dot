@@ -1,0 +1,18 @@
+digraph c {
+  rankdir=LR; nodesep=0.25; ranksep=0.45;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+
+  fwd  [label="forward\ncoupled port", fillcolor="#EEF1F0", color="#6E797B"];
+  tap  [label="1:1 isolating tap\n10:1 resistive"];
+  clmp [label="clamp diodes\nback-to-back Schottky, ±5 V"];
+  cmp  [label="high-speed comparator\nTLV3501, ~10 mV hysteresis"];
+  div  [label="74AC4040\n÷1024 → 29 kHz", fillcolor="#F7EBCC", color="#8A5D04"];
+  bulk [label="bulkhead\n1000 pF + 1 kΩ", shape=box, style="filled,dashed",
+        fillcolor="#FAFBFB", color="#4A5557"];
+  mcu  [label="Teensy 4.1\nFreqCount, pin 9", fillcolor="#DCEBDF", color="#2C6539"];
+  fwd->tap->clmp->cmp->div->bulk->mcu;
+}

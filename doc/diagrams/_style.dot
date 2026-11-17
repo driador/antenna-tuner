@@ -1,0 +1,5 @@
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];

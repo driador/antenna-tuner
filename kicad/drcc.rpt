@@ -1,0 +1,90 @@
+** Drc report for control.kicad_pcb **
+** Created on 2026-10-21T17:43:30 **
+** Report includes: Errors, Warnings **
+
+** Found 16 DRC violations **
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(4.8479 mm, 22.5050 mm): Track [GND] on F.Cu, length 9.6191 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(1.6283 mm, 2.5417 mm): Track [GND] on F.Cu, length 8.9071 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.3144 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(-2.1300 mm, 8.8400 mm): Track [+3V3] on F.Cu, length 2.4262 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(-0.4144 mm, 10.5556 mm): Track [+3V3] on F.Cu, length 31.6875 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(29.7875 mm, 11.1544 mm): Track [+5V] on F.Cu, length 34.6831 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.3100 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(0.4100 mm, 24.0800 mm): Track [STEP2] on B.Cu, length 25.9702 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(18.5259 mm, 47.2759 mm): Track [STEP1] on F.Cu, length 32.8040 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(-2.1300 mm, 24.0800 mm): Track [DIR1] on F.Cu, length 30.1970 mm
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(0.4100 mm, 24.0800 mm): PTH pad 4 [STEP2] of A1
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(0.4100 mm, 8.8400 mm): PTH pad 28 [unconnected-(A1-D23-Pad28)] of A1
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1833 mm)
+    Local override; error
+    @(128.8016 mm, 51.4331 mm): Track [LIM1] on F.Cu, length 1.0755 mm
+    @(129.0450 mm, 52.5400 mm): PTH pad 3 [V_PHS] of J11
+[clearance]: Clearance violation ( clearance 0.2000 mm; actual 0.1833 mm)
+    Local override; error
+    @(129.0450 mm, 52.5400 mm): PTH pad 3 [V_PHS] of J11
+    @(129.0427 mm, 51.1920 mm): Track [LIM1] on F.Cu, length 0.3410 mm
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(52.4800 mm, 25.3500 mm): Segment of A1 on F.Silkscreen
+    @(50.5000 mm, 25.0400 mm): Reference field of C1
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(50.5000 mm, 25.0400 mm): Reference field of C1
+    @(51.2100 mm, 24.0800 mm): PTH pad 24 [BLOWER_PWM] of A1
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(-8.4800 mm, 7.5700 mm): Segment of A1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(0.0000 mm, 185.0000 mm): Segment on Edge.Cuts
+    @(52.4800 mm, 25.3500 mm): Segment of A1 on F.Silkscreen
+
+** Found 2 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(1.6283 mm, 2.5417 mm): Track [GND] on F.Cu, length 8.9071 mm
+    @(4.8479 mm, 22.5050 mm): Track [GND] on F.Cu, length 9.6191 mm
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(48.0000 mm, 80.5400 mm): PTH pad 2 [GND] of J2
+    @(2.5000 mm, 2.5000 mm): Zone [GND] on B.Cu, priority 0
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

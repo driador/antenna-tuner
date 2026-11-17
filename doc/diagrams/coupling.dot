@@ -1,0 +1,22 @@
+digraph k {
+  rankdir=LR; nodesep=0.22; ranksep=0.4;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+
+  mot  [label="single-shaft stepper\n(frame per M-2)"];
+  enc  [label="single-turn absolute\nencoder (M-1 B)", fillcolor="#DCEBDF", color="#2C6539"];
+  cpl  [label="aluminum zero-backlash\nhelical coupler (bought)"];
+  shaft[label="0.375\" heavy-wall\nG10 shaft"];
+  bush [label="flanged bronze\nbushing in shelf"];
+  bel  [label="Delrin Oldham\ncoupler (shop-made)", fillcolor="#FBF2DA", color="#8A6A1E"];
+  elem [label="C1 / C2 /\nroller", fillcolor="#F2F7F8", color="#0C6B7A"];
+  wall [label="SHELF\nNO WIRES CROSS", shape=box, style="filled",
+        fillcolor="#F6DED9", color="#A82E1E", fontcolor="#A82E1E"];
+  mot->cpl;
+  cpl->shaft->bush->wall->bel->elem;
+  shaft->enc [label="  timing-belt\n  takeoff"];
+  { rank=same; enc; bush; }
+}

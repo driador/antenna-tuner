@@ -1,0 +1,33 @@
+digraph intl {
+  rankdir=LR; nodesep=0.3; ranksep=0.5;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+  subgraph cluster_t {
+    label="AT THE TUNER  (entry box)"; fontname="Noto Sans"; fontsize=9;
+    color="#A8B3B2"; style=dashed; fontcolor="#4A5557";
+    mcu  [label="MCU permissive"];
+    cmp  [label="over-SWR comparator"];
+    lim  [label="limit-fault clear"];
+    lid  [label="lid interlock"];
+    and  [label="AND", shape=circle, width=0.42, fillcolor="#0C6B7A",
+          fontcolor="white", color="#0C6B7A"];
+    led  [label="LED driver\n10 kHz modulated"];
+    mcu->and; cmp->and; lim->and; lid->and; and->led;
+  }
+  fib [label="fiber\n(POF strand)", shape=box, style="filled", fillcolor="#F7EBCC",
+       color="#8A5D04"];
+  subgraph cluster_b {
+    label="AT THE BENCH"; fontname="Noto Sans"; fontsize=9;
+    color="#A8B3B2"; style=dashed; fontcolor="#4A5557";
+    rx  [label="receiver\n+ tone detector"];
+    sw  [label="opto-isolated\nkeying switch"];
+    est [label="E-STOP (NC)\nhardwired", fillcolor="#F6DED9", color="#A82E1E"];
+    rig [label="rig PTT out", fillcolor="#EEF1F0", color="#6E797B"];
+    amp [label="amp key in", fillcolor="#EEF1F0", color="#6E797B"];
+    rx->sw; rig->est->sw->amp;
+  }
+  led->fib->rx;
+}

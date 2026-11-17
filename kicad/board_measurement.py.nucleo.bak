@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""Measurement board, Sampler chamber -- 1500W Doublet Tuner Rev 3.4.
+
+Scope (Section 6A, 7.4, 8B.0):
+  - 6 dB resistive splitter on each coupled port
+  - Schottky envelope detectors  -> magnitude path (SWR, power, protection)
+  - AD8302 gain/phase detector   -> vector path (R + jX)
+  - Frequency counter front end  -> TIM2_ETR
+  - Protection comparator, open-drain, wire-ANDed into the permissive
+  - 10 kHz modulated permissive -> POF transmitter
+  - UART to the Control board through filtered feedthroughs
+
+OFF-BOARD, shown as connectors only:
+  Stockton coupler (chassis toroids), 60 dB SMA attenuator chains, POF transceiver.
+"""
+from gen_sch import Sch
+
+s = Sch('Measurement Board -- Sampler Chamber', 'tuner')
+A = s.sym
+
+# ---------------- RF front end: forward port ----------------
+J1 = A('Connector:Conn_Coaxial', 'J1', 'FWD from coupler', (51, 50), footprint='Connector_Coaxial:SMA_Amphenol_132134-11_Vertical')
+R1 = A('Device:R', 'R1', '16R5', (80, 50), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+R2 = A('Device:R', 'R2', '16R5', (104, 38), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+R3 = A('Device:R', 'R3', '16R5', (104, 65), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+J2 = A('Connector:Conn_Coaxial', 'J2', 'FWD to 60dB pad', (130, 65), footprint='Connector_Coaxial:SMA_Amphenol_132134-11_Vertical')
+
+s.net(J1, 'In', 'FWD_CPL');   s.net(J1, 'Ext', 'GND')
+s.net(R1, '1', 'FWD_CPL');    s.net(R1, '2', 'FWD_SPLIT')
+s.net(R2, '1', 'FWD_SPLIT');  s.net(R2, '2', 'FWD_DET_IN')
+s.net(R3, '1', 'FWD_SPLIT');  s.net(R3, '2', 'FWD_TO_PAD')
+s.net(J2, 'In', 'FWD_TO_PAD'); s.net(J2, 'Ext', 'GND')
+
+# ---------------- RF front end: reflected port ----------------
+J4 = A('Connector:Conn_Coaxial', 'J4', 'REF from coupler', (51, 119), footprint='Connector_Coaxial:SMA_Amphenol_132134-11_Vertical')
+R4 = A('Device:R', 'R4', '16R5', (80, 119), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+R5 = A('Device:R', 'R5', '16R5', (104, 106), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+R6 = A('Device:R', 'R6', '16R5', (104, 134), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+J5 = A('Connector:Conn_Coaxial', 'J5', 'REF to 60dB pad', (130, 134), footprint='Connector_Coaxial:SMA_Amphenol_132134-11_Vertical')
+
+s.net(J4, 'In', 'REF_CPL');   s.net(J4, 'Ext', 'GND')
+s.net(R4, '1', 'REF_CPL');    s.net(R4, '2', 'REF_SPLIT')
+s.net(R5, '1', 'REF_SPLIT');  s.net(R5, '2', 'REF_DET_IN')
+s.net(R6, '1', 'REF_SPLIT');  s.net(R6, '2', 'REF_TO_PAD')
+s.net(J5, 'In', 'REF_TO_PAD'); s.net(J5, 'Ext', 'GND')
+
+# ---------------- Schottky envelope detectors ----------------
+D1 = A('Device:D_Schottky', 'D1', 'HSMS-2850', (152, 31), footprint='Diode_SMD:D_SOD-323')
+R7 = A('Device:R', 'R7', '10k', (174, 40), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+C1 = A('Device:C', 'C1', '100n', (191, 40), footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm')
+s.net(D1, 'A', 'FWD_DET_IN'); s.net(D1, 'K', 'V_FWD')
+s.net(R7, '1', 'V_FWD'); s.net(R7, '2', 'GND')
+s.net(C1, '1', 'V_FWD'); s.net(C1, '2', 'GND')
+
+D2 = A('Device:D_Schottky', 'D2', 'HSMS-2850', (152, 100), footprint='Diode_SMD:D_SOD-323')
+R8 = A('Device:R', 'R8', '10k', (174, 109), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+C2 = A('Device:C', 'C2', '100n', (191, 109), footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm')
+s.net(D2, 'A', 'REF_DET_IN'); s.net(D2, 'K', 'V_REF_DET')
+s.net(R8, '1', 'V_REF_DET'); s.net(R8, '2', 'GND')
+s.net(C2, '1', 'V_REF_DET'); s.net(C2, '2', 'GND')
+
+# ---------------- AD8302 vector detector ----------------
+J3 = A('Connector:Conn_Coaxial', 'J3', 'FWD from pad', (218, 56), footprint='Connector_Coaxial:SMA_Amphenol_132134-11_Vertical')
+J6 = A('Connector:Conn_Coaxial', 'J6', 'REF from pad', (218, 88), footprint='Connector_Coaxial:SMA_Amphenol_132134-11_Vertical')
+U1 = A('RF:AD8302xRU', 'U1', 'AD8302', (261, 75), footprint='Package_SO:TSSOP-14_4.4x5mm_P0.65mm')
+s.net(J3, 'In', 'FWD_ATT'); s.net(J3, 'Ext', 'GND')
+s.net(J6, 'In', 'REF_ATT'); s.net(J6, 'Ext', 'GND')
+s.net(U1, 'INPB', 'FWD_ATT')      # forward = reference leg
+s.net(U1, 'INPA', 'REF_ATT')      # reflected = measured leg
+s.net(U1, 'VPOS', '+3V3A')
+s.net(U1, 'COMM', 'GND')
+s.net(U1, 'VMAG', 'V_MAG')
+s.net(U1, 'VPHS', 'V_PHS')
+s.net(U1, 'VREF', 'AD_VREF')
+s.net(U1, 'MSET', 'AD_VREF')      # default 30 mV/dB
+s.net(U1, 'PSET', 'AD_VREF')      # default 10 mV/degree
+
+for ref, val, pin, xy in (('C3','1n','OFSA',(218, 119)), ('C4','1n','OFSB',(235, 119)),
+                          ('C5','1n','MFLT',(287, 119)), ('C6','1n','PFLT',(304, 119))):
+    c = A('Device:C', ref, val, xy, footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm')
+    s.net(c, '1', 'U1_' + pin); s.net(c, '2', 'GND')
+    s.net(U1, pin, 'U1_' + pin)
+C7 = A('Device:C', 'C7', '100n', (297, 50), footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm'); s.net(C7,'1','+3V3A'); s.net(C7,'2','GND')
+C8 = A('Device:C', 'C8', '1u',   (312, 50), footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm'); s.net(C8,'1','+3V3A'); s.net(C8,'2','GND')
+
+# ---------------- Frequency counter front end ----------------
+R9  = A('Device:R', 'R9', '470R', (348, 28), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+D3  = A('Device:D_Schottky', 'D3', 'BAT54', (365, 18), footprint='Diode_SMD:D_SOD-323')
+D4  = A('Device:D_Schottky', 'D4', 'BAT54', (365, 38), footprint='Diode_SMD:D_SOD-323')
+U2  = A('Comparator:TLV3501AID', 'U2', 'TLV3501', (394, 28), footprint='Package_SO:SOIC-8_3.9x4.9mm_P1.27mm')
+R10 = A('Device:R', 'R10', '1M', (423, 18), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+s.net(R9, '1', 'FWD_DET_IN'); s.net(R9, '2', 'FREQ_RAW')
+s.net(D3, 'A', 'FREQ_RAW'); s.net(D3, 'K', '+3V3')
+s.net(D4, 'K', 'FREQ_RAW'); s.net(D4, 'A', 'GND')
+s.net(U2, '+', 'FREQ_RAW')
+s.net(U2, '-', 'FREQ_BIAS')
+s.net(U2, '6', 'FREQ_TTL')
+s.net(U2, 'V+', '+3V3A'); s.net(U2, 'V-', 'GND')
+s.net(U2, 'SHDN', '+3V3')
+s.net(R10, '1', 'FREQ_TTL'); s.net(R10, '2', 'FREQ_RAW')
+R11 = A('Device:R', 'R11', '10k', (348, 52), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal'); s.net(R11,'1','+3V3'); s.net(R11,'2','FREQ_BIAS')
+R12 = A('Device:R', 'R12', '10k', (348, 69), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal'); s.net(R12,'1','FREQ_BIAS'); s.net(R12,'2','GND')
+
+# ---------------- Protection comparator (open-drain, wire-AND) ----------------
+U3A = A('Comparator:LM393', 'U3', 'LM393', (394, 150), unit=1, footprint='Package_DIP:DIP-8_W7.62mm')
+U3P = A('Comparator:LM393', 'U3', 'LM393', (450, 194), unit=3, footprint='Package_DIP:DIP-8_W7.62mm')
+R13 = A('Device:R', 'R13', '10k', (348, 140), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+R14 = A('Device:R', 'R14', '10k', (348, 160), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+R15 = A('Device:R', 'R15', '4k7', (428, 135), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+s.net(R13, '1', '+3V3');          s.net(R13, '2', 'SWR_TRIP_REF')
+s.net(R14, '1', 'SWR_TRIP_REF');  s.net(R14, '2', 'GND')
+s.net(U3A, '+', 'SWR_TRIP_REF')
+s.net(U3A, '-', 'V_REF_DET')
+s.net(U3A, '1', 'PERMISSIVE')
+s.net(U3P, 'V+', '+3V3A'); s.net(U3P, 'V-', 'GND')
+s.net(R15, '1', '+3V3'); s.net(R15, '2', 'PERMISSIVE')
+
+# ---------------- Permissive -> POF transmitter ----------------
+Q1  = A('Device:R', 'R16', '150R', (435, 169), footprint='Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal')
+J8  = A('Connector_Generic:Conn_01x02', 'J8', 'POF TX  HFBR-1521', (461, 169), footprint='Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical')
+s.net(Q1, '1', 'PERM_MOD'); s.net(Q1, '2', 'POF_LED_A')
+s.net(J8, 'Pin_1', 'POF_LED_A'); s.net(J8, 'Pin_2', 'GND')
+
+# ---------------- Power ----------------
+# The NUCLEO's own LDO supplies 3V3. A second regulator would create two 3V3
+# rails and a reference mismatch against the ADC; instead filter the module rail
+# into a local analogue rail. Rail variation is already corrected ratiometrically
+# via AD_VREF (Section 6A.6), so absolute accuracy of this rail does not matter.
+J7  = A('Connector_Generic:Conn_01x06', 'J7', 'bulkhead to Control', (51, 200), footprint='Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical')
+FB1 = A('Device:FerriteBead', 'FB1', '600R@100MHz', (102, 200), footprint='Inductor_THT:L_Axial_L11.0mm_D4.5mm_P15.24mm_Horizontal_Fastron_MECC')
+C9  = A('Device:C', 'C9',  '10u',  (123, 208), footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm')
+C10 = A('Device:C', 'C10', '100n', (141, 208), footprint='Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm')
+s.net(J7, 'Pin_1', '+5V');        s.net(J7, 'Pin_2', 'GND')
+s.net(J7, 'Pin_3', 'UART_TX');    s.net(J7, 'Pin_4', 'UART_RX')
+s.net(J7, 'Pin_5', 'PERMISSIVE'); s.net(J7, 'Pin_6', 'GND')
+s.net(FB1, '1', '+3V3'); s.net(FB1, '2', '+3V3A')
+s.net(C9,  '1', '+3V3A'); s.net(C9,  '2', 'GND')
+s.net(C10, '1', '+3V3A'); s.net(C10, '2', 'GND')
+
+# ---------------- MCU ----------------
+A1 = A('MCU_Module:NUCLEO64-F411RE', 'A1', 'NUCLEO64-F411RE', (536, 119))
+s.net(A1, 'PA0',  'FREQ_TTL')     # TIM2_ETR
+s.net(A1, 'PA1',  'V_MAG')        # ADC1_IN1
+s.net(A1, 'PA4',  'V_PHS')        # ADC1_IN4
+s.net(A1, 'PA6',  'V_FWD')        # ADC1_IN6
+s.net(A1, 'PA7',  'V_REF_DET')    # ADC1_IN7
+s.net(A1, 'PB0',  'AD_VREF')      # ADC1_IN8, ratiometric
+s.net(A1, 'PA9',  'UART_TX')      # USART1_TX
+s.net(A1, 'PA10', 'UART_RX')      # USART1_RX
+s.net(A1, 'PB5',  'PERMISSIVE')   # open-drain into wire-AND
+s.net(A1, 'PB6',  'PERM_MOD')     # 10 kHz permissive modulation
+s.net(A1, 'E5V',  '+5V')      # external 5 V in -- set the board jumper accordingly
+s.net(A1, '+3V3', '+3V3')     # module LDO output, feeds FB1 -> +3V3A
+for gpin in ('8', '19', '20', '22', '47', '58', '77', '78', '79', '80'):
+    s.net(A1, gpin, 'GND')
+s.net(A1, '70', 'GND')        # AGND
+s.net(A1, '45', '+3V3A')      # AVDD -- ADC analogue supply, from the filtered rail
+for npin in ('12', '5', '24', '33', '46', '18'):   # IOREF VDD VIN VBAT U5V +5V(out)
+    s.nc(A1, npin)
+
+# ---------------- spare comparator section: tie off, do not leave floating ----------------
+U3B = A('Comparator:LM393', 'U3', 'LM393', (450, 150), unit=2, footprint='Package_DIP:DIP-8_W7.62mm')
+s.net(U3B, '+', 'GND')        # spare section inputs tied so the output is defined
+s.net(U3B, '-', '+3V3')
+s.nc(U3B, '7')                # spare section output deliberately unused
+
+# ---------------- power flags: tell ERC these rails are driven ----------------
+# +3V3 is driven by U5's VO (a power output) -- a PWR_FLAG there would be a
+# second power output on the same net, which is an ERC error. Flag only the
+# rails that arrive passively through the bulkhead connector.
+# +3V3 is generated by the NUCLEO's on-board LDO, which the module symbol models
+# as a power INPUT rather than an output -- so ERC needs a flag to know it is driven.
+for i, (netname, xy) in enumerate((('+5V', (174, 200)), ('GND', (232, 200)),
+                                   ('+3V3', (261, 200)), ('+3V3A', (290, 200)))):
+    f = A('power:PWR_FLAG', f'#FLG{i+1}', 'PWR_FLAG', xy)
+    s.net(f, '1', netname)
+
+# ---------------- ribbon header to the NUCLEO ----------------
+J9 = A('Connector_Generic:Conn_02x10_Odd_Even', 'J9', 'ribbon to NUCLEO',
+       (470, 160), footprint='Connector_IDC:IDC-Header_2x10_P2.54mm_Vertical')
+for pin, net in (('Pin_1','+5V'),   ('Pin_2','GND'),
+                 ('Pin_3','FREQ_TTL'), ('Pin_4','GND'),
+                 ('Pin_5','V_MAG'),    ('Pin_6','GND'),
+                 ('Pin_7','V_PHS'),    ('Pin_8','GND'),
+                 ('Pin_9','V_FWD'),    ('Pin_10','GND'),
+                 ('Pin_11','V_REF_DET'),('Pin_12','GND'),
+                 ('Pin_13','AD_VREF'), ('Pin_14','GND'),
+                 ('Pin_15','PERMISSIVE'),('Pin_16','GND'),
+                 ('Pin_17','PERM_MOD'),('Pin_18','GND'),
+                 ('Pin_19','+3V3'),   ('Pin_20','GND')):
+    s.net(J9, pin, net)
+
+# ---------------- no-connect the unused module pins ----------------
+n_nc = s.nc_rest(A1)
+print(f'  no-connect flags on {n_nc} unused NUCLEO pins')
+
+s.write('measurement.kicad_sch')
+print(f'wrote measurement.kicad_sch: {len(s.comps)} components, {len(s.items)//2} connections')

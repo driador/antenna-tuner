@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1496 1386" font-family="Noto Sans, sans-serif">
+<rect x="26.0" y="26.0" width="1300.48" height="1300.48" fill="#FAFBFB" stroke="#1E2A32" stroke-width="2.5"/>
+<rect x="26.0" y="26.0" width="846.9376000000001" height="1300.48" fill="#F7FAFA"/>
+<text x="449.46880000000004" y="546.192" text-anchor="middle" font-size="15" font-weight="700" fill="#14191A">RF TANK CHAMBER</text>
+<text x="449.46880000000004" y="563.192" text-anchor="middle" font-size="11" fill="#6E797B">10.42&quot; W x 15.87&quot; D</text>
+<text x="449.46880000000004" y="586.192" text-anchor="middle" font-size="10.5" fill="#4A5557">floating sub-deck  8.5 x 13.0</text>
+<text x="449.46880000000004" y="602.192" text-anchor="middle" font-size="10.5" fill="#4A5557">UCSX 1 · Harris roller · UCSX 2</text>
+<text x="449.46880000000004" y="618.192" text-anchor="middle" font-size="10.5" fill="#4A5557">200 pF pad + 10 µH link</text>
+<text x="449.46880000000004" y="634.192" text-anchor="middle" font-size="10.5" fill="#4A5557">4040 ÷1024 prescaler</text>
+<line x1="872.9376000000001" y1="26.0" x2="872.9376000000001" y2="1326.48" stroke="#1E2A32" stroke-width="4"/>
+<rect x="879.5212799999999" y="26.0" width="436.47360000000003" height="301.54879999999997" fill="#F2F7F8" stroke="none"/>
+<text x="1097.75808" y="52.0" text-anchor="middle" font-size="13" font-weight="700" fill="#0C6B7A">CONTROL</text>
+<text x="1097.75808" y="67.0" text-anchor="middle" font-size="9.5" fill="#6E797B">3.71&quot; D</text>
+<text x="1097.75808" y="86.0" text-anchor="middle" font-size="9.5" fill="#4A5557">MCU · ADC · PSU</text>
+<text x="1097.75808" y="100.0" text-anchor="middle" font-size="9.5" fill="#4A5557">freq counter</text>
+<text x="1097.75808" y="114.0" text-anchor="middle" font-size="9.5" fill="#4A5557">display + encoders</text>
+<line x1="872.9376000000001" y1="327.54879999999997" x2="1326.48" y2="327.54879999999997" stroke="#1E2A32" stroke-width="3"/>
+<rect x="879.5212799999999" y="327.54879999999997" width="436.47360000000003" height="406.40000000000003" fill="#F4F4F9" stroke="none"/>
+<text x="1097.75808" y="353.54879999999997" text-anchor="middle" font-size="13" font-weight="700" fill="#4F5B93">SAMPLER</text>
+<text x="1097.75808" y="368.54879999999997" text-anchor="middle" font-size="9.5" fill="#6E797B">5.00&quot; D</text>
+<text x="1097.75808" y="387.54879999999997" text-anchor="middle" font-size="9.5" fill="#4A5557">Stockton coupler</text>
+<text x="1097.75808" y="401.54879999999997" text-anchor="middle" font-size="9.5" fill="#4A5557">1:1 air-core choke</text>
+<text x="1097.75808" y="415.54879999999997" text-anchor="middle" font-size="9.5" fill="#4A5557">detectors + AD8302</text>
+<line x1="872.9376000000001" y1="733.9488" x2="1326.48" y2="733.9488" stroke="#1E2A32" stroke-width="3"/>
+<rect x="879.5212799999999" y="733.9488" width="436.47360000000003" height="568.9599999999999" fill="#FBF7EE" stroke="none"/>
+<text x="1097.75808" y="759.9488" text-anchor="middle" font-size="13" font-weight="700" fill="#8A5D04">MOTOR</text>
+<text x="1097.75808" y="774.9488" text-anchor="middle" font-size="9.5" fill="#6E797B">7.00&quot; D</text>
+<text x="1097.75808" y="793.9488" text-anchor="middle" font-size="9.5" fill="#4A5557">3x NEMA 23</text>
+<text x="1097.75808" y="807.9488" text-anchor="middle" font-size="9.5" fill="#4A5557">absolute encoders</text>
+<text x="1097.75808" y="821.9488" text-anchor="middle" font-size="9.5" fill="#4A5557">limit switches</text>
+<line x1="872.9376000000001" y1="1302.9088000000002" x2="1326.48" y2="1302.9088000000002" stroke="#1E2A32" stroke-width="3"/>
+<line x1="866.9376000000001" y1="876.1887999999999" x2="551.1013120000001" y2="876.1887999999999" stroke="#8A5D04" stroke-width="2" stroke-dasharray="7 4"/>
+<line x1="866.9376000000001" y1="1018.4287999999999" x2="551.1013120000001" y2="1018.4287999999999" stroke="#8A5D04" stroke-width="2" stroke-dasharray="7 4"/>
+<line x1="866.9376000000001" y1="1160.6688" x2="551.1013120000001" y2="1160.6688" stroke="#8A5D04" stroke-width="2" stroke-dasharray="7 4"/>
+<text x="547.1013120000001" y="1310.48" text-anchor="end" font-size="10" fill="#8A5D04">3 × G10 shaft — NO WIRES</text>
+<text x="676.24" y="16.0" text-anchor="middle" font-size="10.5" fill="#6E797B">▲ FRONT PANEL</text>
+<text x="676.24" y="1348.48" text-anchor="middle" font-size="10.5" fill="#6E797B">▼ REAR PANEL — toward entry panel</text>
+<line x1="26.0" y1="1360.48" x2="1326.48" y2="1360.48" stroke="#A8B3B2" stroke-width="1"/>
+<text x="676.24" y="1374.48" text-anchor="middle" font-size="10" fill="#6E797B">16.00&quot;</text>
+<text x="1340.48" y="676.24" font-size="10" fill="#6E797B" transform="rotate(90 1340.48 676.24)" text-anchor="middle">16.00&quot;</text>
+</svg>

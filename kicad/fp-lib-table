@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "tuner")(type "KiCad")(uri "${KIPRJMOD}/tuner.pretty")(options "")(descr ""))
+)

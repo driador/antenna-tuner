@@ -1,0 +1,30 @@
+digraph boot {
+  rankdir=TB; nodesep=0.3; ranksep=0.34;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+  node [shape=box, style="rounded,filled"];
+  p  [shape=circle,label="",width=0.18,fillcolor="#0C6B7A",color="#0C6B7A"];
+  i1 [label="1 · interlock asserts INHIBIT\n(default state)"];
+  i2 [label="2 · self-test\nencoders · limits · detectors"];
+  i3 [label="3 · read persisted fault record", shape=diamond, style=filled,
+      fillcolor="#FBF7EE", color="#8A5D04"];
+  cC [label="class C latched\nFAULT · inhibited\nlocal clear required",
+      fillcolor="#F6DED9", color="#A82E1E"];
+  cB [label="class B unacked\nFAULT · remote ACK permitted",
+      fillcolor="#F7EBCC", color="#8A5D04"];
+  i4 [label="4 · read absolute encoders\ncompare to stored position", shape=diamond,
+      style=filled, fillcolor="#FBF7EE", color="#8A5D04"];
+  ok [label="agree → trust\nno homing cycle"];
+  dis[label="disagree → log + flag\nNOT a fault", fillcolor="#F7EBCC", color="#8A5D04"];
+  i5 [label="5 · release interlock", fillcolor="#DCEBDF", color="#2C6539"];
+  idle [label="IDLE", fillcolor="#DCEBDF", color="#2C6539"];
+  p->i1->i2->i3;
+  i3->cC [label="  latched",color="#A82E1E",fontcolor="#A82E1E"];
+  i3->cB [label="  unacked",color="#8A5D04",fontcolor="#8A5D04"];
+  i3->i4 [label="  nothing latched"];
+  i4->ok [label="  within tolerance"]; i4->dis [label="  mismatch"];
+  ok->i5; dis->i5; i5->idle;
+}

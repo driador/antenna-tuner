@@ -1,0 +1,4 @@
+# Binary deliverables in Git LFS: drawing sheets, the built design log / review, KiCad plots, references
+*.pdf filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text

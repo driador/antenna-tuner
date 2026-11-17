@@ -1,0 +1,16 @@
+digraph e {
+  rankdir=LR; nodesep=0.3; ranksep=0.5;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+
+  rig [label="rig PTT out", fillcolor="#EEF1F0", color="#6E797B"];
+  es  [label="BENCH E-STOP\nnormally closed", fillcolor="#F6DED9", color="#A82E1E"];
+  amp [label="amp keying in", fillcolor="#EEF1F0", color="#6E797B"];
+  note[label="no connection to the tuner\nno link · no power · no firmware",
+       shape=plaintext, fillcolor="transparent", fontcolor="#A82E1E", fontsize=9];
+  rig->es->amp;
+  es->note [style=dotted, color="#A82E1E", arrowhead=none];
+}

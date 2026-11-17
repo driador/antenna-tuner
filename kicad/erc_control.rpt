@@ -1,0 +1,156 @@
+ERC report (2026-10-21T17:54:14, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[footprint_link_issues]: The current configuration does not include the footprint library 'TerminalBlock_Phoenix'
+    ; warning
+    @(30.48 mm, 25.40 mm): Symbol J1 [Conn_01x02]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(30.48 mm, 54.61 mm): Symbol J2 [Conn_01x04]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(30.48 mm, 95.25 mm): Symbol J3 [Conn_01x04]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(30.48 mm, 124.46 mm): Symbol J4 [Conn_01x04]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(30.48 mm, 154.94 mm): Symbol J5 [Conn_01x04]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Capacitor_THT'
+    ; warning
+    @(54.61 mm, 35.56 mm): Symbol C4 [C_Polarized]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Package_TO_SOT_SMD'
+    ; warning
+    @(69.85 mm, 54.61 mm): Symbol U1 [AMS1117-3.3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Regulator_Linear'
+    ; warning
+    @(69.85 mm, 54.61 mm): Symbol U1 [AMS1117-3.3]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(72.39 mm, 149.86 mm): Symbol J7 [Conn_01x08]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(80.01 mm, 95.25 mm): Symbol J6 [Conn_01x08]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Capacitor_THT'
+    ; warning
+    @(90.17 mm, 62.23 mm): Symbol C1 [C]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Capacitor_THT'
+    ; warning
+    @(105.41 mm, 62.23 mm): Symbol C2 [C_Polarized]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(118.11 mm, 93.98 mm): Symbol R1 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(118.11 mm, 118.11 mm): Symbol R2 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(118.11 mm, 142.24 mm): Symbol R3 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(118.11 mm, 166.37 mm): Symbol R4 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(118.11 mm, 190.50 mm): Symbol R5 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(118.11 mm, 214.63 mm): Symbol R6 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Capacitor_THT'
+    ; warning
+    @(119.38 mm, 62.23 mm): Symbol C3 [C]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(139.70 mm, 30.48 mm): Symbol R7 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(139.70 mm, 54.61 mm): Symbol R9 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(139.70 mm, 80.01 mm): Symbol R8 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(139.70 mm, 104.14 mm): Symbol R10 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(139.70 mm, 134.62 mm): Symbol R11 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(139.70 mm, 158.75 mm): Symbol R12 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Package_TO_SOT_THT'
+    ; warning
+    @(165.10 mm, 30.48 mm): Symbol Q1 [IRLZ44N]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Transistor_FET'
+    ; warning
+    @(165.10 mm, 30.48 mm): Symbol Q1 [IRLZ44N]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Package_TO_SOT_THT'
+    ; warning
+    @(165.10 mm, 80.01 mm): Symbol Q2 [IRLZ44N]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Transistor_FET'
+    ; warning
+    @(165.10 mm, 80.01 mm): Symbol Q2 [IRLZ44N]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Package_TO_SOT_THT'
+    ; warning
+    @(165.10 mm, 134.62 mm): Symbol Q3 [IRLZ44N]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Transistor_FET'
+    ; warning
+    @(165.10 mm, 134.62 mm): Symbol Q3 [IRLZ44N]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Diode_THT'
+    ; warning
+    @(190.50 mm, 13.97 mm): Symbol D1 [1N4007]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Diode'
+    ; warning
+    @(190.50 mm, 13.97 mm): Symbol D1 [1N4007]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Diode_THT'
+    ; warning
+    @(190.50 mm, 63.50 mm): Symbol D2 [1N4007]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Diode'
+    ; warning
+    @(190.50 mm, 63.50 mm): Symbol D2 [1N4007]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Diode_THT'
+    ; warning
+    @(190.50 mm, 119.38 mm): Symbol D3 [1N4007]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'Diode'
+    ; warning
+    @(190.50 mm, 119.38 mm): Symbol D3 [1N4007]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(199.39 mm, 129.54 mm): Symbol J10 [Conn_01x04]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_IDC'
+    ; warning
+    @(199.39 mm, 165.10 mm): Symbol J11 [Conn_02x08_Odd_Even]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(209.55 mm, 134.62 mm): Symbol J9 [Conn_01x02]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(214.63 mm, 39.37 mm): Symbol J8 [Conn_01x04]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Resistor_THT'
+    ; warning
+    @(234.95 mm, 180.34 mm): Symbol R13 [R]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Capacitor_THT'
+    ; warning
+    @(251.46 mm, 204.47 mm): Symbol C5 [C]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(255.27 mm, 30.48 mm): Symbol J12 [Conn_01x06]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(255.27 mm, 69.85 mm): Symbol J13 [Conn_01x08]
+[footprint_link_issues]: The current configuration does not include the footprint library 'Connector_PinHeader_2.54mm'
+    ; warning
+    @(255.27 mm, 185.42 mm): Symbol J15 [Conn_01x02]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(279.40 mm, 110.49 mm): Label 'ENC_MOSI'
+[lib_symbol_issues]: The current configuration does not include the symbol library 'tuner'
+    ; warning
+    @(299.72 mm, 110.49 mm): Symbol A1 [Teensy4.1]
+
+ ** ERC messages: 48  Errors 0  Warnings 48
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters

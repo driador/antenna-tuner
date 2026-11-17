@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""Control board, Control chamber -- 1500W Doublet Tuner Rev 3.4.
+
+Scope (Sections 7.1-7.4, 8A, 8B, 8C):
+  - 3x stepper STEP/DIR to external driver modules
+  - 3x absolute encoder on a shared SPI bus
+  - 6x limit switch sense (the HARD cut goes direct to driver EN, Section 7.2)
+  - 2x vacuum relay coil drive, low-side, with flyback
+  - blower drive
+  - POF link to bench: data strand + independent interlock strand (Section 8C.3)
+  - UART and permissive to the measurement board
+  - local panel: display + 2 manual encoders
+  - 24 V in, 5 V via buck module, 3V3 for logic
+
+OFF-BOARD, connectors only: NUCLEO (ribbon), stepper driver modules, POF
+transceivers, 24->5 V buck module, encoders, limit switches, relay coils.
+"""
+from gen_sch import Sch
+
+FP_R   = 'Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal'
+FP_C   = 'Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm'
+FP_CE  = 'Capacitor_THT:CP_Radial_D5.0mm_P2.50mm'
+FP_D   = 'Diode_THT:D_DO-41_SOD81_P7.62mm_Horizontal'
+FP_FET = 'Package_TO_SOT_THT:TO-220-3_Vertical'
+FP_REG = 'Package_TO_SOT_THT:SOT-223-3_TabPin2'
+FP_TB  = 'TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal'
+def hdr(n): return f'Connector_PinHeader_2.54mm:PinHeader_1x{n:02d}_P2.54mm_Vertical'
+FP_IDC = 'Connector_IDC:IDC-Header_2x20-1MP_P2.54mm_Latch6.5mm_Vertical'
+
+s = Sch('Control Board -- Control Chamber', 'tuner')
+A = s.sym
+
+# ================= power =================
+J1 = A('Connector_Generic:Conn_01x02', 'J1', '24V in',      (30, 25),  footprint=FP_TB)
+J2 = A('Connector_Generic:Conn_01x04', 'J2', 'buck 24->5V', (30, 55),  footprint=hdr(4))
+U1 = A('Regulator_Linear:AMS1117-3.3', 'U1', 'AMS1117-3.3', (70, 55),  footprint=FP_REG)
+C1 = A('Device:C',  'C1', '100n', (90, 62), footprint=FP_C)
+C2 = A('Device:C_Polarized', 'C2', '100u', (105, 62), footprint=FP_CE)
+C3 = A('Device:C',  'C3', '100n', (120, 62), footprint=FP_C)
+C4 = A('Device:C_Polarized', 'C4', '220u', (55, 35),  footprint=FP_CE)
+s.net(J1,'Pin_1','+24V');  s.net(J1,'Pin_2','GND')
+s.net(J2,'Pin_1','+24V');  s.net(J2,'Pin_2','GND')
+s.net(J2,'Pin_3','+5V');   s.net(J2,'Pin_4','GND')
+s.net(U1,'VI','+5V');      s.net(U1,'VO','+3V3');  s.net(U1,'GND','GND')
+s.net(C1,'1','+5V');  s.net(C1,'2','GND')
+s.net(C2,'1','+3V3'); s.net(C2,'2','GND')
+s.net(C3,'1','+3V3'); s.net(C3,'2','GND')
+s.net(C4,'1','+24V'); s.net(C4,'2','GND')
+
+# ================= steppers (external driver modules) =================
+for i, (ref, xy) in enumerate((('J3',(30,95)), ('J4',(30,125)), ('J5',(30,155))), start=1):
+    j = A('Connector_Generic:Conn_01x04', ref, f'stepper drv {i}', xy, footprint=hdr(4))
+    s.net(j,'Pin_1',f'STEP{i}'); s.net(j,'Pin_2',f'DIR{i}')
+    s.net(j,'Pin_3','DRV_EN');   s.net(j,'Pin_4','GND')
+
+# ================= encoders: shared SPI =================
+J6 = A('Connector_Generic:Conn_01x08', 'J6', 'encoders SPI', (80, 95), footprint=hdr(8))
+for pin, net in (('Pin_1','+3V3'),('Pin_2','GND'),('Pin_3','ENC_SCK'),('Pin_4','ENC_MISO'),
+                 ('Pin_5','ENC_CS1'),('Pin_6','ENC_CS2'),('Pin_7','ENC_CS3'),('Pin_8','GND')):
+    s.net(J6, pin, net)
+
+# ================= limit switches =================
+# Section 7.2: the limit switch cut is wired DIRECTLY to the driver enable pin.
+# These lines are sense only, so firmware can report which axis tripped.
+J7 = A('Connector_Generic:Conn_01x08', 'J7', 'limit switches', (80, 135), footprint=hdr(8))
+for n in range(1, 7):
+    r = A('Device:R', f'R{n}', '10k', (118, 90 + n*9), footprint=FP_R)
+    s.net(r,'1','+3V3'); s.net(r,'2',f'LIM{n}')
+    s.net(J7, f'Pin_{n}', f'LIM{n}')
+s.net(J7,'Pin_7','GND'); s.net(J7,'Pin_8','GND')
+
+# ================= vacuum relay drive =================
+# Low-side switch, flyback across the coil. Section 5.5 forbids hot switching;
+# sequencing is firmware + the hardware blanking timer, not this stage.
+J8 = A('Connector_Generic:Conn_01x04', 'J8', 'relay coils -> RF tank', (200, 30), footprint=hdr(4))
+for i, (q, d, rg, rp, y) in enumerate(((('Q1'),'D1','R7','R9', 30), (('Q2'),'D2','R8','R10', 60)), start=1):
+    Q = A('Transistor_FET:IRLZ44N', q, 'IRLZ44N', (160, y), footprint=FP_FET)
+    D = A('Diode:1N4007', d, '1N4007', (180, y-12), footprint=FP_D)
+    RG = A('Device:R', rg, '100R', (140, y), footprint=FP_R)
+    RP = A('Device:R', rp, '10k',  (140, y+12), footprint=FP_R)
+    s.net(RG,'1',f'RLY{i}_GATE'); s.net(RG,'2',f'Q{i}_G')
+    s.net(RP,'1',f'Q{i}_G');      s.net(RP,'2','GND')
+    s.net(Q,'G',f'Q{i}_G');       s.net(Q,'S','GND');  s.net(Q,'D',f'RLY{i}_LO')
+    s.net(D,'A',f'RLY{i}_LO');    s.net(D,'K','+24V')
+    s.net(J8, f'Pin_{i*2-1}', '+24V'); s.net(J8, f'Pin_{i*2}', f'RLY{i}_LO')
+
+# ================= blower =================
+Q3 = A('Transistor_FET:IRLZ44N', 'Q3', 'IRLZ44N', (160, 95), footprint=FP_FET)
+D3 = A('Diode:1N4007', 'D3', '1N4007', (180, 83), footprint=FP_D)
+R11 = A('Device:R', 'R11', '100R', (140, 95), footprint=FP_R)
+R12 = A('Device:R', 'R12', '10k',  (140, 107), footprint=FP_R)
+J9  = A('Connector_Generic:Conn_01x02', 'J9', 'blower', (200, 95), footprint=hdr(2))
+s.net(R11,'1','BLOWER_PWM'); s.net(R11,'2','Q3_G')
+s.net(R12,'1','Q3_G');       s.net(R12,'2','GND')
+s.net(Q3,'G','Q3_G'); s.net(Q3,'S','GND'); s.net(Q3,'D','BLOWER_LO')
+s.net(D3,'A','BLOWER_LO'); s.net(D3,'K','+24V')
+s.net(J9,'Pin_1','+24V');  s.net(J9,'Pin_2','BLOWER_LO')
+
+# ================= POF link to the bench =================
+# Two independent strands: data, and the Section 7.4 interlock permissive.
+J10 = A('Connector_Generic:Conn_01x06', 'J10', 'POF to bench', (200, 130), footprint=hdr(6))
+for pin, net in (('Pin_1','+3V3'),('Pin_2','GND'),('Pin_3','POF_TX'),
+                 ('Pin_4','POF_RX'),('Pin_5','INTLK_MOD'),('Pin_6','GND')):
+    s.net(J10, pin, net)
+
+# ================= bulkhead to the measurement board =================
+J11 = A('Connector_Generic:Conn_01x06', 'J11', 'to measurement bd', (200, 165), footprint=hdr(6))
+for pin, net in (('Pin_1','+5V'),('Pin_2','GND'),('Pin_3','MEAS_TX'),
+                 ('Pin_4','MEAS_RX'),('Pin_5','PERMISSIVE'),('Pin_6','GND')):
+    s.net(J11, pin, net)
+
+# ================= sensors from the RF tank =================
+# Interconnect-map crossing #7: rectified in the RF tank, DC only across the wall.
+J12 = A('Connector_Generic:Conn_01x06', 'J12', 'thermal + imbalance CT', (255, 30), footprint=hdr(6))
+for pin, net in (('Pin_1','+3V3'),('Pin_2','GND'),('Pin_3','THERM'),
+                 ('Pin_4','CT_DC'),('Pin_5','GND'),('Pin_6','GND')):
+    s.net(J12, pin, net)
+
+# ================= local panel =================
+J13 = A('Connector_Generic:Conn_01x08', 'J13', 'local panel', (255, 70), footprint=hdr(8))
+# Display and BOTH manual encoders sit behind an I2C expander on the panel
+# itself, so only a bus and an interrupt cross to this board. That also frees
+# four ribbon pins that quadrature lines would otherwise have consumed.
+for pin, net in (('Pin_1','+3V3'),('Pin_2','GND'),('Pin_3','PANEL_SDA'),('Pin_4','PANEL_SCL'),
+                 ('Pin_5','PANEL_INT'),('Pin_6','GND'),('Pin_7','PANEL_RST'),('Pin_8','GND')):
+    s.net(J13, pin, net)
+
+# ================= ribbon to the NUCLEO =================
+J14 = A('Connector_Generic:Conn_02x20_Odd_Even', 'J14', 'ribbon to NUCLEO', (255, 130),
+        footprint=FP_IDC)
+RIB = ['+5V','GND', 'STEP1','DIR1', 'STEP2','DIR2', 'STEP3','DIR3',
+       'DRV_EN','GND', 'ENC_SCK','ENC_MISO', 'ENC_CS1','ENC_CS2', 'ENC_CS3','GND',
+       'LIM1','LIM2', 'LIM3','LIM4', 'LIM5','LIM6', 'RLY1_GATE','RLY2_GATE',
+       'BLOWER_PWM','GND', 'POF_TX','POF_RX', 'INTLK_MOD','GND',
+       'MEAS_TX','MEAS_RX', 'PERMISSIVE','THERM', 'CT_DC','GND',
+       'PANEL_SDA','PANEL_SCL', 'PANEL_INT','PANEL_RST']
+for i, net in enumerate(RIB, start=1):
+    s.net(J14, f'Pin_{i}', net)
+
+# All 40 ribbon ways are now assigned, with 6 grounds interleaved for return
+# paths. Moving the panel to I2C was what made it fit.
+
+# ================= power flags =================
+# +3V3 comes from U1's VO (a power output); flagging it too would be a second
+# power output on one net. Flag only the rails arriving passively.
+for i, (netname, xy) in enumerate((('+24V',(30,185)), ('+5V',(60,185)), ('GND',(90,185)))):
+    f = A('power:PWR_FLAG', f'#FLG{i+1}', 'PWR_FLAG', xy)
+    s.net(f, '1', netname)
+
+s.write('control.kicad_sch')
+print(f'wrote control.kicad_sch: {len(s.comps)} components, {len(s.items)//2} connections')

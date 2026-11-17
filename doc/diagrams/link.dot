@@ -1,0 +1,19 @@
+digraph l {
+  rankdir=LR; nodesep=0.3; ranksep=0.55;
+  graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
+  node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
+         fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
+  edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
+         fontcolor="#4A5557"];
+
+  t   [label="Teensy 4.1"];
+  c   [label="over-SWR comparator\n+ permissive AND"];
+  eth [label="Ethernet\n+ surge arrestor", fillcolor="#F4F4F9", color="#4F5B93"];
+  pof [label="POF strand\n10 kHz permissive", fillcolor="#F7EBCC", color="#8A5D04"];
+  lan [label="LAN", fillcolor="#EEF1F0", color="#6E797B"];
+  br  [label="browser\nany device", fillcolor="#DCEBDF", color="#2C6539"];
+  kb  [label="bench keying box\nno software in this path",
+       fillcolor="#F6DED9", color="#A82E1E"];
+  t->eth->lan->br;
+  c->pof->kb;
+}
