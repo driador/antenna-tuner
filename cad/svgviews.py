@@ -172,15 +172,15 @@ def legend(groups, used):
 # ---------------------------------------------------------------- content
 # populated items: (number, description, part / ref, anchor point)
 ITEMS = [
-    (1, "ROLLER INDUCTOR 34 uH, 5.2 in", "TUNER-L-100", (R.ROLLER_X - 2.0, R.ROLLER_Y, 14.0)),
-    (2, "C1 VACUUM VARIABLE (ENVELOPE)", "15 kV CLASS, 5.1", (R.CAP_X[0], R.CAP_Y, 13.0)),
-    (3, "C2 VACUUM VARIABLE (ENVELOPE)", "UCSX-740-10, 5.1", (R.CAP_X[1], R.CAP_Y, 13.0)),
+    (1, "ROLLER INDUCTOR 34 uH, 5.2 in", "TUNER-L-100", (R.ROLLER_X - 2.0, R.ROLLER_Y, R.Z_DECK_TOP + 5.25)),
+    (2, "C1 VACUUM VARIABLE (ENVELOPE)", "15 kV CLASS, 5.1", (R.CAP_X[0], R.CAP_Y, R.Z_DECK_TOP + 4.25)),
+    (3, "C2 VACUUM VARIABLE (ENVELOPE)", "UCSX-740-10, 5.1", (R.CAP_X[1], R.CAP_Y, R.Z_DECK_TOP + 4.25)),
     (4, "FLOATING DECK + STANDOFFS", "L-109", (4.0, -4.9, R.Z_DECK_TOP)),
     (5, "GROUNDED SHELF", "E-207", (5.5, 5.5, E.Z_SH1)),
     (6, "AXIS MODULE C1 (MOTOR, BRACKET)", "E-209, M-2", (-3.5, -3.25, 2.5)),
     (7, "AXIS MODULE C2", "E-209, M-2", (1.75, -3.25, 2.5)),
     (8, "AXIS MODULE ROLLER", "E-209, M-2", (-1.5, 2.625, 2.5)),
-    (9, "G10 SHAFTS + OLDHAM COUPLERS B", "L-108", (R.ROLLER_X, R.ROLLER_Y, 7.0)),
+    (9, "G10 SHAFTS + OLDHAM COUPLERS B", "L-108", (R.ROLLER_X, R.ROLLER_Y, R.Z_DECK - 1.66)),
     (10, "24 V SUPPLY", "MEAN WELL UHP-200-24", (-5.6, -3.0, 1.8)),
     (11, "CONTROL BOARD (ASSUMED ENVELOPE)", "TEENSY 4.1, DC-DCs", (-6.85, 0.5, 3.0)),
     (12, "DISPLAY", "NEXTION NX4832K035", (-7.6, 3.9, 2.6)),
@@ -188,7 +188,8 @@ ITEMS = [
     (14, "BULKHEAD: J-A, J-B, J-E, FT-C/D/P", "E-208, 7.3a", (E.X_BULK, 4.0, 3.15)),
     (15, "PARTITION: J-S, FT-P, COAX X", "E-208, 7.3a", (E.X_PART, 3.2, 4.3)),
     (16, "DRIVER BOARD (ASSUMED ENVELOPE)", "3 AXES", (0.0, 4.0, 0.8)),
-    (17, "INPUT CHOKE", "6", (5.48, -3.2, 2.6)),
+    (17, "INPUT CHOKE, 5 x FT-240-61, ON G10 MOUNT", "6", (E.CHOKE_X - E.CHOKE_OD / 2, E.CHOKE_Y,
+                                                            E.Z_SH1 + E.CHOKE_SO + E.CHOKE_BASE + E.CHOKE_H / 2)),
     (18, "MEASUREMENT BOARD + COUPLER", "6A, 6B.3a", (3.78, 3.2, 2.0)),
     (19, "K1 / K2 COAX RELAYS", "TOHTSU CX600N-24", (6.2, 3.2, 1.6)),
     (20, "CAL LOAD + THERMOSTAT", "G150N50W4E, F20A085", (4.6, 1.0, 0.5)),
@@ -196,8 +197,8 @@ ITEMS = [
     (22, "IEC INLET", "TE CORCOM 3EGG1-2", (-6.3, 4.6, 0.9)),
     (23, "RJ45 FEEDTHROUGH", "SWITCHCRAFT EHRJ45P5E", (-6.3, 6.15, 1.5)),
     (24, "COAX INPUT SO-239 / AUX N", "83-798 / 82-97", (3.55, -3.9, 0.6)),
-    (25, "BLOWER + GUARD (EXTERIOR)", "DELTA AFB1212VHE-F00", (3.4, 9.0, 17.0)),
-    (26, "INTAKE FILTER + HONEYCOMB", "8", (-3.0, -8.4, 8.25)),
+    (25, "BLOWER + GUARD (EXTERIOR)", "DELTA AFB1212VHE-F00", (3.4, 9.0, E.BLOWER["z"])),
+    (26, "INTAKE FILTER + HONEYCOMB", "8", (-3.0, -8.4, E.INTAKE["z"])),
     (27, "WALL FLANGE (x2)", "E-209", (7.0, 8.1, 10.0)),
     (28, "OUTPUT FEEDTHROUGHS (TOP)", "8D", (E.FT_X, 0.0, E.H - 0.5)),
     (29, "SHELF FEEDTHROUGHS FT1-FT4", "TUSONIX 2499", (1.125, -6.5, E.Z_SH1)),
@@ -206,9 +207,9 @@ ITEMS = [
 ]
 
 VIEW_ITEMS = {   # which balloons each populated view carries
-    "front": [1, 2, 4, 5, 9, 12, 13, 14, 25, 26, 28],
+    "front": [1, 2, 4, 5, 9, 12, 13, 14, 17, 25, 26, 28],
     "left": [1, 5, 6, 7, 8, 10, 14, 15, 17, 18, 19, 21, 27, 29, 30, 31],
-    "plan": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23, 24],
+    "plan": [10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 22, 23, 24],
 }
 
 OPEN_LAYOUT = ("NOT SHOWN: IMBALANCE CT ON THE OUTPUT LEADS AT THE TOP FEEDTHROUGHS, TANK THERMAL PROBE. "

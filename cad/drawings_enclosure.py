@@ -22,7 +22,7 @@ from drawings import (  # noqa: E402
 D.SUBTITLE = "ENCLOSURE - DRAFT"
 D.N_SHEETS = 16
 ENC = json.load(open(os.path.join(OUT, "enclosure.json")))
-DRAFT = "DRAFT - DERIVED FROM DESIGN LOG 3.0 / 4 / 8 / 8D / 8E REV 3.7b. NOT FOR FABRICATION."
+DRAFT = "DRAFT - DERIVED FROM DESIGN LOG 3.0 / 4 / 6 / 8 / 8D / 8E REV 3.7c. NOT FOR FABRICATION."
 UNITS = "DIMENSIONS IN INCHES."
 
 FRONT = ((-1, 0, 0), (0, -1, 0))     # seen from the front: right = -Y
@@ -47,16 +47,18 @@ def sheet_overview(doc):
     iso = vw(doc, page, cut, ISO, 0.14, 345, 175, "Cutaway")
     doc.recompute()
     settle([fr, lf, pl, iso])
-    for v in (fr, lf):
-        overall(doc, page, v, gap=6)
+    # front: width only. Its height pair picked the wall flange's foot (z 1.0) against the box top, reading
+    # H - 1; the left view carries the true overall height
+    overall(doc, page, fr, y=False, gap=6)
+    overall(doc, page, lf, gap=6)
     overall(doc, page, pl, gap=6)
     label(doc, page, "FRONT  1:6.7", 62, 132)
     label(doc, page, "LEFT SIDE (WALL AT LEFT)", 150, 132)
     label(doc, page, "TOP (WALL AT TOP)", 238, 146)
     label(doc, page, "CUTAWAY: RF + LEFT PANELS OFF", 345, 118)
     note(doc, page, [
-        "LAYOUT (REV 3.7a):",
-        "1. VERTICAL STACK 16 W x 16 D x 21 H, REAR FLUSH ON THE WALL ON TWO 2 x 2 L-FLANGES.",
+        "LAYOUT (REV 3.7c):",
+        "1. VERTICAL STACK 16 W x 16 D x 24 H, REAR FLUSH ON THE WALL ON TWO 2 x 2 L-FLANGES.",
         "2. FRONT UPPER: RF BAY SERVICE PANEL. FRONT LOWER: CONTROL CASSETTE FACE + UI;",
         "   THE CASSETTE SLIDES OUT, THEN THE BULKHEAD AND EACH MOTOR AXIS MODULE COME OUT FRONT.",
         "3. TOP (FIXED): TWO >= 10 kV CERAMIC OUTPUT FEEDTHROUGHS, 6.03 APART, NEAR THE WALL.",
@@ -289,9 +291,9 @@ def sheet_small_parts(doc):
         "   AND 1.52 PILOT, FOR THE 23HS22-2804S (M-2). 1.75 TALL: TAKEOFF PULLEY + COUPLER A INSIDE; THE",
         "   ENCODER / LIMIT-CAM MODULE (7.1, 7.2) BOLTS TO THE OPEN SIDE. LOOSEN COUPLER A'S G10 CLAMP, DROP",
         "   AND SLIDE OUT FORWARD. QTY 3.",
-        "3. SAMPLER BASEPLATE: 12 GA, FIXED TO THE FLOOR ON 1/4 SPACERS; CHOKE, COUPLER, MEASUREMENT",
-        "   BOARD, K1/K2 MOUNT TO IT. SERVICED THROUGH THE LEFT LOWER PANEL.",
-        "4. WALL FLANGE: 2 x 2 x 3/16 6061 x 19. ONE LEG BOLTS THROUGH THE SIDE PANEL INTO THE REAR",
+        "3. SAMPLER BASEPLATE: 12 GA, FIXED TO THE FLOOR ON 1/4 SPACERS; COUPLER, MEASUREMENT BOARD,",
+        "   K1/K2 MOUNT TO IT (THE CHOKE IS IN THE RF BAY, REV 3.7c). SERVICED THROUGH THE LEFT LOWER PANEL.",
+        "4. WALL FLANGE: 2 x 2 x 3/16 6061 x 21. ONE LEG BOLTS THROUGH THE SIDE PANEL INTO THE REAR",
         "   POST (3 x 8-32, LONGER SCREWS, SHARED WITH THE PANEL LINE), THE OTHER LIES FLUSH WITH THE",
         "   REAR. 3 SLOTS 0.40 x 0.75 FOR 3/8 LAGS INTO A 3/4 PLYWOOD BACKER ACROSS THE STUDS.",
         DRAFT, UNITS], 322, 118, 2.3)
@@ -394,7 +396,7 @@ def sheet_populated(doc):
     table(doc, page, "PopItems", rows, (10, 66, 46), 349, 168, size=6.2, row_px=13)
     note(doc, page, ["NOTES:",
         "1. " + SV.get("open_layout", ""),
-        "2. ENVELOPES: CONTROL BOARD, DRIVER BOARD, C1 / C2 (REFERENCE), CHOKE, RELAYS. HARNESS: E-213 / E-214, WIRE LIST E-215.",
+        "2. ENVELOPES: CONTROL BOARD, DRIVER BOARD, C1 / C2 (REFERENCE), CHOKE + G10 MOUNT (RF BAY), RELAYS. HARNESS: E-213 / E-214, WIRE LIST E-215.",
         "3. HIDDEN LINES OMITTED. GENERATED FROM enclosure.py + svgviews.py; INTERFERENCE-CHECKED WITH PLUG ENVELOPES AND RUNS.",
         DRAFT], 128, 64, 2.1)
 

@@ -2,7 +2,7 @@
 
 KF0OWR's homebuilt 1500 W remote balanced tuner for a doublet on 160–10 m. It uses a 34 µH
 roller inductor, two vacuum capacitors and Tohtsu relays, and sits in a wall-mounted
-16 × 16 × 22″ cabinet. The design log is the source of truth. Everything else in this repo
+16 × 16 × 24″ cabinet. The design log is the source of truth. Everything else in this repo
 (CAD, drawings, NEC models, KiCad boards) supports it, and the log cites these files by their
 repo paths.
 

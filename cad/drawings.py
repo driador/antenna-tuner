@@ -197,7 +197,7 @@ def load(doc, path):
     return obj
 
 
-DRAFT = "DRAFT - DERIVED FROM DESIGN LOG 5.3a REV 3.7b. NOT FOR FABRICATION."
+DRAFT = "DRAFT - DERIVED FROM DESIGN LOG 5.3a REV 3.7c. NOT FOR FABRICATION."
 UNITS = "DIMENSIONS IN INCHES. BREAK SHARP EDGES 0.01 UNLESS NOTED."
 
 
@@ -817,7 +817,7 @@ def sheet_install(doc):
     page = new_page(doc, "S109", "ROLLER INSTALLATION IN THE RF BAY", "TUNER-L-109", 10)
     sec_src = load(doc, "install-section.step")
     plan_src = load(doc, "install-plan.step")
-    sec = view(doc, page, sec_src, (0, -1, 0), 0.25, 76, 158, "InstallSection", (1, 0, 0))
+    sec = view(doc, page, sec_src, (0, -1, 0), 0.25, 76, 167, "InstallSection", (1, 0, 0))   # 24" box: clear the label
     hff = overlay(doc, page, sec, "hatch-ff.step", "HatchFF")
     plan = view(doc, page, plan_src, (0, 0, 1), 0.2, 192, 205, "InstallPlan", (1, 0, 0))
     doc.recompute()
@@ -834,9 +834,9 @@ def sheet_install(doc):
     g.Direction = sec.Direction
     g.XDirection = sec.XDirection
     g.AnchorPoint = App.Vector(P["ROLLER_X"] * IN, (zmid - zc) * IN, 0)
-    g.Radius = 2.6 * IN
+    g.Radius = ((P["Z_DECK"] - P["Z_SHELF"]) / 2 + 0.7) * IN     # spans shelf and deck (3.49 at 5.50 standoffs)
     g.ScaleType = "Custom"
-    g.Scale = 0.45
+    g.Scale = 0.35
     g.Reference = "G"
     g.X, g.Y = 330, 215
     hg = overlay(doc, page, g, "hatch-ff-G.step", "HatchG")
@@ -844,7 +844,7 @@ def sheet_install(doc):
     settle([g, hg, hff], timeout=120)
     note(doc, page, ["SECTION F-F (ROLLER AXIS)  1:4", "FRONT AT LEFT"], 80, 66, 4)
     label(doc, page, "PLAN, TOP OFF, FRONT AT LEFT  1:5", 192, 146)
-    label(doc, page, "DETAIL G - DECK / COUPLER B / SHELF  0.45:1", 330, 180)
+    label(doc, page, "DETAIL G - DECK / COUPLER B / SHELF  0.35:1", 330, 180)
     rows = [("PART", "TAG", "DIA", "X FROM FRONT", "Y FROM RIGHT*", "NOTE")]
     for part, tag_, d, x, y, n in META["install_holes"]:
         rows.append((part, tag_, f"{d:.3f}", f"{x:.3f}", f"{y:.3f}", n))
@@ -857,8 +857,9 @@ def sheet_install(doc):
         "2. DATUMS: DECK FRONT + RIGHT EDGES; SHELF INSIDE FRONT + RIGHT WALLS.",
         "   *RIGHT = FACING THE FRONT.",
         "3. ISOLATION: THE BRASS SHAFT (DECK POTENTIAL) ENDS ABOVE THE GROUNDED SHELF; ONLY THE",
-        "   G10 SHAFT CROSSES IT (7.1). CREEPAGE TIP-TO-SHELF 2.37 vs 2.0 MIN: SET BY HOW FAR THE",
-        "   BRASS STUB HANGS BELOW THE DECK, SO KEEP IT SHORT (0.65 BELOW THE THRUST COLLAR).",
+        "   G10 SHAFT CROSSES IT (7.1). CREEPAGE TIP-TO-SHELF "
+        f"{META['install']['SHAFT TIP TO SHELF (CREEPAGE ALONG OLDHAM + G10)']:.2f} vs 2.0 MIN (5.50 STANDOFFS,",
+        "   REV 3.7c); KEEP THE BRASS STUB SHORT ANYWAY (0.65 BELOW THE THRUST COLLAR).",
         "4. WINDING SHOWN AS RINGS; C1/C2 ARE REFERENCE ENVELOPES. MOTOR PER DECISION M-2.",
         DRAFT, UNITS,
     ], 346, 94, 2.1)

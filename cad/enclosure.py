@@ -24,7 +24,7 @@ OUT = R.OUT
 
 # ---- envelope and sheet stock (§3.0, §4) ----
 W = D = R.ENC                                    # 16.00 x 16.00
-H = R.ENC_H                                      # 21.00
+H = R.ENC_H                                      # 24.00 (Rev 3.7c)
 T14, T12 = 0.064, 0.081                          # 5052-H32 14 ga walls, 12 ga floor / top / shelf / partitions
 F = W / 2 - T14                                  # frame outer corner, inside the 14 ga walls (7.936)
 ANG, ANG_T = 1.0, 0.125                          # 1 x 1 x 1/8 6061-T6 angle
@@ -99,12 +99,14 @@ FT_X, FT_SPACING, FT_HOLE = 5.0, 6.03, 1.00      # FT hole ASSUMED for a >= 10 k
 FT_Y = (-FT_SPACING / 2, FT_SPACING / 2)
 
 # ---- RF bay air path (§8 Rev 3.7a: intake low-front on the right, exhaust high-rear on the left) ----
-INTAKE = dict(x=-3.0, z=8.25, w=8.0, h=4.0)      # right (-Y) upper side panel, honeycomb + filter
-BLOWER = dict(x=3.40, z=17.00, hole=4.57, pitch=4.134, screw=0.18)   # 120 mm, left (+Y) upper side
+# intake straddles the deck (0.41 above its underside) so air sweeps under it past the choke and over it;
+# the blower stays 5.0 below the top. Both follow the deck / box height (Rev 3.7c: +2.0)
+INTAKE = dict(x=-3.0, z=R.Z_DECK - 0.41, w=8.0, h=4.0)      # right (-Y) upper side panel, honeycomb + filter
+BLOWER = dict(x=3.40, z=H - 5.0, hole=4.57, pitch=4.134, screw=0.18)   # 120 mm, left (+Y) upper side
 
 # ---- wall flanges (L-brackets on the two rear corners) ----
-WF_LEG, WF_T, WF_Z = 2.0, 0.1875, (1.0, 20.0)   # 2 x 2 x 3/16 6061 angle, 19" long
-WF_SLOTS = (2.5, 10.5, 18.5)                     # lag slots up the wall leg (Z)
+WF_LEG, WF_T, WF_Z = 2.0, 0.1875, (1.0, H - 2.0)   # 2 x 2 x 3/16 6061 angle, H - 3 long (21" at 24")
+WF_SLOTS = (2.5, H / 2 - 0.5, H - 3.5)           # lag slots up the wall leg (Z)
 
 
 def angle(origin, u, v, length, axis, a=ANG, b=ANG, t=ANG_T):
@@ -305,7 +307,7 @@ E1 = W / 2 - (F - ANG / 2)                       # 0.564: fastener line on a 1" 
 SIDE_E = ANG / 2                                 # side panels end at the frame corner: 0.500
 V_SPLIT_UP = Z_SH1 + ANG / 2 - Z_SPLIT           # upper panels' bottom row, on the upper shelf ring
 V_SPLIT_LO = Z_SPLIT - (Z_SH0 - ANG / 2)         # lower panels' top row, on the lower shelf ring
-FLANGE_Z = (3.0, 10.5, 18.0)                     # wall-flange bolts through the rear posts
+FLANGE_Z = (3.0, H / 2 - 0.5, H - 4.0)           # wall-flange bolts through the rear posts
 
 
 def panels():
@@ -416,6 +418,10 @@ def shelf_holes():
     s = R.DECK_SIZE / 2 - 0.5
     for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
         rows.append((f"S{i + 1}", sx * s, sy * s, 0.201, "DECK STANDOFF, #10 SCREW FROM BELOW"))
+    for i in range(3):                               # input choke mount (6, Rev 3.7c)
+        a = math.radians(90 + 120 * i)
+        rows.append((f"CH{i + 1}", CHOKE_X + CHOKE_BC / 2 * math.cos(a), CHOKE_Y + CHOKE_BC / 2 * math.sin(a), 0.177,
+                     "CHOKE MOUNT: G10 STANDOFF, 8-32 SCREW FROM BELOW"))
     return rows
 
 
@@ -474,13 +480,44 @@ def sampler():
             _kind, wy, dx, _h = FLOOR_BODY[t]
             base -= plate(x - dx / 2 - 0.15, x + dx / 2 + 0.15, y - wy / 2 - 0.15, y + wy / 2 + 0.15, 0, 1)
     zb = Z_FLOOR + 0.25 + T12
-    # input choke (Rev 3.7b, design C): 3.3" former, 39 t RG-142B close-wound -> 3.69" OD x ~8.1" with end caps,
-    # centered between baseplate and shelf for 0.49" clearance to each (its deck end runs at kV RF)
-    choke = Pos((x0 + x1) / 2, CHOKE_Y, zb + 0.49 + CHOKE_OD / 2) * Rot(90, 0, 0) * Cylinder(CHOKE_OD / 2, CHOKE_LEN)
+    # (the input choke left this chamber in Rev 3.7c: its deck side must not cross grounded bulkheads, see choke())
     meas = plate(x0 + 0.3, x0 + 0.9, 1.2, 5.2, zb + 0.2, zb + 3.2)
     relays = [plate(x1 - 2.6, x1 - 0.6, y0, y0 + 2.0, zb, zb + 2.3) for y0 in (1.0, 3.4)]
-    return [("sampler baseplate", base), ("choke envelope", choke), ("measurement board envelope", meas),
+    return [("sampler baseplate", base), ("measurement board envelope", meas),
             ("K1 envelope", relays[0]), ("K2 envelope", relays[1])]
+
+
+def choke():
+    """Input choke (§6, Rev 3.7c) on its all-insulating mount, in the RF bay under the deck at the shelf crossing.
+
+    Three G10 standoffs (8-32 up through the shelf) carry a G10 base disc; the winding's bottom crossings sit on a
+    silicone pad; a 1/2-13 FRP rod through the open bore center and a G10 spider over the top crossings clamp it."""
+    out = []
+    z = Z_SH1
+    for i in range(3):
+        a = math.radians(90 + 120 * i)
+        out.append(("choke standoff", Pos(CHOKE_X + CHOKE_BC / 2 * math.cos(a), CHOKE_Y + CHOKE_BC / 2 * math.sin(a), z)
+                    * rod(0.375, CHOKE_SO)))
+    rod_d, nut_d = CHOKE_ROD
+    z_bot_nut = z + CHOKE_SO - CHOKE_NUT
+    z += CHOKE_SO
+    base = Pos(CHOKE_X, CHOKE_Y, z) * rod(CHOKE_BASE_D, CHOKE_BASE)
+    for i in range(6):                              # vent holes inside the open bore center
+        a = math.radians(30 + 60 * i)
+        base -= Pos(CHOKE_X + 0.36 * math.cos(a), CHOKE_Y + 0.36 * math.sin(a), 0) * Cylinder(0.075, 60)
+    out.append(("choke base", base - Pos(CHOKE_X, CHOKE_Y, 0) * Cylinder(rod_d / 2 + 0.01, 60)))
+    z += CHOKE_BASE + CHOKE_PAD
+    winding = Pos(CHOKE_X, CHOKE_Y, z) * (rod(CHOKE_OD, CHOKE_H) - Pos(0, 0, -0.01) * rod(CHOKE_BORE, CHOKE_H + 0.02))
+    out.append(("choke winding envelope", winding))
+    z += CHOKE_H + CHOKE_PAD
+    spider = Pos(CHOKE_X, CHOKE_Y, z) * rod(CHOKE_SPIDER[0], CHOKE_SPIDER[1])
+    out.append(("choke spider", spider - Pos(CHOKE_X, CHOKE_Y, 0) * Cylinder(rod_d / 2 + 0.01, 60)))
+    z += CHOKE_SPIDER[1]
+    nut = rod(nut_d, CHOKE_NUT) - Pos(0, 0, -0.01) * rod(rod_d + 0.002, CHOKE_NUT + 0.02)
+    out.append(("choke nut", Pos(CHOKE_X, CHOKE_Y, z) * nut))
+    out.append(("choke nut", Pos(CHOKE_X, CHOKE_Y, z_bot_nut) * nut))
+    out.append(("choke rod", Pos(CHOKE_X, CHOKE_Y, z_bot_nut) * rod(rod_d, z + CHOKE_NUT - z_bot_nut)))
+    return out
 
 
 def wall_flanges():
@@ -492,7 +529,7 @@ def wall_flanges():
         # wall plane, flush with the rear panel and reaching past the side for the lag slots
         for z in WF_SLOTS:
             ang -= Pos(W / 2 - WF_T / 2, sy * (W / 2 + WF_LEG * 0.6), z) * Box(1, 0.40, 0.75)
-        for z in (3.0, 10.5, 18.0):
+        for z in FLANGE_Z:
             ang -= Pos(W / 2 - 0.55, sy * W / 2, z) * Rot(90, 0, 0) * Cylinder(0.105, 1)
         out.append(("wall flange", ang))
     return out
@@ -511,10 +548,19 @@ def internals():
         bush = Pos(x, y, R.Z_SHELF) * rod(R.BUSHING_OD, R.SHELF_T) + \
             Pos(x, y, R.Z_SHELF + R.SHELF_T) * rod(R.BUSHING_FLANGE[0], R.BUSHING_FLANGE[1])
         keep.append((f"{tag} bushing", bush - Pos(x, y, 0) * rod(R.G10_D + 0.002, 60)))
-    return keep
+    return keep + choke()
 
 
-CHOKE_OD, CHOKE_LEN, CHOKE_Y = 3.69, 8.1, -3.1   # §6 design C; Y = axis center (ends -7.15 / +0.95)
+# input choke, Rev 3.7c (§6): 15 t RG-400 on 5 x FT-240-61, axis vertical, under the deck near the shelf coax
+CHOKE_X, CHOKE_Y = -1.5, -1.0
+CHOKE_TURNS, CHOKE_CORES = 15, 5
+CHOKE_OD, CHOKE_H = 2.81, 3.47                   # winding envelope: core OD + 2 coax + tape; worst-case height
+CHOKE_BORE = 0.96                                # open center left by one layer of turns (worst-case bore)
+CHOKE_TURN_LEN = 2 * CHOKE_CORES * 0.5 + math.pi * (0.501 + 0.195)   # in per turn: core stack + arcs over the faces
+CHOKE_SO, CHOKE_BASE, CHOKE_PAD = 0.625, 0.25, 0.0625   # G10 standoffs, G10 base disc, silicone pads
+CHOKE_BASE_D, CHOKE_BC = 3.40, 2.60              # base disc, standoff bolt circle
+CHOKE_SPIDER = (2.60, 0.125)                     # G10 three-arm spider, modeled as its disc envelope
+CHOKE_ROD, CHOKE_NUT = (0.50, 0.85), 0.44        # FRP 1/2-13 rod dia, nut across corners; nut height
 FLOOR_BODY = {  # inside body above the floor per FLOOR_IO tag: (kind, w_y, d_x, h) incl. mating plug / tail zone
     "A": ("box", 1.14, 1.30, 1.50),   # IEC body 29 x 33 mm + quick-connect tabs - ASSUMED depth
     "B": ("box", 1.00, 1.00, 2.40),   # RJ45 coupler + patch-cord plug from above

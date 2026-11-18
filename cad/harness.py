@@ -33,6 +33,12 @@ GROUPS = {
 XB0, XB1 = E.X_BULK, E.X_BULK + E.T12          # bulkhead faces
 XP0, XP1 = E.X_PART, E.X_PART + E.T12          # partition faces
 SERVICE = 6.0                                   # service loop on runs to the sliding cassette
+# input choke (Rev 3.7c): W18 is one RG-400 piece, shelf bulkhead -> 15 t on the stack -> C1; the wound part is
+# represented by the choke's own envelope, so its length is added to the cut list separately
+CH_Z0 = E.Z_SH1 + E.CHOKE_SO + E.CHOKE_BASE + E.CHOKE_PAD          # winding bottom
+CH_Z1 = CH_Z0 + E.CHOKE_H                                           # winding top
+CH_XE = E.CHOKE_X - E.CHOKE_OD / 2 + 0.05                           # lead entry / exit at the winding gap
+WOUND = {"W18": E.CHOKE_TURNS * E.CHOKE_TURN_LEN}
 
 # (id, group, from, to, cable, conductors, cassette?, [waypoints], bundle dia, endpoint parts to ignore)
 RUNS = [
@@ -92,16 +98,17 @@ RUNS = [
      ("floor G body", "measurement board envelope")),
     ("W14", "coax", "Sampler / coupler", "K1 COM", "RG-393", 1, False,
      [(4.1, 1.6, 2.0), (5.15, 1.6, 1.6)], 0.40, ("measurement board envelope", "K1 envelope")),
-    ("W15", "coax", "K1 NC", "Choke input (+Y end)", "RG-393", 1, False,
-     [(6.2, 0.95, 1.6), (5.48, 1.05, 2.75)], 0.40, ("K1 envelope", "choke envelope")),
-    ("W16", "coax", "Choke output (-Y end)", "Partition adapter X (sampler side)", "RG-393", 1, False,
-     [(5.48, -7.3, 2.75), (3.75, -7.3, 2.75), (3.75, -6.3, 4.4)], 0.40,
-     ("choke envelope", "partition X harness envelope")),
+    # W16 deleted Rev 3.7c: the choke left the sampler chamber, so K1 NC runs straight to adapter X (all chassis side)
+    ("W15", "coax", "K1 NC", "Partition adapter X (sampler side)", "RG-393", 1, False,
+     [(6.2, 0.95, 1.6), (5.48, 0.95, 2.75), (5.48, -7.3, 2.75), (3.75, -7.3, 2.75), (3.75, -6.3, 4.4)], 0.40,
+     ("K1 envelope", "partition X harness envelope")),
     ("W17", "coax", "Partition adapter X (motor side)", "Shelf COAX bulkhead (underside)", "RG-393", 1, False,
      [(2.85, -6.3, 4.4), (2.55, -6.3, 4.4), (2.55, -5.9, 0.75), (-4.0, -5.9, 0.75), (-4.0, -0.85, 0.75),
       (-4.0, -0.85, 4.95)], 0.40, ("partition X plug envelope",)),
-    ("W18", "coax", "Shelf COAX (top)", "C1 lower terminal", "RG-393, shield floats at the deck", 1, False,
-     [(-4.0, -0.85, 5.3), (-4.0, -0.85, 8.1), (-3.6, -1.5, 8.4)], 0.40, ("cap envelope",)),
+    ("W18", "coax", "Shelf COAX (top)", "C1 lower terminal",
+     "RG-400, 15 t on the input choke (6); shield floats at the deck after the choke", 1, False,
+     [(-4.0, -0.85, 5.3), (-4.0, -0.85, 5.85), (CH_XE, -1.0, CH_Z0 + 0.1), (CH_XE, -1.0, CH_Z1 - 0.1),
+      (-3.45, -1.35, R.Z_DECK - 0.55), (-3.6, -1.5, R.Z_DECK - 0.26)], 0.20, ("cap envelope", "choke")),
     ("W19", "coax", "K1 NO", "K2 COM", "RG-393 jumper", 1, False,
      [(6.2, 3.0, 1.6), (6.2, 3.4, 1.6)], 0.40, ("K1 envelope", "K2 envelope")),
     ("W20", "coax", "K2 NC", "AUX N (floor H)", "RG-393", 1, False,
@@ -117,7 +124,7 @@ RUNS = [
      [(-5.15, 4.25, 0.3), (-5.15, 4.25, 1.0), (-6.4, 3.0, 1.0), (-6.45, 3.0, 1.2)], 0.15,
      ("floor C body", "control board envelope")),
     ("W24", "fan", "Blower (exterior, left upper)", "DE-9 at the left lower panel", "3-cond in flex conduit", 3, False,
-     [(3.4, 9.7, 15.0), (3.4, 8.4, 14.6), (3.4, 8.4, 3.6), (-6.0, 8.4, 3.6)], 0.35,
+     [(3.4, 9.7, E.BLOWER["z"] - 2.0), (3.4, 8.4, E.BLOWER["z"] - 2.4), (3.4, 8.4, 3.6), (-6.0, 8.4, 3.6)], 0.35,
      ("blower", "fan entry plug envelope")),
     ("W25", "fan", "DE-9 (inside)", "Control board (12 V DC-DC, tach)", "22 AWG x 3", 3, True,
      [(-6.0, 7.3, 3.6), (-6.6, 3.4, 4.2)], 0.22, ("fan entry harness envelope", "control board envelope")),
@@ -157,7 +164,7 @@ def bundle(pts, d):
 def cut_list():
     rows = []
     for rid, grp, frm, to, cable, n, cas, pts, _d, _ign in RUNS:
-        L = length(pts) * 1.15 + (SERVICE if cas else 0)
+        L = length(pts) * 1.15 + (SERVICE if cas else 0) + WOUND.get(rid, 0)
         rows.append(dict(id=rid, group=grp, frm=frm, to=to, cable=cable, n=n, cassette=cas,
                          length_in=round(L, 1)))
     return rows

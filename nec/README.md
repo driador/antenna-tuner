@@ -10,6 +10,10 @@ Built from https://github.com/tmolteno/necpp (CMake, Release). Self-tests: 708/7
 - `tune_time.py`      — tuning-time estimate (M-2 A/B, stored profile vs cold tune vs in-band)
 - `choke_vna.py`      — NEC model of the Guanella choke's common mode (shield helix between grounded baseplate
                         and shelf); `python3 choke_vna.py NAME FORMER TURNS PITCH GAP_BELOW GAP_ABOVE` runs one design
+- `choke_split.py`    — first #61 ferrite-section screen (Fair-Rite complex µ in `data/`); `N_TURNS N_CORES C_W_pF`
+- `choke_screen.py`   — physically constrained #61 choke screen (Rev 3.7c: 15 t RG-400 on 5 x FT-240-61 at 5.5"
+                        standoffs): bore fill, face bend, stack height, cost, |Z| vs the deck's reactance, large-signal
+                        core loss, coax loss, RF-bay budget and the §1.7.1 160 m limits; output `out/choke_screen_rev37c.txt`
 - `run_nec.py`        — deck generator + runner + parser; `python3 run_nec.py` reruns convergence
 - `doublet_170ft_*.nec/.out` — sample deck and raw NEC output
 

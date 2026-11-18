@@ -473,13 +473,13 @@ ITEMS = {
 # Enclosure frame: X = depth (front -), Y = width, Z = up from the underside of the floor.
 ENC = 16.00
 WALL_T, FLOOR_T, SHELF_T, LID_T = 0.064, 0.081, 0.081, 0.081   # top is 12 ga (carries the output feedthroughs)
-UTILITY_H, STANDOFF_H = 5.00, 3.50
+UTILITY_H, STANDOFF_H = 5.00, 5.50             # standoffs +2.0 Rev 3.7c: the input choke stands under the deck
 DECK_SIZE = 10.75
 BAY_IN = ENC - 2 * WALL_T                       # 15.87 interior
 Z_SHELF = FLOOR_T + UTILITY_H                   # shelf underside
 Z_DECK = Z_SHELF + SHELF_T + STANDOFF_H         # deck underside
 Z_DECK_TOP = Z_DECK + DECK_T
-ENC_H = 22.00                                   # +1.0 for the 22-turn roller (Rev 3.7a)
+ENC_H = 24.00                                   # +1.0 for the 22-turn roller (Rev 3.7a), +2.0 deck raise (Rev 3.7c)
 Z_LID = ENC_H - LID_T                           # lid underside
 CAP_D, CAP_H = 3.75, 8.6                        # C1/C2 reference envelopes above the deck (§3.0)
 CAP_Y = -DECK_SIZE / 2 + CAP_D / 2              # cap column across the width (at the deck edge: 3.75 + 1.5 + 5.5 = 10.75)

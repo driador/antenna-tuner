@@ -1,5 +1,5 @@
 # 1500W Automated Antenna Tuner — Design Log
-### Revision 3.7b — Vertical-Stack Architecture · Measured Parts · All-Band Band-Edge Basis
+### Revision 3.7c — Vertical-Stack Architecture · Measured Parts · All-Band Band-Edge Basis
 
 **Revision history**
 - **Rev 1** — initial spec. Correct on materials/welding, chamber-crossing discipline, relay sequencing.
@@ -52,6 +52,47 @@
 - **Rev 3.7b (2026-11-16)** — **superseded material moved to the new Section 11**, so the body states
   only the current design. DECISION R-1 = C with a **single 34 µH homebuilt roller**; **output pad and
   series link deleted** (no vacuum relays in the RF tank); box **22.00″ H**. See *Changes in Rev 3.7b*.
+- **Rev 3.7c (2026-11-17)** — **input choke rebuilt on #61 ferrite and moved into the RF bay**, under a
+  deck raised 2.00″; box **24.00″ H**. Fixes a routing error that grounded the choke's deck side. See
+  *Changes in Rev 3.7c*.
+
+**Changes in Rev 3.7c**
+1. **Routing error fixed.** Through Rev 3.7b the choke sat in the sampler chamber, and its deck-side
+   coax crossed two grounded connectors before reaching C1: partition adapter X and the shelf coax
+   bulkhead (§7.3a; harness W16–W18). Both bodies bond to chassis, so the shield after the choke was
+   grounded twice. The choke was bypassed and the deck could not float. The choke now stands at the
+   shelf crossing: the shelf bulkhead is its chassis end, everything upstream (K1 → X → shelf) is
+   chassis side, and its deck end goes straight to C1 (§3.0, §6, §7.3a).
+2. **#61 ferrite choke replaces air-core design C** (§6). Design C's ~36 ft of RG-142B carries the
+   full input power: its coax loss is **40–232 W** (160 m derated to 10 m), all inside the sealed
+   sampler chamber. The new choke is **15 turns of RG-400 on 5 × Fair-Rite 5961003801 (FT-240-61)**:
+   9.6 ft of coax, axis vertical, on an all-insulating G10 / FRP mount. |Z| is 2.4 kΩ at 1.8 MHz
+   (4.5× design C) and exceeds the deck's reactance from 80 m up. It dissipates ≤ 69 W on 10 m and
+   ~10 W on 160 m (`nec/choke_screen.py`). Design C and the "no ferrite in the high-stress path"
+   argument move to §11.11.
+3. **Deck raised 2.00″: standoffs 3.50″ → 5.50″, box 22.00″ → 24.00″** (§3.0, §3.2). A 4-core stack
+   with the coax arcing over its faces is 2.95″ tall and did not fit the 2.50″ left under a 3.50″
+   deck; the 5-core stack is 3.47″ and keeps 0.94″ to the shelf and 1.09″ to the deck. Everything
+   above the deck keeps its clearances. Deck capacitance falls to ≈ 20.1 pF (§2.2); roller shaft
+   creepage to the shelf rises to 4.37″ (§9 item 37); the longest G10 free span is 5.1″ (§3.1).
+4. **The RF bay's 200 W budget now carries the choke** (§8): 160 m continuous limits **502 / 600 /
+   882 W** (were 527 / 630 / 935 W, §1.7.1). Every other band stays at 1500 W (worst RF-bay total
+   166 W at 4.00 MHz).
+5. **Drawings regenerated:**
+   - TUNER-L-100 to L-109. On L-109: 5.50″ standoffs, and detail G re-scaled to 0.35:1 to span the
+     taller gap.
+   - TUNER-E-200 to E-215:
+     - 24″ panels, frame and wall flanges;
+     - the choke and its mount in the populated views;
+     - shelf holes CH1–CH3;
+     - W15 runs straight to X, W16 is deleted, and W18 is the choke's RG-400;
+     - the E-200 front-view height dimension is fixed (it read the flange foot, H − 1).
+   - The intake and blower move up with the deck and box (§8).
+6. **§9:**
+   - Items 3, 28–31, 37, 45 and 46 updated.
+   - New item **49:** verify the choke installed (VNA sweep, 10 m key-down thermal).
+   - New item **50:** the antenna system's common-mode impedance, which sets how balanced 160 / 80 m
+     really is.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -206,8 +247,9 @@ At ~1100 W the margins improve meaningfully: the worst-case C1 margin goes from
 feedthroughs sit at **2.79×**.
 
 **The 160 m derate table in 1.7.1 does not change** — those limits are set by the 200 W dissipation
-budget, not by amplifier capability. At ~1100 W the amp **cannot reach** the 1.950–2.000 MHz limit
-(1325 W), so in practice **1.800–1.950 MHz** is constrained (≈ 530 W and 840 W; §9 item 45).
+budget, not by amplifier capability. At ~1100 W the amp **exceeds all three 160 m limits**
+(≈ 502 / 600 / 882 W since Rev 3.7c, with the input choke's heat in the RF bay; §1.7.1), so the
+whole band is power-limited for key-down modes.
 
 ### 1.4 Feeder length — ~40 ft, and make the last foot adjustable
 
@@ -310,6 +352,10 @@ Q = 150), while the smallest workable L is lower loss (~17 W) — firmware shoul
 **The loss is confined to 160 m, and specifically its bottom end.** Every other band edge stays
 under 140 W even at Q = 150. The 200 W figure was broadly right — but wrong where it matters.
 
+*Rev 3.7c: the input choke adds its own loss ahead of the network (§6) — mostly RG-400 coax loss:
+≈ 0.03 dB on 160 m rising to ≈ 0.2 dB (69 W of 1500 W) on 10 m. It is not in the table above, but it
+is in the RF-bay budget (§1.7.1, §8).*
+
 **Why 160 m is expensive.** At 1.800 MHz the antenna is 0.64 half-waves — electrically short, so
 radiation resistance is low and the feeder presents R_in ≈ 8.9 Ω with −j226 of reactance. Matching
 that to 50 Ω demands Q_loaded ≈ 15.6, which puts **18.4 A through the roller** and kilovolts across
@@ -326,10 +372,15 @@ Loss scales linearly with power, so for a **200 W internal dissipation budget**:
 
 | Band segment | Continuous power limit |
 |:--|--:|
-| **160 m, 1.800–1.850 MHz** | **≈ 527 W** |
-| **160 m, 1.850–1.950 MHz** | **≈ 630 W** |
-| **160 m, 1.950–2.000 MHz** | **≈ 935 W** |
+| **160 m, 1.800–1.850 MHz** | **≈ 502 W** |
+| **160 m, 1.850–1.950 MHz** | **≈ 600 W** |
+| **160 m, 1.950–2.000 MHz** | **≈ 882 W** |
 | **All other bands** | **1500 W — no derate** |
+
+*Rev 3.7c: the input choke now sits in the RF bay (§6), so its heat counts against the same 200 W.
+The network-only limits (527 / 630 / 935 W, Rev 3.7b) become 502 / 600 / 882 W
+(`nec/choke_screen.py`, output `nec/out/choke_screen_rev37c.txt`). Other bands peak at 166 W
+(4.00 MHz: 138 W network + 28 W choke).*
 
 *Rev 3.7b (§9 item 45): bare network, worst point of each segment at Q = 150. The 1.850 and 1.950 MHz
 points are interpolated linearly in Z between the NEC band edges. The two upper segments are **lower
@@ -401,11 +452,14 @@ side-column (Rev 3.6) estimate, 27.0 pF, is superseded — see §11.1.*
 
 | Contribution | Value |
 |:--|--:|
-| Deck plate to shelf, 10.75″ × 10.75″ at d = 3.50″ (`C = ε₀A/d`) | 7.43 pF |
-| Fringing (perimeter 43.0″; Rev 3.6 figure, not re-derived for 3.50″) | ≈ 6.5 pF |
-| Top coupling to top panel at ~13.2″ (22.00″ box; scaled from 2.1 pF at 12.2″) | ≈ 1.9 pF |
+| Deck plate to shelf, 10.75″ × 10.75″ at d = 5.50″ (`C = ε₀A/d`) | 4.73 pF |
+| Fringing (perimeter 43.0″; Rev 3.6 figure, not re-derived for 5.50″) | ≈ 6.5 pF |
+| Top coupling to top panel at ~13.2″ (24.00″ box; scaled from 2.1 pF at 12.2″) | ≈ 1.9 pF |
 | Component bodies on deck | ≈ 7.0 pF |
-| **Total C_deck-chassis** | **≈ 23 pF** |
+| **Total C_deck-chassis** | **≈ 20 pF** |
+
+*Rev 3.7c: deck raised 2.00″ for the input choke under it (§3.0, §6); at 3.50″ the plate term was
+7.43 pF and the total ≈ 23 pF. The deck-to-top distance is unchanged — the box grew with the deck.*
 
 The 0–30 pF trimming vane covers it. Balance is set by measurement regardless.
 
@@ -434,27 +488,28 @@ and MCU (encoders and MCU are typically limited to ~85 °C).
 ```
   FRONT                                                       REAR
  +------------------------------------------------------------+  ^
- |  RF BAY  15.87" x 15.87" x 16.76" clear  (top panel above) |  |
+ |  RF BAY  15.87" x 15.87" x 18.76" clear  (top panel above) |  |
  |                                                            |  |
  |     [C1] CB-154 / 15 kV class    (roller 34 uH, 5.2" dia,  |  |
  |      |   upright                  upright)                 |  |
- |     [C2] UCSX-740-10                    |                  |  |  22.00"
+ |     [C2] UCSX-740-10                    |                  |  |  24.00"
  |      |   upright                        |                  |  |
  |  ====|==== floating deck 10.75" sq =====|=======           |  |
- |      |  Delrin Oldham (coupler B), 3.50" standoffs         |  |
+ |      |  Delrin Oldham (coupler B), 5.50" standoffs         |  |
+ |      |  [input choke, 5 x FT-240-61] at the shelf coax     |  |
  +======|=================================|===================+  |  grounded shelf
  |  UTILITY LAYER, 5.00" clear            |                   |  |
  |  CONTROL 3.0" D | MOTORS 7.5" D, shafts up | SAMPLER 5.0" D |  |
- |  display, MCU   | encoder takeoff (M-1)    | choke, bridge  |  |
+ |  display, MCU   | encoder takeoff (M-1)    | K1/K2, bridge  |  |
  +------------------------------------------------------------+  v
 ```
 
 **Height closure (bottom to top):**
 
 ```
-Floor 0.081 + utility 5.000 + shelf 0.081 + standoffs 3.500 + deck 0.081
-  + roller over plates 11.547 + plate B to top 1.630 + top 0.081         = 22.00"
-Specified 22.00" (Rev 3.7b; was 21.00" / 12U)
+Floor 0.081 + utility 5.000 + shelf 0.081 + standoffs 5.500 + deck 0.081
+  + roller over plates 11.547 + plate B to top 1.630 + top 0.081         = 24.00"
+Specified 24.00" (Rev 3.7c: +2.00" standoff for the input choke, §6; 22.00" in Rev 3.7b, 21.00" / 12U before)
 ```
 
 Every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″), so
@@ -478,13 +533,15 @@ Coil to the C1/C2 envelopes is 1.55″ across the width (1.87″ diagonal), so t
 holds; deck edge to walls stays ≥ 2.5″.
 
 C1 at the front, C2 at the rear near the balanced output feedthroughs (§8D). The input coax runs
-from the sampler forward *inside the utility layer* and rises through one shelf bulkhead under C1.
+from the sampler forward *inside the utility layer* and rises through one shelf bulkhead near C1,
+straight into the input choke standing under the deck. The choke's deck end goes to C1 (Rev 3.7c, §6).
 
 **Utility layer.** The same three chambers as before, now laid flat and full width:
 - Control **3.00″** at the front (display on the bottom of the front panel).
 - Motor **7.50″** in the middle. The C1 and C2 axes are 5.25″ apart in depth; with 2.22″ NEMA 23
   bodies they span 7.47″.
-- Sampler **5.00″** at the rear (the 4.25″ OD input choke lies flat).
+- Sampler **5.00″** at the rear: coupler, measurement board, K1/K2. The input choke left this
+  chamber in Rev 3.7c (§6).
 
 3.00 + 7.50 + 5.00 + 2 × 0.081 walls = 15.66″ of the 15.87″ inside depth. The **5.00″ height is
 set by DECISION M-2**: it holds a motor body ≤ ~2.6″ plus encoder and coupler A. A longer motor
@@ -493,25 +550,34 @@ raises the box.
 *Rev 3.7a populated model (TUNER-E-212 to E-215):* the control-chamber floor I/O (IEC, RJ45, POF,
 vent) moved into a **3.2″ I/O strip along the left wall**: the cassette tray now stops at Y = 3.6″, so
 the tray slides out without passing over connector bodies (it rode only 0.5″ above them). Sampler
-floor connectors moved clear of the choke and relays; the sampler baseplate has clearance holes over
-them. The shelf coax bulkhead moved to X = −4.0″ — after the cap-column shift it had landed over the
-**control** chamber. The coax from the choke to the shelf crosses the partition through a new N-N
-bulkhead adapter (X, Amphenol RF 172124, §9 item 43).
+floor connectors moved clear of the relays (and of the Rev 3.7a choke); the sampler baseplate has
+clearance holes over them. The shelf coax bulkhead moved to X = −4.0″ — after the cap-column shift it
+had landed over the **control** chamber. The coax from K1 to the shelf crosses the partition through
+a new N-N bulkhead adapter (X, Amphenol RF 172124, §9 item 43). Since Rev 3.7c that whole run is chassis
+side, ahead of the choke (§6).
 
 **What crosses the shelf:** three G10 shafts in bushings, one coax bulkhead, and discrete filtered
 feedthroughs FT1–FT4 for the tank thermal and imbalance-CT lines (3 used + 1 spare, §7.3a). The §7.1
 rule — no wires between the motors and the RF bay — still holds: no wire follows the drive train.
 
 **Shaft geometry.** Each G10 shaft runs from coupler A (on the motor, in the utility layer)
-through the shelf bushing to coupler B under the deck: about 3–4″, under the 6″ limit, so no
-intermediate bearing block (§3.1). Windup at 0.42 N·m over 4″: ~0.8°. Each capacitor mounts
+through the shelf bushing to coupler B under the deck. Since Rev 3.7c that is about 4.8″ (roller)
+and 6.4″ (C1, C2). The shelf bushing supports each shaft, so the longest free span — bushing to
+coupler B on C1 / C2 — is ~5.1″, under the 6″ limit: no intermediate bearing block (§3.1). Windup at
+0.42 N·m over 6.4″: ~1.2°. Each capacitor mounts
 **variable (shaft) end down**, clamped to the deck, and its shaft passes through a clearance hole
 in the deck. Make the hole generous with a rounded edge so it is not a creepage path.
 
-**Why 3.50″ standoffs.** The hot capacitor shaft tip now hangs ~0.75″ below the deck. At 2.50″
-that left 1.75″ of air and creepage to the grounded shelf, under the ≥ 2″ creepage used in
-§5.3a. At 3.50″ it is 2.75″. The roller shaft is at deck potential (§5.3a), so it needs only the
-deck's own clearance.
+**Why 5.50″ standoffs (Rev 3.7c).** The input choke stands under the deck at the shelf crossing
+(§6). Its 5-core stack is 3.47″ tall with the coax arcing over the faces, and it keeps ≥ 0.5″ to the
+grounded shelf and to the deck. Four cores needed 2.95″ against the 2.50″ left under a 3.50″ deck.
+The 5.50″ standoff leaves the choke 0.94″ / 1.09″ and room for airflow. Two side effects:
+- **Creepage grows.** The hot capacitor shaft tips hang ~0.75″ below the deck, so their creepage to
+  the shelf rises from 2.75″ to 4.75″ (≥ 2″ rule, §5.3a).
+- **Deck capacitance falls** to ≈ 20 pF (§2.2).
+
+The roller shaft is at deck potential (§5.3a), so it needs only the deck's own clearance. *The
+2.50″ → 3.50″ reasoning is kept in §11.12.*
 
 **Still open with this layout:** the thermal re-check (§8, §9 item 30a) and the cardboard mock-up
 (§9 item 5). Top-panel coupling and balance are re-estimated in §2.2.
@@ -528,8 +594,9 @@ deck's own clearance.
 >   24 V supply and DC-DCs. Behind it a **removable bulkhead** of pi-filtered connectors (§7.3);
 >   behind that each **motor axis module** (motor, coupler A, encoder takeoff on a bracket hung
 >   from the shelf) drops and slides out the front after loosening coupler A's G10 clamp.
-> - **Sampler fixed** at the rear on its own baseplate, serviced through the left lower panel (the
->   4.25″ choke cannot pass a ~4″ module opening).
+> - **Sampler fixed** at the rear on its own baseplate, serviced through the left lower panel (fixed
+>   because the Rev 3.7a 4.25″ choke could not pass a ~4″ module opening; that choke is gone — the
+>   Rev 3.7c choke stands in the RF bay, §6).
 > - **Chambers re-centered under the motors:** Control 3.10″, Motors 7.75″, Sampler 4.86″. The
 >   **cap column moves 0.875″ forward on the deck** (it had 1.75″ of depth slack) so both cap
 >   motors sit inside the motor chamber (~0.14″ each end); the column sits at the deck edge
@@ -538,13 +605,15 @@ deck's own clearance.
 >   **fixed top**, feedthroughs parallel to the wall near the rear (§8D). Side panels split at
 >   the shelf; conductive-elastomer gaskets (G-1).
 > - Cassette parts must be **≤ 3.92″ tall** to pass the front opening (§8A.1, §9 item 39).
-> - Aluminum ~26 lb before electronics.
+> - Aluminum ~28 lb before electronics (24.00″ box, Rev 3.7c).
 
 *The Rev 3.3–3.6 side-column layout (16 × 16 × 12″, spine and sub-walls) is superseded — see §11.1.*
 
 ### 3.1 Shaft geometry
 
-In the vertical stack each G10 shaft is ~3–4″ (§3.0); the windup figures below still bound it.
+In the vertical stack each G10 shaft is ~4.8″ (roller) or ~6.4″ (C1, C2) since the Rev 3.7c deck
+raise (§3.0). The shelf bushing supports it, so the longest free span is ~5.1″. The windup figures
+below still bound it.
 
 Worst-case torsional windup, 0.375″ solid G10 at the 0.4 N·m operating torque of the vacuum
 capacitor mechanism, `J = πd⁴/32 = 8.08e-10 m⁴`, G ≈ 4.0 GPa:
@@ -563,17 +632,19 @@ span gets an **intermediate G10 bearing block** — the constraint is sag and wh
 | Requirement | Value |
 |:--|--:|
 | Minimum air clearance, any RF conductor or floating-deck edge to grounded chassis | **1.50″ (38 mm)** |
-| Floating sub-deck standoff height (steatite or G10 pillars) | **3.50″** |
+| Floating sub-deck standoff height (steatite or G10 pillars) | **5.50″** (Rev 3.7c; was 3.50″) |
 | Lateral clearance, deck edge to side and rear walls | **≥ 2.50″** |
 | Clearance, vacuum caps (3.75″) and roller (5.40″ OD, 5.50″ end plate) to any wall | **≥ 2.25″** (roller: 2.61″ side, 3.73″ front, 3.70″ top — §5.3a) |
 | Edge radius on all HV conductors, busbars, lugs (corona suppression) | **≥ 1/16″** |
 
-Standoff height is **3.50″ uniformly** across all sections, cut lists, and drawings.
+Standoff height is **5.50″ uniformly** across all sections, cut lists, and drawings.
 Hot-to-hot spacing between elements on the deck: **≥ 1.50″**.
 
 In the vertical stack, "walls" above means the RF bay side walls, the grounded shelf and the
 top panel. Capacitor shaft tips hang below the deck toward the shelf; keep ≥ 2″ creepage along the
-Delrin coupler and G10 shaft from tip to shelf bushing (2.75″ at 3.50″ standoffs).
+Delrin coupler and G10 shaft from tip to shelf bushing (4.75″ at 5.50″ standoffs; roller 4.37″,
+TUNER-L-109). The input choke under the deck keeps ≥ 0.5″ to the shelf and the deck, and spans
+deck-to-chassis potential end to end (§6).
 
 > **Before cutting metal:** mock the RF bay up in cardboard with the actual components. The
 > clearances above are necessary, not sufficient — final placement has not been proven in three
@@ -588,12 +659,12 @@ Delrin coupler and G10 shaft from tip to shelf bushing (2.75″ at 3.50″ stand
 **Sheet:** 5052-H32 aluminum — chosen over 6061-T6 for formability; it bends 90° without the
 cracking 6061-T6 exhibits at tight radii.
 
-**Box:** 16.00″ W × 16.00″ D × **22.00″ H** (Rev 3.7b; §3.0 height closure), wall-mounted vertical
+**Box:** 16.00″ W × 16.00″ D × **24.00″ H** (Rev 3.7c; §3.0 height closure), wall-mounted vertical
 stack. **Cut list, nesting and frame are on the drawings, not tabulated here:** **TUNER-E-201**
 (6061-T6 angle cut list), **E-202 to E-209** (panels with cutouts and fastener patterns, small
 parts), **E-210** (parts list and hardware counts) and **E-211** (nesting); stock quantities in
 §10.11. Confirm every panel height and stock quantity against the E-sheets regenerated for the
-22.00″ box before ordering.
+24.00″ box (Rev 3.7c) before ordering.
 
 **Assembly — bolted, not welded.** Continuous TIG seams across 16″ of 0.081″ aluminum cause severe
 thermal warping and oil-canning, and seal the RF bay behind a permanent wall.
@@ -1000,7 +1071,7 @@ Dimensions from the parametric model `cad/roller.py` (2026-11-16):
 > L-108 (§7.1a dimensions, roll-pinned hubs).
 >
 > **Clearance to the enclosure, vertical stack.** Metal across a coil end carries an opposing image
-> current, lowering L and Q. Installed clearances (TUNER-L-109), 22.00″ box:
+> current, lowering L and Q. Installed clearances (TUNER-L-109), 24.00″ box (Rev 3.7c):
 >
 > | Coil / part to… | Distance | HV (§3.2) | Magnetic (1 D ends, ½ D sides) |
 > |:--|--:|:--|:--|
@@ -1012,8 +1083,8 @@ Dimensions from the parametric model `cad/roller.py` (2026-11-16):
 > | Bus rod to deck (air) | 1.56″ | ✓ | — |
 > | Bus rod to top panel | 2.69″ | ✓ | — |
 > | Plate B top to top panel | 1.63″ | — | — |
-> | Brass shaft tip to shelf (creepage) | 2.37″ | ✓ (≥ 2″) | — |
-> | Deck underside to shelf | 3.50″ | ✓ | — |
+> | Brass shaft tip to shelf (creepage) | 4.37″ (2.37″ at 3.50″ standoffs) | ✓ (≥ 2″) | — |
+> | Deck underside to shelf | 5.50″ (input choke between, §6) | ✓ | — |
 >
 > Net: **Wheeler 33.8 µH free air; deck image loss −3 to −5% gives ≈ 32.3–32.8 µH installed against
 > 22.3 µH required** (§9 item 45) — about 45% margin. The two spare notches add ≈ +3.4 µH. **Measure the wound helix before final assembly** — AB6WP measured 27% under Wheeler on
@@ -1144,71 +1215,144 @@ Neither may hot-switch:
 
 ## Section 6 — Input Common-Mode Choke
 
-**Former 3.3″** (3.69″ OD assembled), lying flat in the Sampler chamber with **0.49″ to the grounded baseplate and to the shelf** (§3.0; Rev 3.7b — the 4.0″ former sat 0.05″ off the baseplate with its deck end at kV RF).
+*Rev 3.7c: a #61 ferrite choke standing in the RF bay, under the deck. It replaces air-core design C in
+the sampler chamber; that design, and the reasoning that kept ferrite out of this position until now,
+are in §11.11.*
 
-**No ferrite in the high-stress path.** With a floating deck, the input choke must withstand the full
-deck-to-chassis common-mode potential — kilovolts. Fair-Rite #31 is deliberately lossy (μ″ ≫ 0); at
-kV common-mode its resistive core dissipation would exceed 250 W and drive the ferrite past its
-130 °C Curie point within seconds.
+**What it does.** The deck floats. Apart from the deck's own ≈ 20 pF (§2.2), the choke is the only
+path from the network common (leg 1) to chassis, so it holds the deck-to-chassis common-mode
+voltage: about half the differential output, **up to ≈ 1.48 kV RMS** (40 m, 7.30 MHz). The trim vane
+can only balance capacitance, so the choke must present a **higher impedance than the deck's
+reactance** on every band (§2.2). Heat below is worked with the whole V_cm across the choke — the
+antenna system's common-mode impedance taken as zero, the worst case (§9 item 50).
 
-**Adopted: air-core Guanella transmission-line choke.**
+**Why ferrite.**
+- **Coax length is the heat.** The coax through the choke carries the full input power, so its loss
+  grows with its length. Design C needed ~36 ft of RG-142B for 45 µH of air-core inductance, which
+  meant **40–232 W** of coax loss (160 m derated to 10 m), all inside the sealed sampler chamber.
+- **#61 does more with less.** It gives 4× the inductance from a quarter of the coax.
+- **#61 holds the voltage reactively.** It is low-loss NiZn (µ ≈ 125, tan δ < 0.005 below ~10 MHz),
+  and its large-signal core loss (Fair-Rite Pv data) is ≤ 6 W on any band.
+- **The old objection doesn't apply.** §11.11 recorded that kV across ferrite dissipates hundreds of
+  watts. That holds for lossy #31, not for #61.
+
+**Adopted:**
 
 | Parameter | Value |
 |:--|--:|
-| Former | **3.3″ dia G10 fiberglass** (3.69″ OD assembled) — Rev 3.7b, design C |
-| Winding | **39 turns** RG-142B/U, close-wound single layer |
-| Coax length | ≈ **35.7 ft** (+ leads; order 40 ft) |
-| Winding length | **7.61″** (≈ 8.1″ with end caps) |
-| Inductance | **45.4 µH** at 1 MHz, installed (NEC, below) |
-| Mounting | Axis **horizontal** — lies flat in the Sampler chamber (§3.0) |
+| Cores | **5 × Fair-Rite 5961003801 (FT-240-61)** — 61.0 × 35.55 × 12.7 mm, A_L ≈ 172 nH, bonded into one stack |
+| Winding | **15 turns RG-400** (M17/128: PTFE, stranded silver-plated center, double braid), one layer |
+| Coax | **9.6 ft** with leads (≈ 9.0 ft wound) — order 12 ft |
+| Inductance | **192 µH** small-signal; self-resonance ≈ 5.7 MHz at 4 pF winding capacitance |
+| Stack | **2.81″ dia × 3.47″** (worst-case core tolerance, coax arcing over each face) |
+| Location | RF bay, under the deck at **(−1.5, −1.0)**, between the shelf coax bulkhead and C1; axis vertical |
+| Clearances | Winding 0.94″ to the shelf, 1.09″ to the deck; ≥ 0.64″ to every other part (interference-checked) |
+| Mount | All insulating: G10 base, standoffs and spider, fiberglass rod (below) |
+| Cost | ≈ $94 (cores ~$11 each, RG-400 ~$2.50/ft, mount) |
 
-```
-Fit check (vertical stack): axis across the width, lying flat
-            Sampler chamber is ~15.87" W x 5.00" D x 5.00" H
-            -> 4.25" OD: 0.375" clearance in D and in H; 5.85" winding + end caps in 15.87" W
-            FITS — tight in H; confirm with the end-cap mounts in the mock-up (§9 item 5)
-```
+**Routing.**
+- **Chassis side:** sampler → K1 (NC) → W15 → partition adapter X → W17 → shelf coax bulkhead.
+  Every shield is grounded at every connector, as it should be.
+- **The shelf bulkhead is the choke's chassis end.**
+- **W18 is one piece of RG-400:**
+  - a short lead from the bulkhead to the bottom of the stack;
+  - 15 turns;
+  - then from the top of the stack to C1's lower terminal, its shield clamped to the deck.
+- **Deck side:** nothing on the deck side of the choke touches chassis (TUNER-E-212, E-215).
 
-**Choking reactance:** 547 Ω @ 1.85 MHz · 1,079 Ω @ 3.65 MHz · 4,199 Ω @ 14.2 MHz · 8,427 Ω @ 28.5 MHz
+*Through Rev 3.7b the choke sat in the sampler chamber, and its deck-side coax crossed adapter X and
+the shelf bulkhead — both grounded — which bypassed it (Changes in Rev 3.7c, item 1).*
 
-Zero magnetic core means zero core dissipation, zero flux saturation, and no Curie-point runaway.
+**Fit, checked against the real turn shape** (`nec/choke_screen.py`):
+- **Bore.** One layer against the bore wall. The worst-case bore (34.8 mm, less 0.25 mm of tape)
+  holds 18.5 turns in a full ring. 15 turns leave a **69° gap (12.6 mm)** between the first and last
+  turn, which differ by the full V_cm; 16 turns is the practical limit (7.6 mm).
+- **Bend.** The coax arcs over each core face at a centerline radius of ≈ 8.8 mm (1.8 × OD). The
+  core's 12.7 mm face width sets it, not the turn count. That is under the usual 5 × OD static
+  guideline, as in every PTFE-coax balun on FT-240 cores. Use RG-400 (stranded center), tape the
+  core edges, and do not flex the winding once it is made.
+- **Height.** Each face adds ≈ 11.3 mm of arc: 3 cores stand 2.44″, 4 cores 2.95″, 5 cores 3.47″.
+  Under the old 3.50″ standoffs only 3 cores fit (2.50″ allowed), so the deck went up 2.00″ (§3.0).
 
-**Self-resonance — modeled Rev 3.7b** (`nec/choke_vna.py`: nec2++ wire model of the shield's
-outer surface as the common-mode helix, end A bonded to the baseplate, port at the deck end, grounded
-baseplate below and shelf above at the real gaps). The old "quarter-wave near 5.5 MHz" estimate does
-not hold: the first resonance is a **parallel** one (impedance peaks — harmless) and the dangerous one
-is the **series** resonance, which tracks coax length (~0.57 MHz per turn) and moves strongly with the
-gap to grounded metal.
+**Mount — nothing metal in or on the winding:**
+1. **Stack.** Bond the five cores with thin beads of high-temperature RTV. Wrap the bore and the core
+   edges in glass-cloth tape.
+2. **Wind.** 15 turns in one layer against the bore wall, with the first-to-last gap facing −X
+   (toward the bulkhead and C1). The open center (≥ 0.96″) takes the rod.
+3. **Base.**
+   - G10 disc, 1/4″ × Ø3.40″.
+   - Three G10 standoffs, Ø3/8″ × 5/8″, screwed 8-32 up through the shelf at holes CH1–CH3
+     (Ø2.60″ bolt circle, TUNER-E-207).
+   - Six Ø0.15″ vent holes inside the bore circle let air rise up the bore.
+   - A 1/16″ silicone pad sits under the bottom crossings.
+4. **Clamp.**
+   - 1/2″-13 fiberglass (FRP) threaded rod through the bore center, FRP nuts above and below.
+   - A three-arm G10 spider (1/8″) over a silicone pad bears on the top crossings, snug by hand. Its
+     open arms leave the crossings in the airflow.
+5. **Leads.** The chassis lead leaves the bottom of the stack for the shelf bulkhead (PL-259). The
+   deck lead leaves the top for C1, ~3.5″ above the chassis lead. Lace both to the base with PTFE cord.
 
-| Design | Former / turns | Gaps below / above | Parallel | **Series** | Verdict |
-|:--|:--|:--|--:|--:|:--|
-| Rev 3.7a | 4.0″ / 30 t | 0.05″ / 0.37″ | 8.97 MHz | 22.62 | 0.05″ clearance at kV — rejected |
-| A | 3.3″ / 36 t | 0.49″ / 0.49″ | 7.75 | 24.85 | **on 12 m** (53 Ω) |
-| B | 3.3″ / 42 t, 0.25″ pitch | 0.49″ / 0.49″ | 7.65 | 21.85 | **on 15 m** (160 Ω) |
-| **C — adopted** | **3.3″ / 39 t close-wound** | 0.49″ / 0.49″ | 7.35 | **23.15** | 7.9 % above 15 m, 7.0 % below 12 m |
-| D | 3.3″ / 38 t, 0.21″ pitch | 0.49″ / 0.49″ | 7.65 | 23.85 | 4 % from 12 m |
+The assembly weighs ≈ 1.7 lb. It sits in the intake air: the intake straddles the deck, with 2.4″ of
+it below the deck's underside (§8).
 
-Design C, choke impedance (minimum in band) against the deck's ~23 pF to chassis (§2.2) — the vane
-can only balance the deck capacitance, so the choke must be the *higher* impedance:
-160 m 536 Ω (deck 3.85 kΩ — **choke-limited**), 80 m 1.26 kΩ (1.98 kΩ), 60 m 3.2 kΩ, 40 m 19.6 kΩ,
-30 m 3.1 kΩ, 20 m 1.34 kΩ, 17 m 851 Ω, 15 m 507 Ω (deck 330 Ω), 12 m 1.39 kΩ, 10 m 566 Ω (deck 247 Ω).
-From 60 m up the choke always exceeds the deck reactance; **160 / 80 m remain choke-limited**, which is
-what the #61 supplement below is for.
+**Performance** (`nec/choke_screen.py`, output `nec/out/choke_screen_rev37c.txt`; Fair-Rite #61
+complex µ and large-signal Pv data in `nec/data/`). The table gives the minimum |Z| in each band
+against the deck's reactance at the same frequency. Heat is core + coax at the operating power, with
+the full V_cm across the choke:
 
-**Sweep it installed, not on the bench:** raising the 4.0″ choke from 0.05″ to 0.50″ moved its
-parallel resonance from 9.0 to 7.2 MHz. Measure the series resonance in the chamber; if it lands within
-~0.5 MHz of 21.45 or 24.89 MHz, take off or add one turn (~0.57 MHz per turn).
+| Band | \|Z\| at C_w 4 pF | at 2 / 6 pF | Deck X (20.1 pF) | Ratio | Choke heat |
+|:--|--:|--:|--:|--:|--:|
+| 160 m (1.800, derated) | **2.41 kΩ** | 2.28 / 2.54 kΩ | 4.39 kΩ | **0.55** | 11 W |
+| 80 m (3.500) | 6.73 kΩ | 5.19 / 9.56 kΩ | 2.26 kΩ | 3.0 | 28 W |
+| 60 m (5.332) | 49.5 kΩ | 11.5 / 21.4 kΩ | 1.48 kΩ | 33 | 28 W |
+| 40 m (7.300) | 13.9 kΩ | 50.9 / 6.10 kΩ | 1.08 kΩ | 13 | 36 W |
+| 30 m (10.150) | 5.66 kΩ | 20.3 / 3.29 kΩ | 0.78 kΩ | 7.3 | 40 W |
+| 20 m (14.350) | 3.25 kΩ | 7.86 / 2.05 kΩ | 0.55 kΩ | 5.9 | 47 W |
+| 17 m (18.168) | 2.40 kΩ | 5.29 / 1.55 kΩ | 0.44 kΩ | 5.5 | 53 W |
+| 15 m (21.450) | 1.97 kΩ | 4.19 / 1.29 kΩ | 0.37 kΩ | 5.3 | 57 W |
+| 12 m (24.990) | 1.66 kΩ | 3.45 / 1.09 kΩ | 0.32 kΩ | 5.2 | 61 W |
+| 10 m (29.700) | 1.38 kΩ | 2.82 / 0.91 kΩ | 0.27 kΩ | 5.2 | **69 W** |
 
-**Low-band supplement.** Two Fair-Rite **#61** toroids in series on the cold side add >1,500 Ω of
-reactive choking on 160/80 m. #61 is low-loss NiZn (tan δ < 0.005 below 10 MHz), so it adds
-impedance without the thermal failure mode of #31 — roughly 1/50th the dissipation. Being reactive
-rather than resistive, it can itself resonate with stray capacitance; include it in the VNA sweep.
+- **80 m and up.** Even at 6 pF every band keeps ≥ 3.4× the deck's reactance. Above the ~5.7 MHz
+  self-resonance the choke looks like its few pF of winding capacitance — far less than the deck's
+  20 pF.
+- **160 m stays choke-limited** at 0.55×. For comparison, design C alone was 0.14×, and design C
+  with its two-toroid #61 supplement was ≈ 0.5×.
+- **The real spec is balance, not this ratio.** §2.2 specifies measured feeder-current imbalance
+  ≤ 5%. How close 160 m gets depends on the antenna system's common-mode impedance (§9 item 50), and
+  the output CT measures it in service.
+- **Choke current.** At the 160 m limit, the worst-case current through the choke is ≈ 0.35 A
+  (847 V / 2.41 kΩ at 502 W).
+
+**Heat and flux.**
+- **Flux.** Peak flux is 9.2 mT at 160 m (#61 saturates near 230 mT), and core loss is ≤ 6 W on any
+  band.
+- **The heat is the coax.** About 6.8 W per foot at 1500 W on 10 m — the same per foot as any
+  RG-400 / RG-142 run at that power; design C had the same density over 36 ft.
+- **Budget.** The total, ≤ 69 W, now counts in the RF-bay budget. The 160 m limits fall to
+  502 / 600 / 882 W (§1.7.1, §8); every other band keeps 1500 W.
+
+**Verify it installed (§9 item 49):**
+- **VNA sweep**, deck end to chassis, with the choke installed and the deck connected.
+  - Expect an impedance peak (parallel resonance) near 5–7 MHz, and |Z| ≥ ~1 kΩ across 10 m.
+  - A sharp dip inside any band means the winding capacitance or a lead resonance is not what the
+    model assumes: re-dress the leads first, then take off a turn.
+- **Thermal check.** Run 1500 W key-down on 28.0 MHz for 10 minutes, with irreversible temperature
+  labels (or a thermocouple read right after unkeying) on the bore bundle and the cores.
+  - Below ~100 °C is comfortable for PTFE and #61.
+  - If it runs hotter, add airflow under the deck before shortening the winding.
+
+**Upgrade path.**
+- **Two stacks** don't help. Two 3-core stacks reach the same 160 m impedance as this one with
+  13.2 ft of coax and 91 W on 10 m; one taller stack is the efficient shape.
+- **More cores** do. Seven cores (4.50″, still inside the 5.50″ standoffs at 0.5″ clearances) reach
+  0.80× on 160 m for 84 W on 10 m. Keep that in reserve in case item 50 shows 160 m needs it.
 
 ---
 
 ## Section 6A — Directional Sampler and Impedance Measurement
 
-Occupies the Sampler chamber alongside the input choke. This subsystem was named in every prior
+Occupies the Sampler chamber with K1/K2 (the input choke moved to the RF bay in Rev 3.7c, §6). This subsystem was named in every prior
 revision and specified in none.
 
 ### 6A.1 Two jobs, not one
@@ -1553,8 +1697,8 @@ capacitor is a 1 kV NP0 part or a short gimmick; at the load's 50 Ω it loads th
 ### 6B.5 Placement and wiring
 
 K1, K2, the AUX bulkhead and the cal-load flange sit in the **Sampler chamber** (rear of the
-utility layer, §3.0). The chamber is 5.00″ × 5.00″ × 15.87″, with the choke lying flat; two N-type
-coax relays (~2.5″ × 2″) fit beside it — confirm in the mock-up (§9 item 5). New crossings
+utility layer, §3.0). The chamber is 5.00″ × 5.00″ × 15.87″; since the choke left it (Rev 3.7c, §6)
+the two N-type coax relays (~2.5″ × 2″) have room to spare — confirm in the mock-up (§9 item 5). New crossings
 Control → Sampler: K1 and K2 coil drive (4 lines), the thermal switch (2) and the cal-load
 detector (1 + return), through the filtered sampler-group connectors (§7.3a). The control board
 needs two more relay-driver channels with coil-current sense, the thermal input and the detector
@@ -1783,7 +1927,7 @@ in `enclosure.py`.
 | J-S | Partition | FCE17-B25SM-290 (DB-25, 5600 pF) | Analog | Sampler group, as J-B |
 | FT-C, FT-D | Bulkhead | Spectrum Control **9910-381-6002** (0.30 µF, 100 V, 15 A, 12-32) | Power | 24 V and return to the drivers |
 | J-F | Left lower panel | FCE17-E09SM-290 (DE-9, 5600 pF) | Analog | Blower +12 V, GND, tach (exterior lead in conduit) |
-| X | Partition | **Amphenol RF 172124** N-N bulkhead, PTFE, jam nut (§9 item 43) | RF | Choke output → shelf coax bulkhead → C1 |
+| X | Partition | **Amphenol RF 172124** N-N bulkhead, PTFE, jam nut (§9 item 43) | RF | K1 NC (W15) → X → shelf coax bulkhead (W17), all chassis side; the choke starts at the shelf bulkhead (Rev 3.7c, §6) |
 | FT-P | Bulkhead + partition | Tusonix **2499-003-X5U0-102PLF** (1000 pF, 500 V, 12-28) | Frequency | ÷1024 prescaler, RG-316 between |
 | FT1–FT4 | Shelf | Tusonix **2499-003-X5W0-103ZLF** (0.01 µF, 500 V, 12-28), 0.55″ pitch | RF tank | Tank thermal + CT on FT1–FT3; FT4 spare |
 
@@ -1972,12 +2116,16 @@ bottom of 160 m. That segment is handled by the **power derate table in Section 
 by more airflow — cooling ~568 W out of a sealed 16″ enclosure is disproportionate for one band
 segment used at full key-down power.
 
+*Rev 3.7c: the input choke now dissipates in the RF bay too (§6). It adds ≤ 69 W on 10 m (coax loss),
+≤ 28 W on 80 m and ~10 W on 160 m. The worst RF-bay total outside 160 m is 166 W (4.00 MHz: 138 W
+network + 28 W choke). The §1.7.1 limits on 160 m now include it: 502 / 600 / 882 W.*
+
 Natural convection through honeycomb cannot move 200 W. **Forced air required.**
 
 | Element | Specification |
 |:--|:--|
-| Blower | **Delta AFB1212VHE-F00** — 120 × 38 mm, 12 V, two ball bearings (70,000 h at 40 °C), 130 CFM free air / 0.42 in H₂O, ~70 CFM at 4 mm H₂O through filter + two honeycombs; open-collector tach, 2 pulses/rev. Exterior, **left upper panel, high and toward the rear** (moved 1″ forward Rev 3.7a to clear the wall flange), Orion G109-15A guard. *Rev 3.7a populated model, TUNER-E-212* |
-| Intake | *Rev 3.7a (wall mount): **right side panel, low and toward the front of the RF bay**, 8 × 4″ honeycomb + filter + screen* — still *not* the chassis floor. Air crosses the bay diagonally, past the caps and then the roller, rising with convection |
+| Blower | **Delta AFB1212VHE-F00** — 120 × 38 mm, 12 V, two ball bearings (70,000 h at 40 °C), 130 CFM free air / 0.42 in H₂O, ~70 CFM at 4 mm H₂O through filter + two honeycombs; open-collector tach, 2 pulses/rev. Exterior, **left upper panel, high and toward the rear** (moved 1″ forward Rev 3.7a to clear the wall flange; center 5.0″ below the top, so up 2″ with the 24″ box in Rev 3.7c), Orion G109-15A guard. *Rev 3.7a populated model, TUNER-E-212* |
+| Intake | *Rev 3.7a (wall mount): **right side panel, low and toward the front of the RF bay**, 8 × 4″ honeycomb + filter + screen* — still *not* the chassis floor. Air crosses the bay diagonally, past the caps and then the roller, rising with convection. *Rev 3.7c:* centered 0.41″ below the deck underside (up 2″ with the deck), so 2.4″ of it sweeps under the deck past the input choke (§6) |
 | Intake filter | Washable electrostatic cartridge over hex-cell honeycomb |
 | Exhaust | Left-side hex-cell aluminum honeycomb behind the blower, 1/8″ cell, 1/2″ thick (>90 dB to 1 GHz) — the rear is on the wall |
 | Fan wiring | *Rev 3.7a:* **not through the RF bay.** The lead runs down the outside of the left panels in flex conduit to a **filtered DE-9 (FCE17-E09SM-290, 5600 pF)** in the left lower panel at the control chamber; +12 V from the control board's TSR 2-24120, tach to an MCU input (blower-fail fault). 4.7 µF across the fan supply per Delta |
@@ -2820,7 +2968,7 @@ design basis, assume full V on one  :   4,191 V peak
 
 **Rate each feedthrough for the full differential voltage, not half.** In a perfectly balanced
 system each terminal swings ±half, but this is a floating-deck approximation (Section 2.2) with
-C_leg1-chassis ≈ 23 pF (§2.2, Rev 3.7) against C_leg2-chassis ≈ 3.0 pF before trimming. The split is asymmetric by
+C_leg1-chassis ≈ 20 pF (§2.2, Rev 3.7c; ≈ 23 pF before the deck raise) against C_leg2-chassis ≈ 3.0 pF before trimming. The split is asymmetric by
 construction, and a mistrimmed or drifted vane puts more of the swing on one terminal. Designing
 for half the differential bets the insulator on a trim adjustment holding.
 
@@ -2891,14 +3039,14 @@ old pad sat *in parallel* with C2 (C2 + pad = one 220–875 pF range), never in 
 
 | Point | DC path to chassis | Through |
 |:--|:--|:--|
-| **Leg 1** (the deck terminal) | **Yes, ≈ 0.15 Ω** | The Guanella choke's braid — 31 ft of RG-142B, one continuous conductor from the deck end to the chassis-grounded input end. A choke blocks common-mode **RF**; at DC it is a short. The deck "floats" at RF only |
+| **Leg 1** (the deck terminal) | **Yes, ≈ 0.05 Ω** | The input choke's braid — 9.6 ft of RG-400 (Rev 3.7c; was ~31 ft of RG-142B, ≈ 0.15 Ω), one continuous conductor from the deck end to the grounded shelf coax bulkhead. A choke blocks common-mode **RF**; at DC it is a short. The deck "floats" at RF only |
 | Network node (C1 / roller / C2) | Yes | Roller (DC short) → deck → choke braid |
 | **Leg 2** | **None — floats** | C2 is the only element between leg 2 and the grounded node |
 | C1 input (choke center) | Amplifier-dependent | Through the coax center to the amp's output network |
 
 Consequences: **static on leg 2 can only leave through the arrestors** — precipitation static on a
 wire antenna builds to many kV, all of it across C2 (10 kV test) until something arcs; and **a surge on
-leg 1 returns through the choke braid** into the sampler chamber and chassis, which is acceptable
+leg 1 returns through the choke braid** into the shelf bulkhead and chassis, which is acceptable
 only because the arrestors sit upstream.
 
 **Leg 2 static bleed — across C2, not to ground.** Because the node is DC-grounded, a resistor
@@ -3064,7 +3212,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 1 | **Feeder trim** — cut long, finish with a removable ~2 ft jumper, trim empirically against measured SWR (Section 1.4) | **BY DESIGN** |
 | 2 | **Roller wheel / bus rod contact condition** — inspect and clean before assembly; 18.4 A RMS localizes at any oxidation | **REQUIRED** |
 | 2a | **Mechanical fault policy qualification** — run STRICT until 100 tune cycles / 50 h / zero mechanical faults, then consider PERMISSIVE (Section 8B.4a-1) | **COMMISSIONING TASK** |
-| 3 | **Choke self-resonance** — *modeled Rev 3.7b* (§6, `choke_vna.py`): the 5.5 MHz quarter-wave worry does not hold — the first resonance is parallel (harmless). Redesigned to **3.3″ former, 39 turns close-wound** (design C) for 0.49″ clearance to the grounded plates and a **series resonance at 23.15 MHz, between 15 and 12 m**. Remaining: VNA-sweep it **installed** and trim ±1 turn if the series resonance is within ~0.5 MHz of a band; 160/80 m stay choke-limited (#61 supplement) | **OPEN — installed VNA check** |
+| 3 | ~~Choke self-resonance (design C)~~ — **SUPERSEDED Rev 3.7c:** the air-core choke gave way to the #61 ferrite choke in the RF bay (§6); its NEC series-resonance work is in §11.11. Verifying the new choke installed is item 49 | **SUPERSEDED** (→ item 49) |
 | 4 | ~~Remote head / network link~~ — **CLOSED**, specified in Section 8C (Ethernet data, POF interlock, web UI, hardwired bench E-STOP) | **CLOSED** |
 | 4a | ~~Frequency counter~~ — **CLOSED**, specified in Sections 6A.10 and 8B.0.1 (÷1024 prescaler, 200 ms gate, 5.1 kHz resolution) | **CLOSED** |
 | 4b | ~~Tuner power supply~~ — **CLOSED**, specified in Section 8A. *New sub-item: verify entry-panel bonding to service ground (8A.3).* | **CLOSED** |
@@ -3092,16 +3240,16 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 25 | ~~Capacitor complement~~ — **RESOLVED Rev 3.7**: UCSX-740-10 in hand → C2; C1 is a purchased 15 kV-class part (UCSX-700-15 "CB-154" or CVDD-500-15S, §5.1). KP1-4 becomes a spare. Both candidates fit the §3.0 vertical stack | **RESOLVED** (C1 to acquire) |
 | 26 | **Used vacuum variable acceptance test** — both caps, per §5.1b and `doc/vacuum-cap-testing.md` | **OPEN — bench test** |
 | 27 | **Homebuilt roller — R-1 = C decided (Rev 3.7b)** — build the 34 µH / 5.2″ / 22-turn roller, no series link (§5.3a); drawings TUNER-L-100 to L-109 regenerated for it (2026-11-16). Run the §5.3a commissioning checks. The Harris / 229-class roller in hand is a spare (§11.5) | **OPEN — blocks 160 m above ~145 W until built** |
-| 28 | ~~Roller orientation~~ — **RESOLVED Rev 3.7** by the vertical stack (§3.0): every element stands upright on a vertical shaft, so element length goes into height. The 34 µH roller at 5.2″ (11.547″ over the plates, §5.3a) and the 9.62″ CB-154 both fit in the 22.00″ box (§3.0 closure); no right-angle drive. Confirm in the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
-| 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 22″ tall since Rev 3.7b**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
-| 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay; (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
-| 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
+| 28 | ~~Roller orientation~~ — **RESOLVED Rev 3.7** by the vertical stack (§3.0): every element stands upright on a vertical shaft, so element length goes into height. The 34 µH roller at 5.2″ (11.547″ over the plates, §5.3a) and the 9.62″ CB-154 both fit in the 24.00″ box (§3.0 closure; 22.00″ until Rev 3.7c); no right-angle drive. Confirm in the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
+| 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 24″ tall since Rev 3.7c (22″ in 3.7b)**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one 36 × 48 of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
+| 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay — the input choke under the deck is now part of that 200 W (Rev 3.7c, §6; its own key-down check is item 49); (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
+| 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″) and Rev 3.7c (24.00″ — the box grew with the deck, so nothing above it moved):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
 | 33 | **Teensy 4.1 row spacing** — verify 15.24 mm with calipers before ordering control boards (§10.5) | **OPEN — check** |
 | 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2 never carries more than 60 W — no issue. **K1 is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1 | **OPEN — K1 rating** |
 | 35 | **Control board for §6B** — two more relay drivers with coil-current sense, thermal-switch input, and the cal-load detector **window comparator** in the hardware permissive (6B.3a; replaces the K2 auxiliary-contact scheme, Rev 3.7a). Measurement board gains the detector. Board revision (`kicad/`) | **OPEN — design** |
 | 36 | **CAL reference plane** — match the K1→choke and K1→load electrical lengths, or measure and store the offset, before trusting vector calibration (§6B.3) | **OPEN — commissioning** |
-| 37 | ~~Roller shaft-to-shelf creepage~~ — was 2.02″ vs the 2″ rule. **Resolved Rev 3.7a:** brass stub below the thrust collar cut from 1.0″ to 0.65″ (Oldham engagement 0.595″) → 2.37″. A longer Oldham hub would not help: the path is the axial tip-to-bushing distance (TUNER-L-109) | **RESOLVED** |
+| 37 | ~~Roller shaft-to-shelf creepage~~ — was 2.02″ vs the 2″ rule. **Resolved Rev 3.7a:** brass stub below the thrust collar cut from 1.0″ to 0.65″ (Oldham engagement 0.595″) → 2.37″; **4.37″ since the Rev 3.7c deck raise**. A longer Oldham hub would not help: the path is the axial tip-to-bushing distance (TUNER-L-109) | **RESOLVED** |
 | 38 | ~~Sampler → control signal path~~ — **Resolved Rev 3.7a (§7.3a):** filtered DB-25 J-S at the partition, Alpha Wire M13197 (≡ Belden 9508) across the motor chamber to J-B at the bulkhead; prescaler on RG-316 between discrete 1000 pF feedthroughs at both walls; relay-coil diodes at the relay | **RESOLVED** |
 | 39 | ~~24 V supply height~~ — **Resolved Rev 3.7a: Mean Well UHP-200-24**, 2.17″ tall on edge, fanless, Class B (§8A.1) | **RESOLVED** |
 | 40 | ~~Filtered bulkhead connectors~~ — **Resolved Rev 3.7a (§7.3a):** Amphenol FCE17 DB-25 1000 pF (J-A), DB-25 5600 pF (J-B, J-S), DE-9 5600 pF (J-E, Rev 3.7b; was DA-15); Spectrum Control 9910-381-6002 power feedthroughs; Tusonix 2499 discrete feedthroughs. Connectors moved to the +Y half, clear of the C1 axis module and the PSU; plug envelopes checked | **RESOLVED** |
@@ -3109,10 +3257,12 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 42 | ~~Link coil has no RF-bay position~~ — **RESOLVED Rev 3.7b:** series link and pad deleted (§5.2, §5.4); the deck holds only C1, C2 and the roller. The imbalance CT rides the output conductors at the top feedthroughs and the tank thermal is a small probe — neither needs deck area. Original entry in §11.6 | **RESOLVED** |
 | 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-208, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
 | 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly: the 28–31 MHz resonance must sit above ~30.5 MHz.** If it lands in-band: slimmer rib contact at the notches, or fewer idle turns | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
-| 45 | ~~Re-run `cap_demand.py` bare~~ — **RESOLVED Rev 3.7b** (`nec/cap_demand.py`, output `cap_demand_rev37b.out`): **27/27** with either 15 kV C1 (C1 25–286 pF, C2 up to 675 pF); V_C1 6.54 kV pk (1.38×), V_C2 2.41 kV pk (2.49×), **V_L 6.55 kV pk / 4.63 kV RMS**, I_L 18.4 A; 160 m derates **527 / 630 / 935 W** (§1.7.1); no other band derates (worst 138 W at Q = 150). **Inductance actually required: 22.3 µH** — the 31.70 µH figure was the lowest-current policy maxing L on 40 m. Prefer **CVDD-500-15S** for C1 (20 pF floor) | **RESOLVED** |
+| 45 | ~~Re-run `cap_demand.py` bare~~ — **RESOLVED Rev 3.7b** (`nec/cap_demand.py`, output `cap_demand_rev37b.out`): **27/27** with either 15 kV C1 (C1 25–286 pF, C2 up to 675 pF); V_C1 6.54 kV pk (1.38×), V_C2 2.41 kV pk (2.49×), **V_L 6.55 kV pk / 4.63 kV RMS**, I_L 18.4 A; 160 m derates **527 / 630 / 935 W** network only (§1.7.1; 502 / 600 / 882 W with the choke in the RF bay since Rev 3.7c); no other band derates (worst 138 W at Q = 150). **Inductance actually required: 22.3 µH** — the 31.70 µH figure was the lowest-current policy maxing L on 40 m. Prefer **CVDD-500-15S** for C1 (20 pF floor) | **RESOLVED** |
 | 47 | ~~Roller size~~ — **DECIDED Rev 3.7b: keep the 34 µH roller** (5.2″, 22 turns). Required L is ≤ 23.1 µH across feeder 39–42 ft / VF 0.93–0.97 (always at 1.800 MHz), so the drawn coil still covers if it winds up to ~30% under Wheeler (AB6WP saw 27%), and leaves headroom for other antennas or feeders on 160 m. A ~26 µH coil (5.2″ × 18 t) would save ~1.3″ of height but keep only ~8% worst-case margin. Item 44 (idle-turn SRF) is settled by the VNA sweep, not by shrinking | **DECIDED** |
-| 46 | ~~Output DC path re-check~~ — **RESOLVED Rev 3.7b (§8D.5):** leg 1 (deck) is DC-grounded through the input choke's braid (≈ 0.15 Ω); leg 2 floats behind C2 — and always did: the old pad was in parallel with C2, so the "both legs behind series capacitors" claim was never true. Added a **100 MΩ / ≥ 10 kV bleed across C2** (≈ 0.03 W) to drain leg 2's static into the grounded node. Ohmmeter checks listed in §8D.5 for commissioning | **RESOLVED** (ohmmeter check at commissioning) |
+| 46 | ~~Output DC path re-check~~ — **RESOLVED Rev 3.7b (§8D.5):** leg 1 (deck) is DC-grounded through the input choke's braid (≈ 0.15 Ω; ≈ 0.05 Ω for the Rev 3.7c RG-400 choke); leg 2 floats behind C2 — and always did: the old pad was in parallel with C2, so the "both legs behind series capacitors" claim was never true. Added a **100 MΩ / ≥ 10 kV bleed across C2** (≈ 0.03 W) to drain leg 2's static into the grounded node. Ohmmeter checks listed in §8D.5 for commissioning | **RESOLVED** (ohmmeter check at commissioning) |
 | 48 | **Overtravel settings (§7.2)** — (a) the vacuum capacitors' end-stop torque rating (Jennings data, or a careful spring-scale test on C2) sets the driver current ceiling; (b) count each capacitor's shaft turns stop to stop (sets the ≥ (turns + 2):1 module reduction and §8B.3a times; 30 assumed); (c) measure the roller's stopping distance at the slow-zone speed to place its inner cam | **OPEN — bench measurement** |
+| 49 | **Input choke, verify installed** (§6, Rev 3.7c) — (a) VNA sweep deck end to chassis with the choke and deck installed: expect the impedance peak near 5–7 MHz and \|Z\| ≥ ~1 kΩ across 10 m; a sharp in-band dip means the winding capacitance or a lead resonance differs from the model — re-dress the leads, then take off a turn; (b) 1500 W key-down on 28.0 MHz for 10 min with temperature labels on the bore bundle and cores, < ~100 °C; (c) inspect the jackets at the core edges after winding | **OPEN — build / commissioning** |
+| 50 | **Antenna-system common-mode impedance** — the choke is rated with the whole V_cm across it (Z_a → 0). The real 160 / 80 m balance against the §2.2 ≤ 5% spec depends on Z_a: model the doublet + 40 ft feeder + tuner common-mode path in NEC, and read the output imbalance CT in service. If 160 m falls short, the 7-core stack (0.80× the deck reactance) fits the 5.50″ standoffs (§6) | **OPEN — model, then measure** |
 
 **Closed in this revision:** static drain and lightning protection (existing entry-box bonded
 baseplate and arrestors); capacitor adequacy (C2 position 2.50×; C1 needs a 15 kV-class part,
@@ -3168,7 +3318,7 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
 | 2 | Vacuum variable capacitor | **C1:** 15 kV test / 9 kV working, ≤ 25–30 to ≥ 500 pF, ≥ 6 A — e.g. **Jennings UCSX-700-15S** or **CVDD-500-15S**. **C2:** 20–675 pF, 10 kV test / 6 kV working — **UCSX-740-10 in hand** | Class | §5.1 |
 | 1 | Roller inductor | Homebuilt per §5.3a (DECISION R-1 = C): **≥ 34 µH** max, single roller, no series link; ≤ 0.46 µH min; **18.4 A RMS**; up to 9.3 kV pk across the winding. #4 solid at 3 TPI on 5.20″, 22 turns, Ultem rib cage | Fabricate | §5.3a |
 | 1 | Floating sub-deck | **10.75″ × 10.75″**, 12 ga — cut from sheet stock | Fabricate | §3.0, E-211 |
-| 4 | Sub-deck standoff insulator | Ceramic or PTFE, **3.50″** height, HV-rated | Class | §3.2 |
+| 4 | Sub-deck standoff insulator | Ceramic or PTFE, **5.50″** height (Rev 3.7c; was 3.50″), HV-rated | Class | §3.2 |
 | — | Tank interconnect strap | Copper strip, 0.032″ × 0.75″, ~4 ft — radius all edges ≥1/16″ | Class | §3.2 |
 
 > There are no relays in the RF tank (pad and series link deleted, Rev 3.7b; history in §11.6). The
@@ -3178,15 +3328,22 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
 
 ### 10.2 Input common-mode choke
 
+*Rev 3.7c (§6). The design C former and RG-142B are in §11.11.*
+
 | Qty | Item | Specification | Type | Ref |
 |--:|:--|:--|:--|:--|
-| 1 | Coil former | **3.3″ dia G10 fiberglass tube**, ≥ 8.5″ long (3.69″ OD assembled) | Class | §6 |
-| 1 | Winding coax | **RG-142B/U**, **40 ft** (35.7 ft wound) — 39 turns close-wound, 7.61″ winding length | Part | §6 |
-| 2 | Former end cap / mount | G10 or PTFE, axis horizontal (lies flat) in Sampler chamber | Fabricate | §6 |
+| 5 | Ferrite toroid | **Fair-Rite 5961003801** (FT-240-61): #61, 61.0 × 35.55 × 12.7 mm, A_L ≈ 172 nH — ~$13 ea (DigiKey), ~$9 at 20+ (TME) | Part | §6 |
+| 1 | Winding coax | **RG-400 (M17/128)**, **12 ft** (9.6 ft used: 15 turns ≈ 9.0 ft + leads) — ~$1.85–2.90/ft | Part | §6 |
+| 1 | PL-259, chassis end | **Amphenol 83-1SP** (PTFE) + **UG-175/U** reducer for 0.195″ cable; mates the shelf coax bulkhead | Part | §6 |
+| 1 | Base disc | G10, 1/4″ × Ø3.40″: Ø0.52″ center hole, six Ø0.15″ vents on Ø0.72″, three 8-32 clearance holes on Ø2.60″ | Fabricate | §6, E-207 |
+| 1 | Top spider | G10, 1/8″, three arms on Ø2.60″, Ø0.52″ center hole | Fabricate | §6 |
+| 3 | Standoff | G10 (or glass-filled nylon), Ø3/8″ × 5/8″, 8-32 female both ends; 8-32 screws up through the shelf (CH1–CH3) | Class | §6, E-207 |
+| 1 | Center rod + 2 nuts | **1/2″-13 fiberglass (FRP) threaded rod**, ~5″ (cut to fit), with FRP nuts | Class | §6 |
+| — | Pads, tape, bond | 1/16″ silicone rubber sheet; glass-cloth tape for the bore and core edges; high-temperature RTV between the cores; PTFE lacing cord | Class | §6 |
 | 2 | SO-239 bulkhead connector | **Amphenol 83-798** (SO-239A), PTFE — **not 83-1R**, which is glass-filled PBT | Part | §7.3 |
 
-> §9 item 3: modeled series resonance 23.15 MHz, between 15 and 12 m; verify installed, trim ±1 turn.
-> The 40 ft order leaves room for one more turn and the leads.
+> §9 item 49: VNA-sweep it installed and run the 10 m key-down thermal check. Twelve feet of RG-400
+> leaves ~2 ft for re-dressing the leads or one more turn.
 
 ---
 
@@ -3274,7 +3431,7 @@ the four SOD-323 diodes, the AD8302 (TSSOP-14), the TLV3501 (SOIC-8) and the AMS
 | 3 | Element-side coupler | **Delrin Oldham** — fabricate from rod stock below | Fabricate | §7.1a |
 | 3 | Insulating drive shaft | **0.375″ OD heavy-wall G10 rod**, length per axis + 2″ | Class | §7.1, §3.1 |
 | 3 | Flanged bushing | Bronze, 0.375″ bore, partition-mount | Class | §7.1 |
-| 0 | Intermediate bearing block | Not needed in the vertical stack — shafts are 3–4″, under the 6″ rule (§3.0) | — | §3.0 |
+| 0 | Intermediate bearing block | Not needed in the vertical stack — longest free span ~5.1″ above the shelf bushing (shafts 4.8–6.4″ overall since Rev 3.7c), under the 6″ rule (§3.0, §3.1) | — | §3.0 |
 | — | Delrin rod stock | Acetal **homopolymer**, 1.0″ dia × 12″ — Oldham hubs and discs | Class | §7.1a |
 | 6 | Roll pin / dowel | 1/8″ × 0.75″, stainless — coupler retention, **not set screws** | Class | §7.1a |
 | 12 | Limit microswitch | Sub-miniature SPDT, **roller lever** (Omron SS / D2F class), on a slotted plate — inner (gates STEP) and outer (drops EN) at each end of each axis | Class | §7.2 |
@@ -3385,13 +3542,13 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 
 | Qty | Item | Specification | Type | Ref |
 |--:|:--|:--|:--|:--|
-| 1 | Aluminum sheet, 12 ga | **48 × 48″** 5052-H32 (0.081″) — floor, top, shelf, bulkhead, partition, deck, tray, sampler base (TUNER-E-211) | Part | E-211 |
-| 1 | Aluminum sheet, 14 ga | **48 × 48″** 5052-H32 (0.064″) — RF service panel, cassette face, four side panels, rear (TUNER-E-211) | Part | E-211 |
-| — | Angle stock | **6061-T6: 1 × 1 × 1/8 — 25.5 ft; 1/2 × 1/2 × 1/8 — 4.3 ft; 2 × 2 × 3/16 — 3.2 ft** (incl. kerf; TUNER-E-201, Rev 3.7a) | Part | E-201 |
-| 400 | Machine screw | **8-32 stainless button head**, 1/2″ — 363 panel holes (TUNER-E-210) + spares | Part | E-210 |
-| 400 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
-| ~54 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
-| 64 | Captive panel screw | 8-32, RF service panel (38) and cassette face (26) | Class | §8E.6 |
+| 1 | Aluminum sheet, 12 ga | **36 × 48″** 5052-H32 (0.081″), 65% used — floor, top, shelf, bulkhead, partition, deck, tray, sampler base (TUNER-E-211) | Part | E-211 |
+| 1 | Aluminum sheet, 14 ga | **48 × 48″** 5052-H32 (0.064″), 66% used — RF service panel, cassette face, four side panels, rear (TUNER-E-211) | Part | E-211 |
+| — | Angle stock | **6061-T6: 1 × 1 × 1/8 — 26.5 ft; 1/2 × 1/2 × 1/8 — 4.3 ft; 2 × 2 × 3/16 — 3.5 ft** (incl. kerf; TUNER-E-201, Rev 3.7c) | Part | E-201 |
+| 421 | Machine screw | **8-32 stainless button head**, 1/2″ — 381 panel holes (TUNER-E-210) + spares | Part | E-210 |
+| 421 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
+| ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
+| 68 | Captive panel screw | 8-32, RF service panel (42) and cassette face (26) | Class | §8E.6 |
 | 6 | Feedthrough capacitor | **Tusonix 2499-003-X5W0-103ZLF** — 0.01 µF, 500 V, 12-28 nut mount; shelf FT1–FT4 (3 used + 1 spare) + 2 spares | Part | §7.3a |
 | 1 | Filtered DB-25 | **Amphenol FCE17-B25SM-250** — 1000 pF, J-A | Part | §7.3a |
 | 2 | Filtered DB-25 | **Amphenol FCE17-B25SM-290** — 5600 pF, J-B and J-S | Part | §7.3a |
@@ -3409,7 +3566,7 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | 1 | Intake filter | Washable electrostatic cartridge, over honeycomb | Class | §8 |
 | 3 | Membrane vent | **Gore PMF100320** (M12 × 1.5, black) + nut M10510-009, Ø0.480″ hole — **not PMF100318** (M12 × 1); stocked at RS / Distrelec, not Digi-Key | Part | §8E.4 |
 | — | Shielded twisted pair | 4-conductor, 18–20 AWG, foil — Control→Motor | Class | §7.3 |
-| — | Coax, internal | **RG-213** or **RG-393 PTFE** — Sampler→RF tank | Class | §7.3 |
+| — | Coax, internal | **RG-393 PTFE** — K1 → X → shelf bulkhead (W15, W17); the choke's RG-400 continues to C1 (§10.2) | Class | §7.3, §6 |
 
 ---
 
@@ -3516,8 +3673,7 @@ before the opto-MOSFET and its cable are finalized.
 **G-1 · Gasket strategy — RESOLVED Rev 3.7a: conductive elastomer** on the frame flanges
 (TUNER-E-202 to E-208; §8E.6). *Options history in §11.7.*
 
-**L-1 · Choke turn count** — §9 item 3. The 31.4 ft figure in 10.2 stands only if the VNA sweep
-clears 60 m. Order coax with slack.
+**L-1 · Choke turn count** — *resolved Rev 3.7c:* 15 turns of RG-400 on 5 × FT-240-61 (§6). The installed VNA sweep (§9 item 49) may take off a turn; 12 ft of RG-400 covers any outcome.
 
 ---
 
@@ -3538,7 +3694,7 @@ resolved or superseded and are kept in §11.10; item 5 remains:
 
 ## Section 11 — Superseded Designs and Decisions
 
-*Rev 3.7b.* Design content that no longer describes the tuner, kept verbatim for its derivations and
+*Rev 3.7b; 11.11–11.12 added Rev 3.7c.* Design content that no longer describes the tuner, kept verbatim for its derivations and
 as the record of why the current design is what it is. Nothing here is current: **do not build or
 order from this section.** Each subsection says what superseded it and where the current design is.
 Section and item cross-references inside the moved text refer to the document as it was when the
@@ -4284,6 +4440,95 @@ move to the web UI. The bench box keeps the E-STOP and a permissive-state LED.
    requirements; the smallest C2 that matches is ≤ 270 pF. Bare coverage is 27/27; the pad is a
    ~20–28 W loss saving on 160 m only.
 
+### 11.11 Input choke: air-core design C in the sampler chamber (Rev 3.7b)
+
+*Superseded Rev 3.7c by the #61 ferrite choke in the RF bay (§6). Two findings ended it:
+- **Coax loss.** Its ~36 ft of RG-142B lost 40–232 W of the input power inside the sealed sampler
+  chamber.
+- **Bypassed by the routing.** Its deck-side coax crossed two grounded bulkheads (adapter X and the
+  shelf), which bypassed it (Changes in Rev 3.7c, item 1).
+
+The NEC model (`nec/choke_vna.py`) and its outputs stay in `nec/` for reference. Text as it stood in
+Rev 3.7b:*
+
+**Former 3.3″** (3.69″ OD assembled), lying flat in the Sampler chamber with **0.49″ to the grounded baseplate and to the shelf** (§3.0; Rev 3.7b — the 4.0″ former sat 0.05″ off the baseplate with its deck end at kV RF).
+
+**No ferrite in the high-stress path.** With a floating deck, the input choke must withstand the full
+deck-to-chassis common-mode potential — kilovolts. Fair-Rite #31 is deliberately lossy (μ″ ≫ 0); at
+kV common-mode its resistive core dissipation would exceed 250 W and drive the ferrite past its
+130 °C Curie point within seconds.
+
+**Adopted: air-core Guanella transmission-line choke.**
+
+| Parameter | Value |
+|:--|--:|
+| Former | **3.3″ dia G10 fiberglass** (3.69″ OD assembled) — Rev 3.7b, design C |
+| Winding | **39 turns** RG-142B/U, close-wound single layer |
+| Coax length | ≈ **35.7 ft** (+ leads; order 40 ft) |
+| Winding length | **7.61″** (≈ 8.1″ with end caps) |
+| Inductance | **45.4 µH** at 1 MHz, installed (NEC, below) |
+| Mounting | Axis **horizontal** — lies flat in the Sampler chamber (§3.0) |
+
+```
+Fit check (vertical stack): axis across the width, lying flat
+            Sampler chamber is ~15.87" W x 5.00" D x 5.00" H
+            -> 4.25" OD: 0.375" clearance in D and in H; 5.85" winding + end caps in 15.87" W
+            FITS — tight in H; confirm with the end-cap mounts in the mock-up (§9 item 5)
+```
+
+**Choking reactance:** 547 Ω @ 1.85 MHz · 1,079 Ω @ 3.65 MHz · 4,199 Ω @ 14.2 MHz · 8,427 Ω @ 28.5 MHz
+
+Zero magnetic core means zero core dissipation, zero flux saturation, and no Curie-point runaway.
+
+**Self-resonance — modeled Rev 3.7b** (`nec/choke_vna.py`: nec2++ wire model of the shield's
+outer surface as the common-mode helix, end A bonded to the baseplate, port at the deck end, grounded
+baseplate below and shelf above at the real gaps). The old "quarter-wave near 5.5 MHz" estimate does
+not hold: the first resonance is a **parallel** one (impedance peaks — harmless) and the dangerous one
+is the **series** resonance, which tracks coax length (~0.57 MHz per turn) and moves strongly with the
+gap to grounded metal.
+
+| Design | Former / turns | Gaps below / above | Parallel | **Series** | Verdict |
+|:--|:--|:--|--:|--:|:--|
+| Rev 3.7a | 4.0″ / 30 t | 0.05″ / 0.37″ | 8.97 MHz | 22.62 | 0.05″ clearance at kV — rejected |
+| A | 3.3″ / 36 t | 0.49″ / 0.49″ | 7.75 | 24.85 | **on 12 m** (53 Ω) |
+| B | 3.3″ / 42 t, 0.25″ pitch | 0.49″ / 0.49″ | 7.65 | 21.85 | **on 15 m** (160 Ω) |
+| **C — adopted** | **3.3″ / 39 t close-wound** | 0.49″ / 0.49″ | 7.35 | **23.15** | 7.9 % above 15 m, 7.0 % below 12 m |
+| D | 3.3″ / 38 t, 0.21″ pitch | 0.49″ / 0.49″ | 7.65 | 23.85 | 4 % from 12 m |
+
+Design C, choke impedance (minimum in band) against the deck's ~23 pF to chassis (§2.2) — the vane
+can only balance the deck capacitance, so the choke must be the *higher* impedance:
+160 m 536 Ω (deck 3.85 kΩ — **choke-limited**), 80 m 1.26 kΩ (1.98 kΩ), 60 m 3.2 kΩ, 40 m 19.6 kΩ,
+30 m 3.1 kΩ, 20 m 1.34 kΩ, 17 m 851 Ω, 15 m 507 Ω (deck 330 Ω), 12 m 1.39 kΩ, 10 m 566 Ω (deck 247 Ω).
+From 60 m up the choke always exceeds the deck reactance; **160 / 80 m remain choke-limited**, which is
+what the #61 supplement below is for.
+
+**Sweep it installed, not on the bench:** raising the 4.0″ choke from 0.05″ to 0.50″ moved its
+parallel resonance from 9.0 to 7.2 MHz. Measure the series resonance in the chamber; if it lands within
+~0.5 MHz of 21.45 or 24.89 MHz, take off or add one turn (~0.57 MHz per turn).
+
+**Low-band supplement.** Two Fair-Rite **#61** toroids in series on the cold side add >1,500 Ω of
+reactive choking on 160/80 m. #61 is low-loss NiZn (tan δ < 0.005 below 10 MHz), so it adds
+impedance without the thermal failure mode of #31 — roughly 1/50th the dissipation. Being reactive
+rather than resistive, it can itself resonate with stray capacitance; include it in the VNA sweep.
+
+### 11.12 Enclosure at 22.00″ with 3.50″ standoffs (Rev 3.7b)
+
+*Superseded Rev 3.7c: the standoffs grew 2.00″ (to 5.50″) and the box with them (to 24.00″) so the
+input choke can stand under the deck (§3.0, §6). Text as it stood in Rev 3.7b:*
+
+**Height closure (bottom to top):**
+
+```
+Floor 0.081 + utility 5.000 + shelf 0.081 + standoffs 3.500 + deck 0.081
+  + roller over plates 11.547 + plate B to top 1.630 + top 0.081         = 22.00"
+Specified 22.00" (Rev 3.7b; was 21.00" / 12U)
+```
+
+**Why 3.50″ standoffs.** The hot capacitor shaft tip now hangs ~0.75″ below the deck. At 2.50″
+that left 1.75″ of air and creepage to the grounded shelf, under the ≥ 2″ creepage used in
+§5.3a. At 3.50″ it is 2.75″. The roller shaft is at deck potential (§5.3a), so it needs only the
+deck's own clearance.
+
 ---
 
 ## Appendix A — Homebuilt Roller Drawings (TUNER-L-100 to L-109)
@@ -4362,6 +4607,7 @@ against the roller, caps, deck and drive trains. DRAFT — NOT FOR FABRICATION u
 Sommerfeld-Norton ground, 27 band-edge points across 160 m–10 m inclusive of 60 m. Network
 reachability verified by closed-form T-network solution at every point against measured component
 ranges. Model, solver and raw output archived in `nec/`; capacitance demand regenerates with
-`python3 cap_demand.py` (Rev 3.6; bare re-run pending, §9 item 45).
+`python3 cap_demand.py` (bare Rev 3.7b run: `nec/cap_demand_rev37b.out`); the input-choke screen with
+`python3 choke_screen.py` (`nec/out/choke_screen_rev37c.txt`).
 Review history and per-item resolutions: `doc/design-review-rev3.2.md`.
 Previous revisions preserved at `archive/design-log-rev3.3.md` and `archive/design-log-rev3.4.md`.*
