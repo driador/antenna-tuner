@@ -12,7 +12,7 @@ import pcbnew
 
 B = sys.argv[1]
 MM, TOMM = pcbnew.FromMM, pcbnew.ToMM
-EDGE_M = 2.5
+EDGE_M = {'measurement': 1.0}.get(B, 2.5)     # as make_pcb.py
 b = pcbnew.LoadBoard(f'{B}.kicad_pcb')
 if b.GetCopperLayerCount() == 4:
     for z in list(b.Zones()):

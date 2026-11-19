@@ -54,7 +54,7 @@
   series link deleted** (no vacuum relays in the RF tank); box **22.00″ H**. See *Changes in Rev 3.7b*.
 - **Rev 3.7c (2026-11-17)** — **input choke rebuilt on #61 ferrite and moved into the RF bay**, under a
   deck raised 2.00″; box **24.00″ H**. Fixes a routing error that grounded the choke's deck side.
-  Control board rebuilt to the log (§10.5). See *Changes in Rev 3.7c*.
+  Control and measurement boards rebuilt to the log (§10.5, §10.4). See *Changes in Rev 3.7c*.
 
 **Changes in Rev 3.7c**
 1. **Routing error fixed.** Through Rev 3.7b the choke sat in the sampler chamber, and its deck-side
@@ -145,6 +145,28 @@
     - **§6A.3b crossing:** the 5600 pF D-sub filter, which replaces 0.01 µF.
     - **§6A counter:** the 1000 pF feedthroughs at both walls, with RG-316 between, into the control
       board's SMA.
+13. **Measurement board rebuilt to the log** (§10.4; the old board is in §11.14). It had not changed
+    since Rev 3.4:
+    - **§9 item 35:** the cal-load RF detector (§6B.3a) is on it, and the ÷1024 count leaves on an
+      edge SMA for the RG-316 run W10 instead of on the ribbon.
+    - **Coupler:** in its own diecast box (§10.3, §9 item 53). The board takes FWD and REF on edge
+      SMAs and terminates both ports: 2 × 105 Ω 1 W each, 50.2 / 50.7 Ω with the taps.
+    - **Vector path corrected (§6A.5):** ~30 dB taps replace the ~60 dB pad, which left the AD8302 no
+      range at tuning power. The AD8302 is now in measurement mode (MSET/PSET had been tied to VREF),
+      AC-coupled and terminated, with its offset loop at 20 kHz instead of 2 MHz.
+    - **Detectors:** 1N5711W (70 V) replaces the HSMS-2850, whose 3.8 V breakdown faced ~19 V reverse
+      at 1500 W. The outputs are scaled to 2.9 V at 1500 W for the 3.3 V ADC.
+    - **Counter:** AC-coupled and mid-biased, so it counts from ~1 W; the TLV3501's SHDN had been tied
+      high, which disables it. The obsolete 74AC4040 becomes a 74LVC74 ÷4 and a 74HC4040 ÷256
+      (§8B.0.1).
+    - **SWR trip:** threshold on a trimmer (§6A.4).
+    - **Board:** 100 × 74 mm, 4 layers, 1206/SOIC, inside the sampler's 4.0 × 3.0″ envelope (was
+      215 × 145 mm, 2 layers, through-hole). Every part checked for stock and price (2026-11-19).
+14. **Control board: SOT-223 tabs and SMA legs connected** (§10.5). `make_pcb.py` netted only the
+    first pad with a given number, so the tabs of Q1–Q4 and U3 and three of J11's four ground legs
+    were on no net. DRC cannot see it, because a no-net pad that touches nothing breaks no rule. Fixed in
+    the generator. On the routed board each tab is tied to its middle pin, and J11's legs join the
+    pours.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -1504,6 +1526,11 @@ datasheet — it varies between vendors and mixes.
 wirewound**, whose inductance destroys directivity. Both ports get identical parts; under high SWR
 the reflected termination sees power comparable to the forward one.
 
+*Rev 3.7c, as built (§10.4):* the terminations are on the measurement board, at the end of two
+equal-length RG-316 jumpers from the coupler box. Each port gets 2 × 105 Ω 1 W 2512 thick film in
+parallel (52.5 Ω, 2 W). With the detector and AD8302 taps across them, the ports see 50.2 Ω (FWD)
+and 50.7 Ω (REF), a return loss above 40 dB.
+
 ### 6A.3b Physical placement — all detection happens in the Sampler chamber
 
 **Conflict resolved.** Section 7.3 routes Sampler → Control crossings through 5600 pF filtered D-sub
@@ -1521,12 +1548,26 @@ SAMPLER CHAMBER                              | CONTROL CHAMBER
   (no RF crosses the bulkhead)                |
 ```
 
-The AD8302, the Schottky detectors and the frequency path (TLV3501 comparator, 74AC4040 prescaler; §10.4) are the active devices in the Sampler chamber; give
+The AD8302, the Schottky detectors and the frequency path (TLV3501 comparator, 74LVC74 and 74HC4040 prescaler; §10.4) are the active devices in the Sampler chamber; give
 them a local regulator fed through a filtered feedthrough, not a shared rail.
+
+*Rev 3.7c:* the coupler is in its own small diecast box (§10.3). Its FWD and REF ports reach the
+measurement board on two equal-length RG-316 jumpers, so the board carries low-level circuits only.
+The board's AMS1117 runs from the J-S 5600 pF contact. Ferrite beads split its output into an
+analog rail (AD8302) and a digital rail (counter).
 
 ### 6A.4 Magnitude path — protection and display
 
 Coupled ports → Schottky envelope detectors (HSMS-282x class) → ADC.
+
+*Rev 3.7c, as built (§10.4):*
+- **Detector diode:** **1N5711W** (70 V). At 1500 W the port peaks at 9.7 V, so the diode sees ~19 V
+  reverse. That is past the HSMS-282x's 15 V breakdown, and far past the 3.8 V of the Rev 3.4
+  board's HSMS-2850.
+- **Scaling:** a 22 k / 10 k load divides the ~9.4 V peak to 2.9 V for the 3.3 V ADC.
+- **Trip:** an LM393 on the reflected detector, open collector, with a 4.7 k pull-up on the
+  measurement board. Its threshold is set on a 3296W trimmer: 0.15–2.29 V, about 10–800 W
+  reflected. 2:1 at 1500 W is 167 W reflected and reads ~0.92 V at TP1.
 
 Yields forward power, reflected power and SWR. This path drives the **fast protection trip**
 (reflected-power threshold → PTT drop, Section 5.5) and must remain functional and independent of
@@ -1544,13 +1585,28 @@ straight through the cores, and do not rely on the core for mechanical support.
 
 ### 6A.5 Vector path — the R/X measurement
 
-Coupled ports → 60 dB resistive attenuation → **AD8302 gain-and-phase detector**.
+Coupled ports → ~30 dB resistive taps → **AD8302 gain-and-phase detector**.
 
 ```
-Coupled port at 1500 W   : 6.85 V RMS into 50 ohm = +29.7 dBm
-AD8302 useful input       : roughly -60 to 0 dBm, target about -30 dBm
-Attenuation required      : ~60 dB, resistive pad on each port
+Coupled port              : +29.7 dBm at 1500 W, +18 dBm at 100 W, +8 dBm at 10 W
+AD8302, each input        : -60 to 0 dBm (re 50 ohm); absolute max -3 dBV (~ +10 dBm)
+Ratio range               : +/-30 dB, so FWD (INPB, the reference) must sit at -30 dBm or more
+                            for |Gamma| = 0.03 (REF 30 dB under FWD) to stay in range
+Attenuation               : ~30 dB, a resistive tap on each port (1.62 k into 52.3 ohm)
+  -> FWD at the AD8302    : -22 dBm at 10 W, -0.3 dBm at 1500 W; the full ratio range from ~2 W
 ```
+
+*Corrected Rev 3.7c:* the earlier ~60 dB put the AD8302 mid-range (−30 dBm) at 1500 W. That leaves
+REF no room under FWD. After the Rev 3.4 board's 6 dB splitter, FWD read −36 dBm at full power and
+−58 dBm at 10 W. The vector path is what tuning uses, at tuning power. FWD therefore belongs near
+the top of the range at the highest power, not mid-range. The 30 dB taps also fit on the board; the
+external SMA attenuators the 60 dB needed were never in a BOM.
+
+*As built (§10.4; AD8302 datasheet):*
+- **Mode:** measurement mode, with MSET tied to VMAG and PSET to VPHS.
+- **Inputs:** AC-coupled through 10 nF C0G, because all four input pins sit ~100 mV below VPOS.
+- **Offset loop:** f_HP (MHz) = 2 / C (nF), so 100 nF on OFSA/OFSB puts the high-pass at 20 kHz.
+- **Output filter:** 10 nF on MFLT/PFLT gives T (ns) = 3.3 × C (pF) = 33 µs.
 
 Port assignment: **INPA = reflected sample, INPB = forward sample.** The AD8302 then reports
 magnitude ratio and phase difference of the reflection coefficient directly.
@@ -1666,21 +1722,21 @@ is already strong. Level varies with operating power:
 A ~32 dB range, so the front end must limit, not amplify linearly:
 
 ```
-fwd port --> 1:1 isolating tap --> clamp diodes (+/- 5V) --> high-speed comparator
-             (10:1 resistive)       back-to-back Schottky    (LT1016 / MAX9201 class,
-                                                              ~10 mV hysteresis)
-                                                                     |
-                                                                     v
-                                                            ÷1024 prescaler (74AC4040, §8B.0.1)
-                                                                     |
-                                                                     v
-                                                            MCU timer input (~29 kHz)
+fwd port --> tap ------------> clamps -----------> comparator ---------> /4 ------> /256
+             1 nF + 4.7 k,     BAT54S, to          TLV3501, mid-biased,   74LVC74    74HC4040
+             10 k to 1.65 V    0 V and 3.3 V       ~10 mV hysteresis                  |
+                                                                                      v
+                                MCU timer input (~29 kHz) <-- FT-P x 2 <-- RG-316 <-- 1 k, SMA
 ```
 
 **Counting:** the comparator drives a ÷1024 prescaler and the MCU counts ~29 kHz over a 200 ms
 gate, for **5.1 kHz** resolution (§8B.0.1) — FreqCount is only documented to 8 MHz on the Teensy
 4.x. That is still ten times finer than the 50 kHz derate segments need. *The earlier direct-gate
 method is in §11.8.*
+
+*Rev 3.7c, as built (§10.4):* the tap feeds 0.68 of the port voltage into a node held at mid-rail.
+At 1 W (0.25 V peak) the comparator still swings ±170 mV against ~16 mV of hysteresis, and at 1500 W
+the clamps carry ~1 mA. A 74LVC74 divides by 4 ahead of a 74HC4040 (§8B.0.1).
 
 **Operational notes:**
 - Requires a **steady carrier**. SSB speech gives intermittent, modulated output and will not
@@ -1765,13 +1821,21 @@ perfect SWR, too fast for the thermal switch. The detector sees it directly.
 | Divider | 3.3 pF / 100 pF capacitive, **1 : 31**, flat across 1.8–30 MHz (no resistor to dissipate full power) |
 | At 60 W in the load | 77 V peak → 2.5 V peak at the diode → ≈ 2.2 V DC (+1.0 V bias) |
 | At 1.5 kW in the load | 387 V peak → 12.5 V → clamped; the trip is long over by then |
-| Response | ≈ 0.2 ms (100 kΩ × 2.2 nF), then the 28 kHz analog-grade feedthrough — far inside the load's survival time at 1.5 kW |
+| Response | ≈ 0.2 ms (100 kΩ × 2.2 nF), then ≈ 1.1 ms more as built, where the 100 kΩ source drives the two 5600 pF contacts (J-S, J-B). Still far inside the load's survival time at 1.5 kW |
 | Comparator | **Window** on the control board's hardware permissive: trip **above** the 60 W level **or below** 0.5 V. An open or shorted detector line reads ≈ 0 V, so a broken detector **trips** instead of going blind. *Rev 3.7c, as built:* the 1 MΩ bias makes the node too weak to load, so it enters through 100 kΩ into an MCP6002 follower. A **10 MΩ pull-down** at the control board is what makes an open line read 0 V; it moves the idle level from 1.00 to 0.91 V. An LM393 runs on 5 V, keeping the ~2.1 V threshold inside its input range; the high trip is set with a 3296W trimmer (0.86–3.08 V), and the 0.50 V low trip is fixed |
 | Calibration | Set the 60 W threshold once with a wattmeter in CAL; the firmware also logs the detector reading against forward power on every calibration run, so drift shows |
 
 The detector sits on the measurement board beside the load (Sampler chamber). The 3.3 pF top
 capacitor is a 1 kV NP0 part or a short gimmick; at the load's 50 Ω it loads the node by under
 0.1 % at 30 MHz.
+
+*Rev 3.7c, as built (§10.4):*
+- **Top capacitor:** a Vishay 561R10TCCV33 disc (1 kV NP0, leads formed to 5 mm).
+- **Tap:** a 22 AWG wire from the load's tab lands on a plated pad in the board corner nearest the
+  load. The pad has 2.5 mm to every other conductor (IPC-2221 B2, 301–500 V), and the trace to the
+  disc runs on an inner layer.
+- **Bias:** a 22 k / 10 k divider from the analog 3.3 V, giving 1.03 V.
+- **TVS:** SMF33A.
 
 ### 6B.4 AUX port
 
@@ -2027,6 +2091,14 @@ bulkhead their 360° bond; the cable shield only has to survive the motor chambe
 
 Alternate if the C-filter proves insufficient on the bench: **Spectrum Control 56F721-015**
 (DB-25, 4000 pF **pi**, 50 V, ~$124) in place of J-B / J-S.
+
+*Rev 3.7c, sampler side:*
+- **W9:** J-S solder cups 1–16 run one to one to the measurement board's 2×8 header, 16 conductors,
+  every line with its own ground. That header therefore carries pins 1–16 of the control board's
+  J-B pinout.
+- **W9b, W9c:** the relay coils (pins 20–23) and the cal-load thermostat (17–18) go from J-S
+  straight to K1/K2 and to the switch.
+- **W10:** the ÷1024 count leaves the board on an edge SMA for the RG-316 run.
 
 ### 7.4 Amplifier interlock — optical permissive, fail-safe on loss of signal
 
@@ -2365,8 +2437,11 @@ bandwidth requirement down with it:
 intact, and 5.1 kHz resolution is **ten times finer** than needed to select the correct 50 kHz
 derate segment on 160 m (Section 1.7.1).
 
-Implementation: **74AC4040** 12-stage ripple counter, Q9 output. Specify the **AC** variant — plain
-HC is marginal at 29.7 MHz on a 3.3 V rail.
+Implementation *(Rev 3.7c)*:
+- **Divider:** a **74LVC74** dual flip-flop divides by 4 (150 MHz at 3.3 V). A **74HC4040** then
+  takes Q7 (÷256), so the total is ÷1024 and the HC part sees at most 7.4 MHz.
+- **Why:** the **74AC4040** first specified is obsolete (Digi-Key: no longer manufactured,
+  2026-11-19), and plain HC is marginal at 29.7 MHz on a 3.3 V rail.
 
 #### 8B.0.2 What this costs
 
@@ -2375,8 +2450,9 @@ signals then never cross a boundary. **That remains true** — it simply is not 
 microcontroller. The RC-filtered DC crossing was the design's own specification from Rev 1 onward
 and is adequate: a 15.9 kHz corner against a 1.8 MHz lowest operating frequency.
 
-The measurement board therefore carries **no microcontroller at all** — coupler, splitter,
-detectors, AD8302, comparator, divider. Everything leaves as filtered DC plus one 29 kHz logic line.
+The measurement board therefore carries **no microcontroller at all**: port terminations,
+detectors, AD8302, comparators, divider (the coupler is its own box, §10.3). Everything leaves as
+filtered DC, plus one 29 kHz logic line on its own coax.
 
 #### 8B.0.3 Teensy 4.1 notes
 
@@ -3396,7 +3472,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
 | 33 | **Teensy 4.1 row spacing** — verify 15.24 mm with calipers before ordering control boards (§10.5) | **OPEN — check** |
 | 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2 never carries more than 60 W — no issue. **K1 is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1 | **OPEN — K1 rating** |
-| 35 | **Boards for §6B.** *Control board — **done Rev 3.7c** (§10.5):* K1/K2 drivers with coil-current sense, the thermal-switch input, and the cal-load window comparator in the hardware permissive. The two drivers are the former RF-tank relay channels; those relays were deleted Rev 3.7b. *Measurement board — open:* add the cal-load detector (6B.3a), and move the ÷1024 output from its ribbon to a coax connector for the RG-316 run (W10) | **OPEN — measurement board** |
+| 35 | **Boards for §6B.** *Control board — **done Rev 3.7c** (§10.5):* K1/K2 drivers with coil-current sense, the thermal-switch input, and the cal-load window comparator in the hardware permissive. The two drivers are the former RF-tank relay channels; those relays were deleted Rev 3.7b. *Measurement board — **done Rev 3.7c** (§10.4):* the cal-load detector (6B.3a), and the ÷1024 output on an edge SMA for the RG-316 run (W10) | **CLOSED** Rev 3.7c |
 | 36 | **CAL reference plane** — match the K1→choke and K1→load electrical lengths, or measure and store the offset, before trusting vector calibration (§6B.3) | **OPEN — commissioning** |
 | 37 | ~~Roller shaft-to-shelf creepage~~ — was 2.02″ vs the 2″ rule. **Resolved Rev 3.7a:** brass stub below the thrust collar cut from 1.0″ to 0.65″ (Oldham engagement 0.595″) → 2.37″; **4.37″ since the Rev 3.7c deck raise**. A longer Oldham hub would not help: the path is the axial tip-to-bushing distance (TUNER-L-109) | **RESOLVED** |
 | 38 | ~~Sampler → control signal path~~ — **Resolved Rev 3.7a (§7.3a):** filtered DB-25 J-S at the partition, Alpha Wire M13197 (≡ Belden 9508) across the motor chamber to J-B at the bulkhead; prescaler on RG-316 between discrete 1000 pF feedthroughs at both walls; relay-coil diodes at the relay | **RESOLVED** |
@@ -3414,6 +3490,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 50 | **Antenna-system common-mode impedance** — the choke is rated with the whole V_cm across it (Z_a → 0). The real 160 / 80 m balance against the §2.2 ≤ 5% spec depends on Z_a: model the doublet + 40 ft feeder + tuner common-mode path in NEC, and read the output imbalance CT in service. If 160 m falls short, the 7-core stack (0.80× the deck reactance) fits the 5.50″ standoffs (§6) | **OPEN — model, then measure** |
 | 51 | **RF service-panel interlock switch** — now in the hardware permissive (§7.4) on shelf feedthrough FT4 and J-E pin 5, but neither the switch nor its RF-bay run is chosen. Pick an NC microswitch that the front upper panel closes, and route its lead from FT4 along the right wall at shelf level, clear of the §3.2 HV distances (harness W12b) | **OPEN — select and route** |
 | 52 | **Sampler cable pair count** — J-B/J-S now carry 14 lines, and §7.3a pairs each with its own ground or return: 11 pairs (5 detector lines, the cal-load detector, the SWR permissive and +5 V with grounds; K1, K2 and the thermal switch as their own pairs). Alpha Wire M13197 / Belden 9508 has 8. Choose a ≥ 12-pair overall-shielded cable, after checking its stock and price | **OPEN — select** |
+| 53 | **Coupler box in the model.** The coupler is in its own diecast box (§10.3, Rev 3.7c), but `enclosure.py` and `harness.py` still end the RG-393 runs W13/W14 at the measurement board. Remaining work: place the box between the coax input (floor G) and K1, and route W13/W14 to it. Add the two equal-length RG-316 FWD/REF jumpers to the board's right-edge SMAs (J1, J2). Make W9 16 conductors (J-S 1–16 to J4). Resize the board envelope to 100 × 74 mm plus the SMAs. Then regenerate E-212 to E-215 | **OPEN** |
 
 **Closed in this revision:** static drain and lightning protection (existing entry-box bonded
 baseplate and arrestors); capacitor adequacy (C2 position 2.50×; C1 needs a 15 kV-class part,
@@ -3514,10 +3591,11 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
 | 2 | Toroid core | **FT-82-61** NiZn, µ ≈ 125 — verify A_L against the actual vendor datasheet | Part | §6A.3 |
 | — | Secondary winding wire | **40 turns each**, #26 AWG enameled, ~6 ft total | Class | §6A.3 |
 | — | Primary conductor | The through-line itself — PTFE-insulated, rated 14 A RMS | Class | §6A.3 |
-| 2 | Termination resistor | **50 Ω, 2 W, non-inductive** — metal film or carbon comp, **never wirewound** | Class | §6A.3 |
-| 2 | Sampler enclosure | Small diecast or PCB-shield can, inside the Sampler chamber | Class | §6A.3b |
+| — | Termination resistor | **50 Ω, 2 W, non-inductive** — on the measurement board: 2 × 105 Ω 1 W 2512 per port (§10.4) | Class | §6A.3 |
+| 1 | Coupler enclosure | Small diecast box (1590A class) with the two cores on the through-line; SMA jacks for the FWD and REF ports, RG-393 in and out. Placement open (§9 item 53) | Class | §6A.3b |
+| 2 | Coax jumper, FWD / REF | RG-316, SMA plug both ends, **equal length** (the AD8302 reads their phase difference), coupler box → measurement board J1, J2 | Class | §6A.3b |
 | 2 | Coax relay, K1 / K2 | **Tohtsu CX600N-24** — SPDT, N, 24 V, no auxiliary contacts; published 1 kW CW at 50 MHz (**K1 rating open, §9 item 34**); ≈ $130, RF Parts. Upgrade path for K1: Dow-Key 402A-280132 / Ducommun 2NH6C31 (factory order) | Part | §6B |
-| 1 | Cal-load RF detector | 3.3 pF 1 kV NP0 + 100 pF NP0 divider, BAT54S, 100 kΩ / 2.2 nF, 1 MΩ bias, 33 V TVS — on the measurement board; window comparator on the control board | Class | §6B.3a |
+| — | Cal-load RF detector | 3.3 pF 1 kV NP0 + 100 pF NP0 divider, BAT54S, 100 kΩ / 2.2 nF, 1 MΩ bias, 33 V TVS — on the measurement board (§10.4); window comparator on the control board | Class | §6B.3a |
 | 1 | Calibration load | **TTM/Anaren G150N50W4E** — 150 W, AlN, flange 0.870 × 0.375″, Ø0.161″ holes 0.560″ apart (G100N50W4 is obsolete). Sits through the floor cutout directly on the sink. **Thin stock — buy early** | Part | §6B.3 |
 | 1 | Cal-load heatsink | **Wakefield-Vette 441K** (≈ 0.68 °C/W natural convection) under the floor, gasketed to it; flange ≈ 80–95 °C at 50 W in 30 °C air | Part | §6B.3 |
 | 1 | Thermal switch | **Cantherm F20A085053600060** — NC, opens 85 °C, resets 55 °C; potted SIP, clip or thermally bond to the sink. (Airpax 67L085 TO-220 equivalent is on backorder; 67F085 is NO — wrong part) | Part | §6B.3 |
@@ -3526,33 +3604,74 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
 
 ---
 
-### 10.4 Measurement board — 54 components
+### 10.4 Measurement board — 81 components *(Rev 3.7c)*
 
-`kicad/measurement.kicad_sch`. Routed, 0 unconnected. All passives through-hole except
-the four SOD-323 diodes, the AD8302 (TSSOP-14), the TLV3501 (SOIC-8) and the AMS1117 (SOT-223).
+`kicad/measurement.kicad_sch` / `measurement.kicad_pcb`, generated by `kicad/board_measurement.py` and
+`kicad/route.sh`. *The Rev 3.4 board it replaces is in §11.14.*
 
-| Qty | Value | Package | Refs |
-|--:|:--|:--|:--|
-| 6 | 16.5 Ω, 1 %, metal film 0.25 W | Axial DIN0207 | R1–R6 |
-| 6 | 1 kΩ, 1 %, metal film | Axial DIN0207 | R16–R21 |
-| 6 | 10 kΩ, 1 %, metal film | Axial DIN0207 | R7, R8, R11–R14 |
-| 1 | 470 Ω | Axial DIN0207 | R9 |
-| 1 | 4.7 kΩ | Axial DIN0207 | R15 |
-| 1 | 1 MΩ | Axial DIN0207 | R10 |
-| 5 | 0.01 µF, 50 V ceramic | Disc, 5.00 mm pitch | C12–C16 |
-| 5 | 0.1 µF, 50 V ceramic | Disc, 5.00 mm pitch | C1, C2, C7, C10, C11 |
-| 5 | 1 nF, 50 V ceramic | Disc, 5.00 mm pitch | C3–C6, C17 |
-| 1 | 1 µF ceramic | Disc, 5.00 mm pitch | C8 |
-| 1 | 10 µF electrolytic | Radial D5.0 P2.50 | C9 |
-| 1 | **AD8302** gain/phase detector | TSSOP-14 | U1 |
-| 1 | **TLV3501** comparator | SOIC-8 | U2 |
-| 1 | **LM393** dual comparator | DIP-8 | U3 |
-| 1 | **74AC4040** ÷1024 prescaler | DIP-16 | U4 |
-| 1 | **AMS1117-3.3** regulator | SOT-223 | U5 |
-| 2 | **HSMS-2850** Schottky detector diode | SOD-323 | D1, D2 |
-| 2 | **BAT54** Schottky | SOD-323 | D3, D4 |
-| 6 | SMA vertical jack | Amphenol 132134-11 | J1–J6 |
-| 1 | IDC header 2×08, latching | 2.54 mm, shrouded | J7 |
+- **Outline:** 100 × 74 mm. The board stands on edge 0.3″ off the motor/sampler partition, inside
+  the sampler's 4.0 × 3.0″ envelope. Four M3 holes, plated and bonded to GND, which reaches the
+  chassis through the standoffs.
+- **Stackup and rules:** as the control board (§10.5): 4 layers with In1 a solid GND plane; 0.2 mm
+  tracks, 0.15 mm clearance, 0.6 / 0.3 mm vias. The FWD/REF RF nets are 0.5 mm and the supplies
+  0.4 mm. The cal-load tap has its own net class, with 2.5 mm clearance to everything (IPC-2221 B2,
+  301–500 V); its trace runs on In2.
+- **Routing:** freerouting, then DRC shows 0 unconnected and no electrical errors; only silkscreen
+  warnings remain. 578 tracks, 108 vias.
+- **Assembly:** 68 SMD parts (1206 passives, 2512 terminations, SOIC, TSSOP-14, SOT-223, SOT-23,
+  SOD-123) and 13 through-hole (the edge SMAs' legs, header, electrolytic, trimmer, 1 kV disc, wire
+  and test pads).
+- **Floor plan** (component side; the left edge faces cabinet −Y):
+  - **Right edge:** FWD (J1) and REF (J2) come in from the coupler box on two equal-length RG-316
+    jumpers. Each port's termination, detector and AD8302 tap sit beside its SMA, with the AD8302
+    between the two.
+  - **Left edge:** the ÷1024 out (J3) points toward the partition feedthrough FT-P (W10).
+  - **Bottom-left corner:** the cal-load tap pad (J5, 22 AWG from the load's tab), its ground pad
+    (J6) and the 1 kV disc, ~70 mm from the REF tap.
+  - **Top edge, center:** the J-S header (J4), under J-S on the partition.
+- **J4 pinout:** W9 runs one to one to J-S, carrying pins 1–16 of the control board's J-B pinout.
+  V_MAG, V_PHS, V_FWD, V_REF_DET, AD_VREF, CAL_DET, SWR_OK and +5 V are on the odd pins, each with its
+  ground on the next even pin. 1 kΩ on each analog output isolates its driver from the 5600 pF
+  contacts and sets the §7.3 28 kHz corner.
+- **Commissioning:**
+  - Set RV1 with a wattmeter (§6A.4): 2:1 at 1500 W, 167 W reflected, reads ~0.92 V at TP1.
+  - TP2 is V_REF_DET, TP3 CAL_DET, TP4 GND.
+  - The 60 W cal-load trip is set on the control board's RV1 (§6B.3a).
+- **Rendered views:** Appendix C.
+- **Fab outputs:** `kicad/fab.sh measurement` writes `kicad/fab/measurement-fab.zip`.
+- **Off-board:** the coupler box and the RG-316 jumpers are in §10.3.
+
+Prices are qty-1 Digi-Key prices checked 2026-11-19, with stock in brackets. Passives with no part
+number are commodity: 1 %, X7R 50 V unless marked C0G.
+
+| Qty | Part | Package | Refs | ≈ $ ea |
+|--:|:--|:--|:--|--:|
+| 1 | **AD8302ARUZ** gain/phase detector (3,233; 10 wk factory lead) | TSSOP-14 | U1 | 38.58 |
+| 1 | **TLV3501AIDR** comparator (2,233) | SOIC-8 | U2 | 4.10 |
+| 1 | **74LVC74AD,118** (Nexperia), ÷4 (20,520; TI SN74LVC74ADR had none) | SOIC-14 | U3 | 0.28 |
+| 1 | **SN74HC4040DR**, ÷256 (25,475) | SOIC-16 | U4 | 0.72 |
+| 1 | **AMS1117-3.3** | SOT-223 | U5 | — |
+| 1 | **LM393DR**, over-SWR trip (83,479) | SOIC-8 | U6 | 0.23 |
+| 2 | **1N5711W-7-F**, 70 V Schottky detector (26,399) | SOD-123 | D1, D2 | 0.26 |
+| 2 | **BAT54SLT1G** (onsemi): counter clamp, cal-load doubler | SOT-23 | D3, D4 | 0.16 |
+| 1 | **SMF33A** (Littelfuse), 33 V TVS (135,550) | SOD-123F | D5 | 0.57 |
+| 4 | 105 Ω 1 % 1 W, **Panasonic ERJ-1TNF1050U**, two per port (4,399; not for new designs) | 2512 | R1, R2, R7, R8 | 0.84 |
+| 1 | 3.3 pF 1 kV NP0 disc, **Vishay 561R10TCCV33** (325; alt. Johanson QCCT102Q3R3B1GV001E, 0805, $1.13) | radial 6.4 mm | C20 | 3.06 |
+| 2 | Ferrite bead 600 Ω, **Murata BLM31PG601SN1L** | 1206 | FB1, FB2 | 0.50 |
+| 3 | SMA jack, edge mount, **Molex 73251-1153** (6,774; Amphenol 132289 is $9.11) | edge | J1–J3 | 4.35 |
+| 1 | Shrouded IDC header 2×8, **On Shore 302-S161** (42,763) | THT | J4 | 0.37 |
+| 1 | 10 kΩ multi-turn trimmer, **Bourns 3296W-1-103LF** (SWR trip) | 3296W | RV1 | 2.56 |
+| 1 | 100 µF 10 V electrolytic (AMS1117 output) | radial 6.3, 2.5 mm | C25 | — |
+| 24 | 100 nF (11) · 10 nF (4) · 10 µF 16 V (3) · C0G: 10 nF (2), 100 pF (2), 1 nF, 2.2 nF | 1206 | C5, C6, C10, C13–C16, C18, C19, C23, C26 · C1, C3, C7, C8 · C11, C17, C24 · C2, C4 · C9, C21 · C12 · C22 | — |
+| 27 | 10 kΩ (6) · 1 kΩ (6) · 22 kΩ (3) · 4.7 kΩ (3) · 1 MΩ (3) · 1.62 kΩ (2) · 52.3 Ω (2) · 680 Ω · 100 kΩ | 1206 | R4, R10, R14–R16, R26 · R18, R27–R31 · R3, R9, R25 · R13, R19, R22 · R17, R21, R24 · R5, R11 · R6, R12 · R20 · R23 | — |
+| 6 | Wire pads J5 (cal-load tap) and J6 (its ground) · test points TP1 SWR TH, TP2 V REF, TP3 CAL DET, TP4 GND | THT pad | J5, J6, TP1–TP4 | — |
+
+- **Parts for one board:** ≈ **$75** at qty-1 prices, with commodity passives estimated; the AD8302
+  is half of it.
+- **Bare boards** (JLCPCB quote, 2026-11-19, 5 pcs, 100 × 74 mm, 4-layer, 1.6 mm): **$8.00** with
+  leaded HASL ($25.40 with ENIG). That is JLCPCB's flat 4-layer rate for boards within 100 × 100 mm.
+  Ordered with the control board it ships in the same parcel.
+- **Stencil:** about $7, as for the control board.
 
 ### 10.5 Control board — 166 components *(Rev 3.7c)*
 
@@ -4792,6 +4911,61 @@ Bill of materials as it stood (40 components, all through-hole except U1):
 | 2 | Pin header 1×02 | 2.54 mm vertical | J9, J15 |
 | 1 | IDC header 2×08, latching | 2.54 mm, shrouded | J11 |
 
+### 11.14 Measurement board as generated through Rev 3.7b (Rev 3.4 generator)
+
+*Superseded Rev 3.7c: `kicad/board_measurement.py` had not followed the log since Rev 3.4. It was
+rebuilt to the current text (§10.4). What the old board got wrong:*
+
+- **Item 35 not done.** There was no cal-load detector (§6B.3a). The ÷1024 count left on the ribbon
+  through an RC filter instead of on coax (W10).
+- **AD8302 not in measurement mode.**
+  - MSET and PSET were tied to VREF instead of VMAG and VPHS, so the outputs would not have carried
+    30 mV/dB and 10 mV/°.
+  - The inputs ran straight to the SMA jacks, with no coupling capacitors or 52.3 Ω terminations.
+  - The 1 nF offset capacitors put the offset loop's high-pass at 2 MHz, inside 160 m.
+- **Vector-path level.** It was built for the ~60 dB pad of §6A.5 (corrected there). The pads were
+  external SMA attenuators that were never in a BOM.
+- **Coupled ports mis-terminated.** A 6 dB resistive splitter fed the detector arm with no load, so
+  each port saw ~83 Ω, not 50 Ω (§6A.2's most common build error). Its 16.5 Ω input resistor ran at
+  0.31 W in a 0.25 W part at 1500 W.
+- **Detector diodes.**
+  - The HSMS-2850 breaks down at 3.8 V, against ~19 V reverse at 1500 W.
+  - It sat on a SOD-323 footprint, a package the part does not come in.
+  - The outputs were unscaled: ~4.7 V at 1500 W, for a 3.3 V ADC.
+- **Counter.**
+  - The comparator's input idled at 0 V with its threshold at 1.65 V, so it counted only above
+    ~50 W.
+  - Its SHDN pin was tied high, which disables a TLV3501.
+  - The 74AC4040 is now obsolete.
+- **Trip threshold.** It was fixed by a 10 k / 10 k divider instead of a trimmer or DAC (§6A.4).
+- **Size.** The board was 215 × 145 mm, 2 layers, through-hole; the sampler envelope is 4.0 × 3.0″.
+
+Bill of materials as it stood (54 components; all passives through-hole except the four SOD-323
+diodes, the AD8302 (TSSOP-14), the TLV3501 (SOIC-8) and the AMS1117 (SOT-223)):
+
+| Qty | Value | Package | Refs |
+|--:|:--|:--|:--|
+| 6 | 16.5 Ω, 1 %, metal film 0.25 W | Axial DIN0207 | R1–R6 |
+| 6 | 1 kΩ, 1 %, metal film | Axial DIN0207 | R16–R21 |
+| 6 | 10 kΩ, 1 %, metal film | Axial DIN0207 | R7, R8, R11–R14 |
+| 1 | 470 Ω | Axial DIN0207 | R9 |
+| 1 | 4.7 kΩ | Axial DIN0207 | R15 |
+| 1 | 1 MΩ | Axial DIN0207 | R10 |
+| 5 | 0.01 µF, 50 V ceramic | Disc, 5.00 mm pitch | C12–C16 |
+| 5 | 0.1 µF, 50 V ceramic | Disc, 5.00 mm pitch | C1, C2, C7, C10, C11 |
+| 5 | 1 nF, 50 V ceramic | Disc, 5.00 mm pitch | C3–C6, C17 |
+| 1 | 1 µF ceramic | Disc, 5.00 mm pitch | C8 |
+| 1 | 10 µF electrolytic | Radial D5.0 P2.50 | C9 |
+| 1 | **AD8302** gain/phase detector | TSSOP-14 | U1 |
+| 1 | **TLV3501** comparator | SOIC-8 | U2 |
+| 1 | **LM393** dual comparator | DIP-8 | U3 |
+| 1 | **74AC4040** ÷1024 prescaler | DIP-16 | U4 |
+| 1 | **AMS1117-3.3** regulator | SOT-223 | U5 |
+| 2 | **HSMS-2850** Schottky detector diode | SOD-323 | D1, D2 |
+| 2 | **BAT54** Schottky | SOD-323 | D3, D4 |
+| 6 | SMA vertical jack | Amphenol 132134-11 | J1–J6 |
+| 1 | IDC header 2×08, latching | 2.54 mm, shrouded | J7 |
+
 ---
 
 ## Appendix A — Homebuilt Roller Drawings (TUNER-L-100 to L-109)
@@ -4873,8 +5047,7 @@ board as the fab delivers it: solder mask, silkscreen reference designators, pad
 component models are installed, so parts appear only as their silkscreen and pads. The silkscreen
 view is the same layer as vector line art, with the pad openings, as the fab prints it; values are
 in the BOM by reference. Placement, routing and
-DRC are described in §10.5 (control) and §10.4 (measurement). The measurement board is still the
-Rev 3.4 layout and will change under §9 item 35.
+DRC are described in §10.5 (control) and §10.4 (measurement).
 
 <div class="drawing-sheet"><img src="sheets/pcb-control-top.png" alt="Control board — top, 3D render (139 × 91 mm, 4 layers; Teensy A1 flat on sockets with its SD end at the top edge)"/><p>Control board — top, 3D render (139 × 91 mm, 4 layers; Teensy A1 flat on sockets with its SD end at the top edge)</p></div>
 
@@ -4884,11 +5057,13 @@ Rev 3.4 layout and will change under §9 item 35.
 
 <div class="drawing-sheet"><img src="sheets/pcb-control-F.svg" alt="F.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-In1.svg" alt="In1.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-In2.svg" alt="In2.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-B.svg" alt="B.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><p>Control board — copper: F.Cu (top left), In1.Cu GND plane (top right), In2.Cu (bottom left), B.Cu (bottom right), each viewed from the top</p></div>
 
-<div class="drawing-sheet"><img src="sheets/pcb-measurement-top.png" alt="Measurement board — top, 3D render (Rev 3.4 layout, 215 × 145 mm, 2 layers)"/><p>Measurement board — top, 3D render (Rev 3.4 layout, 215 × 145 mm, 2 layers)</p></div>
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-top.png" alt="Measurement board — top, 3D render (100 × 74 mm, 4 layers; FWD/REF in on the right edge, ÷1024 out on the left, cal-load tap bottom left)"/><p>Measurement board — top, 3D render (100 × 74 mm, 4 layers; FWD/REF in on the right edge, ÷1024 out on the left, cal-load tap bottom left)</p></div>
 
-<div class="drawing-sheet"><img src="sheets/pcb-measurement-silk.svg" alt="Measurement board — top silkscreen and pad openings (values in the §10.4 BOM)"/><p>Measurement board — top silkscreen and pad openings (values in the §10.4 BOM)</p></div>
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-silk.svg" alt="Measurement board — top silkscreen and pad openings, as the fab prints them (values are in the §10.4 BOM by reference)"/><p>Measurement board — top silkscreen and pad openings, as the fab prints them (values are in the §10.4 BOM by reference)</p></div>
 
-<div class="drawing-sheet"><img src="sheets/pcb-measurement-F.svg" alt="F.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-measurement-B.svg" alt="B.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><p>Measurement board — copper: F.Cu (left), B.Cu (right), viewed from the top</p></div>
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-bottom.png" alt="Measurement board — bottom, 3D render"/><p>Measurement board — bottom, 3D render</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-F.svg" alt="F.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-measurement-In1.svg" alt="In1.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-measurement-In2.svg" alt="In2.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-measurement-B.svg" alt="B.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><p>Measurement board — copper: F.Cu (top left), In1.Cu GND plane (top right), In2.Cu (bottom left), B.Cu (bottom right), each viewed from the top</p></div>
 
 ---
 

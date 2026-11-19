@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build the measurement board PCB from the verified netlist.
+"""Build a board's PCB from its verified netlist: `python3 make_pcb.py <board>`.
 
-Placement follows signal flow: RF in (left) -> splitter -> detector -> AD8302
-(centre) -> control/logic (right) -> connectors (far right). Forward channel on
-the top half, reflected channel on the bottom half, mirrored.
+Both boards are 4-layer with a solid GND plane on In1. The generator
+(board_<board>.py) tags every part with a block; each block is skyline-packed
+into a fixed region of the board, and connectors that must sit on an edge are
+placed first, so the router starts from a sensible floor plan.
 """
 import pcbnew, sexpr, io, os, sys
 
@@ -11,8 +12,6 @@ import sys, json
 BOARD = sys.argv[1] if len(sys.argv) > 1 else 'measurement'
 NET = f'{BOARD}.net'
 OUT  = f'{BOARD}.kicad_pcb'
-# control: fits the cassette's 5.5 x 3.6 in envelope (enclosure.py BOARD), standing upright
-W, H = (215.0, 145.0) if BOARD == 'measurement' else (139.0, 91.0)          # board outline, mm
 MM = pcbnew.FromMM
 
 # Control board floor plan: board_control.py tags every part with a block; each
@@ -38,37 +37,57 @@ PINNED_CONTROL = {'A1': (1, 'top', 44.0), 'U13': (0, 'bottom', 0.5), 'J1': (2, '
 # Strips no part may be packed into: (column index, x0, x1) from the top part down
 # to the board edge. Below the Teensy's USB end, so a plug reaches it in place.
 KEEPOUT_CONTROL = [(1, 44.0, 62.6)]
-# wider tracks where current flows; everything else keeps the 0.15 mm default
+# wider tracks where current flows; everything else keeps the 0.15 mm default.
+# name: (track width, nets[, clearance]) in mm
 NETCLASS_CONTROL = {
     'Power':  (0.60, ['+24V_IN', '+24V', '+24V_5', '+24V_12', '+12V', 'BLOWER_LO',
                       'K1_PLUS', 'K2_PLUS', 'K1_LO', 'K2_LO', 'K1_SNS', 'K2_SNS', 'HFBR_A', 'HFBR_K']),
     'Supply': (0.40, ['+5V', '+3V3']),
 }
 
-PLACE = {
- # --- forward channel (top) ---
- 'J1': (14, 22),  'R1': (32, 22),  'R2': (46, 13),  'R3': (46, 31),
- 'J2': (60, 31),  'D1': (60, 13),  'R7': (72, 13),  'C1': (84, 13),
- 'J3': (100, 22),
- # --- reflected channel (bottom) ---
- 'J4': (14, 78),  'R4': (32, 78),  'R5': (46, 69),  'R6': (46, 87),
- 'J5': (60, 87),  'D2': (60, 69),  'R8': (72, 69),  'C2': (84, 69),
- 'J6': (100, 78),
- # --- AD8302 and its network (centre) ---
- 'U1': (120, 50),
- 'C3': (106, 60), 'C4': (113, 60), 'C5': (127, 60), 'C6': (134, 60),
- 'C7': (113, 38), 'C8': (127, 38),
- # --- frequency counter front end ---
- 'R9': (84, 26),  'D3': (92, 21),  'D4': (92, 31),
- 'U2': (104, 34), 'R10': (104, 26),
- 'R11': (84, 33), 'R12': (84, 40),
- # --- protection comparator + permissive ---
- 'U3': (120, 72), 'R13': (104, 70), 'R14': (104, 77),
- 'R15': (136, 70), 'R16': (136, 77),
- # --- power and connectors ---
- 'FB1': (120, 88), 'C9': (136, 88), 'C10': (144, 88),
- 'J7': (163, 88),  'J8': (163, 22),  'J9': (158, 48),
+# Measurement board floor plan (100 x 74 mm, inside the sampler's 4.0 x 3.0 in
+# envelope). Seen from the component side the left edge faces cabinet -Y: the
+# /1024 SMA points at the partition feedthrough FT-P and the cal-load detector
+# sits in the corner nearest the load (floor J). The FWD/REF inputs take the
+# right edge, so the load node (up to ~390 V peak) is ~70 mm from the REF tap.
+# The J-S ribbon header is top centre, under J-S on the partition.
+COLUMNS_MEAS = [
+    ((8.5, 3, 30, 28), ['power']),
+    ((8, 30, 30, 44),  ['freqout']),
+    ((3, 44, 30, 55),  ['cal']),
+    ((3, 55, 30, 66),  ['hv']),         # the tap pad, its ground pad and the 1 kV disc
+    ((30, 3, 64, 19),  ['conn']),
+    ((30, 19, 64, 46), ['counter']),
+    ((30, 46, 64, 71), ['swr']),
+    ((64, 3, 92, 24),  ['rf_fwd']),
+    ((64, 24, 92, 48), ['ad8302']),
+    ((64, 48, 92, 71), ['rf_ref']),
+]
+ROT_MEAS = {'J4': 90}                 # the header's long side along the top edge
+# the tap pad clears H3's grounded pad and its own ground pad by > 2.5 mm
+PINNED_MEAS = {'J4': (4, 'top', 31.0), 'J5': (3, 'bottom', 10.0), 'J6': (3, 'bottom', 17.0)}
+KEEPOUT_MEAS = []
+# Absolute placements, x, y (mm, footprint origin) and rotation: the edge SMAs
+# seated 0.35 mm in from the edge so their pads keep the 0.3 mm copper-edge
+# clearance (the Molex 73251-1153's pads end 4.26 mm from its origin), and the
+# four M3 holes in the corners.
+EDGE_MEAS = {'J1': (95.39, 14.6, 180), 'J2': (95.39, 59.4, 180), 'J3': (4.61, 37.0, 0),
+             'H1': (4.0, 4.0, 0), 'H2': (96.0, 4.0, 0), 'H3': (4.0, 70.0, 0), 'H4': (96.0, 70.0, 0)}
+NETCLASS_MEAS = {
+    'RF':     (0.50, ['FWD_RF', 'REF_RF']),
+    'Supply': (0.40, ['+5V', '+3V3', '+3V3A', '+3V3D']),
+    # the cal-load tap: 2.5 mm to everything (IPC-2221 B2, 301-500 V peak)
+    'HV':     (0.50, ['CAL_TAP'], 2.5),
 }
+
+# control: fits the cassette's 5.5 x 3.6 in envelope (enclosure.py BOARD), standing upright
+CFG = {'control':     dict(W=139.0, H=91.0, edge_m=2.5, plane_m=2.5, columns=COLUMNS_CONTROL, rot=ROT_CONTROL,
+                           pinned=PINNED_CONTROL, keepout=KEEPOUT_CONTROL, fixed={}, netclass=NETCLASS_CONTROL),
+       'measurement': dict(W=100.0, H=74.0, edge_m=1.0, plane_m=0.5, columns=COLUMNS_MEAS, rot=ROT_MEAS,
+                           pinned=PINNED_MEAS, keepout=KEEPOUT_MEAS, fixed=EDGE_MEAS, netclass=NETCLASS_MEAS)}[BOARD]
+W, H = CFG['W'], CFG['H']                         # board outline, mm
+COLUMNS, ROT, PINNED, KEEPOUT, FIXED, NETCLASS = (CFG[k] for k in
+                                                   ('columns', 'rot', 'pinned', 'keepout', 'fixed', 'netclass'))
 
 def load_netlist(path):
     root = sexpr.parse(io.open(path).read())[0]
@@ -101,15 +120,18 @@ def write_netclasses():
     # two classes' clearances and KiCad's DRC does (24 V needs only 0.1 mm, IPC-2221
     # B2). One via size everywhere (0.6 / 0.3 carries the ~1 A of the 24 V input),
     # so imported vias never mix padstacks.
+    # A class may add its own larger clearance (the cal-load tap's 2.5 mm); KiCad's
+    # DRC and zone fill apply the larger of the two classes' clearances.
     base.update(track_width=0.2, clearance=0.15, via_diameter=0.6, via_drill=0.3)
-    ns['classes'] = [base] + [dict(base, name=cname, track_width=width, priority=i)
-                              for i, (cname, (width, _)) in enumerate(NETCLASS_CONTROL.items())]
+    ns['classes'] = [base] + [dict(base, name=cname, track_width=v[0], priority=i,
+                                   **({'clearance': v[2]} if len(v) > 2 else {}))
+                              for i, (cname, v) in enumerate(NETCLASS.items())]
     p['board']['design_settings']['rules']['min_track_width'] = 0.15
     ns['netclass_patterns'] = [{'netclass': cname, 'pattern': m}
-                               for cname, (_, members) in NETCLASS_CONTROL.items() for m in members]
+                               for cname, v in NETCLASS.items() for m in v[1]]
     json.dump(p, open(pro, 'w'), indent=2)
     print(f'  net classes written to {pro}: ' +
-          ', '.join(f'{c} {w} mm ({len(m)} nets)' for c, (w, m) in NETCLASS_CONTROL.items()))
+          ', '.join(f'{c} {v[0]} mm ({len(v[1])} nets)' for c, v in NETCLASS.items()))
 
 def gnd_fanout(b, gnd, edge_m):
     """4-layer board: every SMD ground pad gets its own locked via to the In1
@@ -197,7 +219,8 @@ def pack_blocks(placed, gap=0.7):            # > the relaxation's 0.6 mm GAP
     blocks = json.load(open(f'{BOARD}.blocks.json'))
     by = {}
     for ref in placed:
-        by.setdefault(blocks.get(ref, 'misc'), []).append(ref)
+        if ref not in FIXED:
+            by.setdefault(blocks.get(ref, 'misc'), []).append(ref)
     def size(r):
         bb = courtyard(placed[r])
         return pcbnew.ToMM(bb.GetWidth()) + gap, pcbnew.ToMM(bb.GetHeight()) + gap
@@ -205,10 +228,10 @@ def pack_blocks(placed, gap=0.7):            # > the relaxation's 0.6 mm GAP
         fp = placed[r]; bb = courtyard(fp); pos = fp.GetPosition()
         fp.SetPosition(pcbnew.VECTOR2I(MM(x) + pos.x - bb.GetLeft(), MM(y) + pos.y - bb.GetTop()))
     overflow, done = [], set()
-    for ci, ((x0, y0, x1, y1), names) in enumerate(COLUMNS_CONTROL):
+    for ci, ((x0, y0, x1, y1), names) in enumerate(COLUMNS):
         sky = [(x0, x1, y0)]                  # (x start, x end, first free y) segments
         floor = []                            # (x start, x end, last usable y) under pinned parts
-        for r, (col, edge, xl) in PINNED_CONTROL.items():
+        for r, (col, edge, xl) in PINNED.items():
             if col != ci or r not in placed:
                 continue
             w, h = size(r)
@@ -219,7 +242,7 @@ def pack_blocks(placed, gap=0.7):            # > the relaxation's 0.6 mm GAP
             else:
                 put(r, xl, y1 - h + gap)
                 floor.append((xl, xl + w, y1 - h))
-        for col, kx0, kx1 in KEEPOUT_CONTROL:
+        for col, kx0, kx1 in KEEPOUT:
             if col == ci:
                 floor.append((kx0, kx1, y0))     # nothing may end below the top: blocked
         def limit(xs, w):
@@ -227,7 +250,7 @@ def pack_blocks(placed, gap=0.7):            # > the relaxation's 0.6 mm GAP
         for name in names:
             done.add(name)
             for r in sorted(by.get(name, []), key=lambda r: (-size(r)[1], -size(r)[0], r)):
-                if r in PINNED_CONTROL:
+                if r in PINNED:
                     continue
                 w, h = size(r)
                 best = None
@@ -283,25 +306,27 @@ def main():
         if fp is None:
             skipped.append(ref + ' (load failed)'); continue
         fp.SetReference(ref); fp.SetValue(c['val'])
-        if BOARD == 'measurement':
-            x, y = PLACE.get(ref, (W - 14, H - 14))
-            fp.SetPosition(pcbnew.VECTOR2I(MM(x), MM(y)))
+        if ref in FIXED:
+            x, y, rot = FIXED[ref]
+            fp.SetOrientationDegrees(rot); fp.SetPosition(pcbnew.VECTOR2I(MM(x), MM(y)))
         else:
-            fp.SetOrientationDegrees(ROT_CONTROL.get(ref, 0))
+            fp.SetOrientationDegrees(ROT.get(ref, 0))
         b.Add(fp); placed[ref] = fp
 
-    if BOARD != 'measurement':
-        pack_blocks(placed)
+    pack_blocks(placed)
 
-    # assign nets to pads
+    # assign nets to pads: every pad with the number, not just the first, because
+    # footprints repeat numbers (a SOT-223's tab, an SMA's ground legs, a mounting
+    # hole's via ring). A repeat left on no net is never a DRC error, so this fails
+    # silently: the tab or the leg is simply not connected.
     assigned = 0
     for nm, nodes in nets.items():
         for ref, pin in nodes:
             fp = placed.get(ref)
             if not fp: continue
-            pad = fp.FindPadByNumber(pin)
-            if pad:
-                pad.SetNet(netmap[nm]); assigned += 1
+            for pad in fp.Pads():
+                if pad.GetNumber() == pin:
+                    pad.SetNet(netmap[nm]); assigned += 1
 
     # --- courtyard separation --------------------------------------------
     # Footprint origins are not consistently at the centre (axial parts put it at
@@ -336,7 +361,12 @@ def main():
                 else:
                     d = oy/2 * (1 if acy <= bcy else -1)
                     shift = ((0, -d), (0, d))
+                if a in FIXED or bref in FIXED:
+                    shift = ((0, 0), (2 * shift[1][0], 2 * shift[1][1])) if a in FIXED else \
+                            ((2 * shift[0][0], 2 * shift[0][1]), (0, 0))
                 for ref, (dx, dy) in zip((a, bref), shift):
+                    if ref in FIXED:
+                        continue
                     pos = placed[ref].GetPosition()
                     nx = min(max(pcbnew.ToMM(pos.x) + dx, 6.0), W - 6.0)
                     ny = min(max(pcbnew.ToMM(pos.y) + dy, 6.0), H - 6.0)
@@ -351,7 +381,7 @@ def main():
     # board outline on Edge.Cuts
     # Outline is drawn INSET by EDGE_M. route.sh restores the true outline after
     # the SES import; this is what keeps the router off the board edge.
-    EDGE_M = 2.5
+    EDGE_M = CFG['edge_m']
     corners = ((EDGE_M, EDGE_M), (W-EDGE_M, EDGE_M), (W-EDGE_M, H-EDGE_M), (EDGE_M, H-EDGE_M))
     for (x1, y1), (x2, y2) in zip(corners, corners[1:] + corners[:1]):
         seg = pcbnew.PCB_SHAPE(b)
@@ -362,25 +392,22 @@ def main():
         seg.SetWidth(MM(0.15))
         b.Add(seg)
 
-    # ground pour on both layers -- RF detectors need a solid reference. The control
-    # board is 4-layer: at 51 % courtyard fill two layers chopped the pour into
-    # islands. In1 is a solid GND plane (a "power" layer); it is the only pour the
-    # router sees, so every SMD ground pad gets its own via down to it. route.sh
-    # pours F, In2 and B after the SES import.
-    copper = (pcbnew.B_Cu, pcbnew.F_Cu)
-    if BOARD != 'measurement':
-        b.SetCopperLayerCount(4)
-        b.SetLayerType(pcbnew.In1_Cu, pcbnew.LT_POWER)
-        copper = (pcbnew.In1_Cu,)
-    for layer in copper:
-        z = pcbnew.ZONE(b)
-        z.SetLayer(layer)
-        z.SetNet(netmap['GND'])
-        z.SetLocalClearance(MM(0.3))
-        o = z.Outline(); o.NewOutline()
-        for px, py in ((2.5,2.5),(W-2.5,2.5),(W-2.5,H-2.5),(2.5,H-2.5)):
-            o.Append(MM(px), MM(py))
-        b.Add(z)
+    # Both boards are 4-layer: on two layers the control board's pour broke into
+    # islands at 51 % courtyard fill, and the measurement board's detectors need an
+    # unbroken reference under every RF trace. In1 is a solid GND plane (a "power"
+    # layer); it is the only pour the router sees, so every SMD ground pad gets its
+    # own via down to it. route.sh pours F, In2 and B after the SES import.
+    b.SetCopperLayerCount(4)
+    b.SetLayerType(pcbnew.In1_Cu, pcbnew.LT_POWER)
+    pm = CFG['plane_m']
+    z = pcbnew.ZONE(b)
+    z.SetLayer(pcbnew.In1_Cu)
+    z.SetNet(netmap['GND'])
+    z.SetLocalClearance(MM(0.3))
+    o = z.Outline(); o.NewOutline()
+    for px, py in ((pm, pm), (W - pm, pm), (W - pm, H - pm), (pm, H - pm)):
+        o.Append(MM(px), MM(py))
+    b.Add(z)
     # design rules: 0.15 mm / 6 mil is inside standard fab capability and these
     # are all low-current signal nets. Set before export so the router honours it.
     ds = b.GetDesignSettings()
@@ -400,13 +427,11 @@ def main():
     ds.m_MinResolvedSpokes = 1            # GND pour: one thermal spoke suffices
     for z in b.Zones():
         z.SetMinThickness(MM(0.2))
-    if b.GetCopperLayerCount() == 4:
-        gnd_fanout(b, netmap['GND'], EDGE_M)
+    gnd_fanout(b, netmap['GND'], EDGE_M)
     pcbnew.ZONE_FILLER(b).Fill(b.Zones())
 
     pcbnew.SaveBoard(OUT, b)
-    if BOARD != 'measurement':
-        write_netclasses()
+    write_netclasses()
     print(f'placed {len(placed)} footprints, {assigned} pad-net assignments')
     print(f'skipped (no footprint): {skipped}')
     print(f'nets: {len(netmap)}  board: {W} x {H} mm  zones: {b.GetAreaCount()}')

@@ -18,54 +18,54 @@
 <!-- tap -->
 <g id="node2" class="node">
 <title>tap</title>
-<path fill="#f2f7f8" stroke="#0c6b7a" stroke-width="1.2" d="M198.08,-48.59C198.08,-48.59 126.29,-48.59 126.29,-48.59 120.29,-48.59 114.29,-42.59 114.29,-36.59 114.29,-36.59 114.29,-19.12 114.29,-19.12 114.29,-13.12 120.29,-7.12 126.29,-7.12 126.29,-7.12 198.08,-7.12 198.08,-7.12 204.08,-7.12 210.08,-13.12 210.08,-19.12 210.08,-19.12 210.08,-36.59 210.08,-36.59 210.08,-42.59 204.08,-48.59 198.08,-48.59"/>
-<text xml:space="preserve" text-anchor="middle" x="162.19" y="-32.61" font-family="Noto Sans" font-size="10.00">1:1 isolating tap</text>
-<text xml:space="preserve" text-anchor="middle" x="162.19" y="-18.36" font-family="Noto Sans" font-size="10.00">10:1 resistive</text>
+<path fill="#f2f7f8" stroke="#0c6b7a" stroke-width="1.2" d="M205.58,-48.59C205.58,-48.59 126.29,-48.59 126.29,-48.59 120.29,-48.59 114.29,-42.59 114.29,-36.59 114.29,-36.59 114.29,-19.12 114.29,-19.12 114.29,-13.12 120.29,-7.12 126.29,-7.12 126.29,-7.12 205.58,-7.12 205.58,-7.12 211.58,-7.12 217.58,-13.12 217.58,-19.12 217.58,-19.12 217.58,-36.59 217.58,-36.59 217.58,-42.59 211.58,-48.59 205.58,-48.59"/>
+<text xml:space="preserve" text-anchor="middle" x="165.94" y="-32.61" font-family="Noto Sans" font-size="10.00">tap: 1 nF + 4.7 kΩ</text>
+<text xml:space="preserve" text-anchor="middle" x="165.94" y="-18.36" font-family="Noto Sans" font-size="10.00">10 kΩ to mid&#45;rail</text>
 </g>
 <!-- fwd&#45;&gt;tap -->
 <g id="edge1" class="edge">
 <title>fwd&#45;&gt;tap</title>
-<path fill="none" stroke="#5a6360" d="M82.78,-27.86C89.94,-27.86 97.52,-27.86 105.02,-27.86"/>
-<polygon fill="#5a6360" stroke="#5a6360" points="104.75,-30.48 112.25,-27.86 104.75,-25.23 104.75,-30.48"/>
+<path fill="none" stroke="#5a6360" d="M82.69,-27.86C89.82,-27.86 97.38,-27.86 104.9,-27.86"/>
+<polygon fill="#5a6360" stroke="#5a6360" points="104.69,-30.48 112.19,-27.86 104.69,-25.23 104.69,-30.48"/>
 </g>
 <!-- clmp -->
 <g id="node3" class="node">
 <title>clmp</title>
-<path fill="#f2f7f8" stroke="#0c6b7a" stroke-width="1.2" d="M377.62,-48.59C377.62,-48.59 254.08,-48.59 254.08,-48.59 248.08,-48.59 242.08,-42.59 242.08,-36.59 242.08,-36.59 242.08,-19.12 242.08,-19.12 242.08,-13.12 248.08,-7.12 254.08,-7.12 254.08,-7.12 377.62,-7.12 377.62,-7.12 383.62,-7.12 389.62,-13.12 389.62,-19.12 389.62,-19.12 389.62,-36.59 389.62,-36.59 389.62,-42.59 383.62,-48.59 377.62,-48.59"/>
-<text xml:space="preserve" text-anchor="middle" x="315.85" y="-32.61" font-family="Noto Sans" font-size="10.00">clamp diodes</text>
-<text xml:space="preserve" text-anchor="middle" x="315.85" y="-18.36" font-family="Noto Sans" font-size="10.00">back&#45;to&#45;back Schottky, ±5 V</text>
+<path fill="#f2f7f8" stroke="#0c6b7a" stroke-width="1.2" d="M331.87,-48.59C331.87,-48.59 261.58,-48.59 261.58,-48.59 255.58,-48.59 249.58,-42.59 249.58,-36.59 249.58,-36.59 249.58,-19.12 249.58,-19.12 249.58,-13.12 255.58,-7.12 261.58,-7.12 261.58,-7.12 331.87,-7.12 331.87,-7.12 337.87,-7.12 343.87,-13.12 343.87,-19.12 343.87,-19.12 343.87,-36.59 343.87,-36.59 343.87,-42.59 337.87,-48.59 331.87,-48.59"/>
+<text xml:space="preserve" text-anchor="middle" x="296.73" y="-32.61" font-family="Noto Sans" font-size="10.00">BAT54S clamps</text>
+<text xml:space="preserve" text-anchor="middle" x="296.73" y="-18.36" font-family="Noto Sans" font-size="10.00">to 0 V and 3.3 V</text>
 </g>
 <!-- tap&#45;&gt;clmp -->
 <g id="edge2" class="edge">
 <title>tap&#45;&gt;clmp</title>
-<path fill="none" stroke="#5a6360" d="M210.34,-27.86C217.47,-27.86 224.99,-27.86 232.6,-27.86"/>
-<polygon fill="#5a6360" stroke="#5a6360" points="232.53,-30.48 240.03,-27.86 232.53,-25.23 232.53,-30.48"/>
+<path fill="none" stroke="#5a6360" d="M217.84,-27.86C225.32,-27.86 233.05,-27.86 240.61,-27.86"/>
+<polygon fill="#5a6360" stroke="#5a6360" points="240.36,-30.48 247.86,-27.86 240.36,-25.23 240.36,-30.48"/>
 </g>
 <!-- cmp -->
 <g id="node4" class="node">
 <title>cmp</title>
-<path fill="#f2f7f8" stroke="#0c6b7a" stroke-width="1.2" d="M562.41,-48.59C562.41,-48.59 433.62,-48.59 433.62,-48.59 427.62,-48.59 421.62,-42.59 421.62,-36.59 421.62,-36.59 421.62,-19.12 421.62,-19.12 421.62,-13.12 427.62,-7.12 433.62,-7.12 433.62,-7.12 562.41,-7.12 562.41,-7.12 568.41,-7.12 574.41,-13.12 574.41,-19.12 574.41,-19.12 574.41,-36.59 574.41,-36.59 574.41,-42.59 568.41,-48.59 562.41,-48.59"/>
-<text xml:space="preserve" text-anchor="middle" x="498.01" y="-32.61" font-family="Noto Sans" font-size="10.00">high&#45;speed comparator</text>
-<text xml:space="preserve" text-anchor="middle" x="498.01" y="-18.36" font-family="Noto Sans" font-size="10.00">TLV3501, ~10 mV hysteresis</text>
+<path fill="#f2f7f8" stroke="#0c6b7a" stroke-width="1.2" d="M516.66,-48.59C516.66,-48.59 387.87,-48.59 387.87,-48.59 381.87,-48.59 375.87,-42.59 375.87,-36.59 375.87,-36.59 375.87,-19.12 375.87,-19.12 375.87,-13.12 381.87,-7.12 387.87,-7.12 387.87,-7.12 516.66,-7.12 516.66,-7.12 522.66,-7.12 528.66,-13.12 528.66,-19.12 528.66,-19.12 528.66,-36.59 528.66,-36.59 528.66,-42.59 522.66,-48.59 516.66,-48.59"/>
+<text xml:space="preserve" text-anchor="middle" x="452.26" y="-32.61" font-family="Noto Sans" font-size="10.00">high&#45;speed comparator</text>
+<text xml:space="preserve" text-anchor="middle" x="452.26" y="-18.36" font-family="Noto Sans" font-size="10.00">TLV3501, ~10 mV hysteresis</text>
 </g>
 <!-- clmp&#45;&gt;cmp -->
 <g id="edge3" class="edge">
 <title>clmp&#45;&gt;cmp</title>
-<path fill="none" stroke="#5a6360" d="M390.13,-27.86C397.48,-27.86 404.99,-27.86 412.45,-27.86"/>
-<polygon fill="#5a6360" stroke="#5a6360" points="412.15,-30.48 419.65,-27.86 412.15,-25.23 412.15,-30.48"/>
+<path fill="none" stroke="#5a6360" d="M344.21,-27.86C351.31,-27.86 358.83,-27.86 366.46,-27.86"/>
+<polygon fill="#5a6360" stroke="#5a6360" points="366.42,-30.48 373.92,-27.86 366.42,-25.23 366.42,-30.48"/>
 </g>
 <!-- div -->
 <g id="node5" class="node">
 <title>div</title>
-<path fill="#f7ebcc" stroke="#8a5d04" stroke-width="1.2" d="M693.2,-48.59C693.2,-48.59 618.41,-48.59 618.41,-48.59 612.41,-48.59 606.41,-42.59 606.41,-36.59 606.41,-36.59 606.41,-19.12 606.41,-19.12 606.41,-13.12 612.41,-7.12 618.41,-7.12 618.41,-7.12 693.2,-7.12 693.2,-7.12 699.2,-7.12 705.2,-13.12 705.2,-19.12 705.2,-19.12 705.2,-36.59 705.2,-36.59 705.2,-42.59 699.2,-48.59 693.2,-48.59"/>
-<text xml:space="preserve" text-anchor="middle" x="655.8" y="-32.61" font-family="Noto Sans" font-size="10.00">74AC4040</text>
-<text xml:space="preserve" text-anchor="middle" x="655.8" y="-18.36" font-family="Noto Sans" font-size="10.00">÷1024 → 29 kHz</text>
+<path fill="#f7ebcc" stroke="#8a5d04" stroke-width="1.2" d="M693.2,-48.59C693.2,-48.59 572.66,-48.59 572.66,-48.59 566.66,-48.59 560.66,-42.59 560.66,-36.59 560.66,-36.59 560.66,-19.12 560.66,-19.12 560.66,-13.12 566.66,-7.12 572.66,-7.12 572.66,-7.12 693.2,-7.12 693.2,-7.12 699.2,-7.12 705.2,-13.12 705.2,-19.12 705.2,-19.12 705.2,-36.59 705.2,-36.59 705.2,-42.59 699.2,-48.59 693.2,-48.59"/>
+<text xml:space="preserve" text-anchor="middle" x="632.93" y="-32.61" font-family="Noto Sans" font-size="10.00">74LVC74 ÷4</text>
+<text xml:space="preserve" text-anchor="middle" x="632.93" y="-18.36" font-family="Noto Sans" font-size="10.00">74HC4040 ÷256 → 29 kHz</text>
 </g>
 <!-- cmp&#45;&gt;div -->
 <g id="edge4" class="edge">
 <title>cmp&#45;&gt;div</title>
-<path fill="none" stroke="#5a6360" d="M574.63,-27.86C582.32,-27.86 590.04,-27.86 597.49,-27.86"/>
-<polygon fill="#5a6360" stroke="#5a6360" points="597.07,-30.48 604.57,-27.86 597.07,-25.23 597.07,-30.48"/>
+<path fill="none" stroke="#5a6360" d="M529.04,-27.86C536.49,-27.86 544.07,-27.86 551.56,-27.86"/>
+<polygon fill="#5a6360" stroke="#5a6360" points="551.29,-30.48 558.79,-27.86 551.29,-25.23 551.29,-30.48"/>
 </g>
 <!-- bulk -->
 <g id="node6" class="node">
@@ -78,8 +78,8 @@
 <!-- div&#45;&gt;bulk -->
 <g id="edge5" class="edge">
 <title>div&#45;&gt;bulk</title>
-<path fill="none" stroke="#5a6360" d="M705.43,-27.86C712.65,-27.86 720.23,-27.86 727.83,-27.86"/>
-<polygon fill="#5a6360" stroke="#5a6360" points="727.74,-30.48 735.24,-27.86 727.74,-25.23 727.74,-30.48"/>
+<path fill="none" stroke="#5a6360" d="M705.57,-27.86C713,-27.86 720.57,-27.86 728.03,-27.86"/>
+<polygon fill="#5a6360" stroke="#5a6360" points="727.72,-30.48 735.22,-27.86 727.72,-25.23 727.72,-30.48"/>
 </g>
 <!-- mcu -->
 <g id="node7" class="node">

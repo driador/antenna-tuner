@@ -7,10 +7,10 @@ digraph c {
          fontcolor="#4A5557"];
 
   fwd  [label="forward\ncoupled port", fillcolor="#EEF1F0", color="#6E797B"];
-  tap  [label="1:1 isolating tap\n10:1 resistive"];
-  clmp [label="clamp diodes\nback-to-back Schottky, ±5 V"];
+  tap  [label="tap: 1 nF + 4.7 kΩ\n10 kΩ to mid-rail"];
+  clmp [label="BAT54S clamps\nto 0 V and 3.3 V"];
   cmp  [label="high-speed comparator\nTLV3501, ~10 mV hysteresis"];
-  div  [label="74AC4040\n÷1024 → 29 kHz", fillcolor="#F7EBCC", color="#8A5D04"];
+  div  [label="74LVC74 ÷4\n74HC4040 ÷256 → 29 kHz", fillcolor="#F7EBCC", color="#8A5D04"];
   bulk [label="1000 pF feedthrough at\npartition + bulkhead,\nRG-316 between; 1 kΩ", shape=box, style="filled,dashed",
         fillcolor="#FAFBFB", color="#4A5557"];
   mcu  [label="control board SMA\nTeensy 4.1 FreqCount, pin 9", fillcolor="#DCEBDF", color="#2C6539"];

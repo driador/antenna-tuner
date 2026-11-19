@@ -62,7 +62,7 @@ print('removed dangling: %d vias, %d track stubs' % dangling_cleanup())
 
 ds = b.GetDesignSettings(); ds.m_MinResolvedSpokes = 1   # GND pour: 1 spoke is fine
 # restore the true outline: make_pcb drew it inset so the router stayed clear
-EDGE_M = 2.5
+EDGE_M = {'measurement': 1.0}.get(B, 2.5)     # as make_pcb.py
 for d in b.GetDrawings():
     if d.GetLayer() == pcbnew.Edge_Cuts and d.GetShape() == pcbnew.SHAPE_T_SEGMENT:
         for get, set_ in ((d.GetStart, d.SetStart), (d.GetEnd, d.SetEnd)):

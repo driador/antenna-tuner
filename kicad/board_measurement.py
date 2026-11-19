@@ -1,156 +1,267 @@
 #!/usr/bin/env python3
-"""Measurement board, Sampler chamber -- 1500W Doublet Tuner Rev 3.4.
+"""Measurement board, Sampler chamber -- 1500W Doublet Tuner Rev 3.7c.
 
-NO MICROCONTROLLER (Section 8B.0). Everything leaves as filtered DC plus one
-29 kHz logic line, so a single Teensy 4.1 on the Control board does the lot.
+NO MICROCONTROLLER (Section 8B.0). Everything leaves as filtered DC on the J-S
+ribbon, plus the /1024 count on its own coax, so the Teensy on the Control
+board does the lot.
 
-  - 6 dB resistive splitter on each coupled port
-  - Schottky envelope detectors        -> V_FWD, V_REF_DET  (DC out)
-  - AD8302 gain/phase detector         -> V_MAG, V_PHS, AD_VREF (DC out)
-  - Frequency front end + 74AC4040 /1024 -> 29 kHz max, crosses the bulkhead
-  - Protection comparator, open drain, wire-ANDed into PERMISSIVE
-  - local 3V3 from the bulkhead 5V
+Scope (Sections 6A, 6B.3a, 7.3, 7.3a, 7.4):
+  - FWD and REF coupled ports in on edge SMAs, from the separate coupler box
+    (two equal-length RG-316 jumpers). Each port is terminated here: 2 x 105
+    ohm 1 W in parallel, so the coupler sees 50 ohm with the taps (6A.3)
+  - Schottky envelope detectors (1N5711W, 70 V) -> V_FWD, V_REF_DET, scaled so
+    1500 W reads ~2.9 V at the Teensy ADC (6A.4)
+  - AD8302 in measurement mode on ~30 dB resistive taps -> V_MAG, V_PHS,
+    AD_VREF (6A.5). INPA = REF, INPB = FWD
+  - frequency: AC-coupled, mid-biased TLV3501 with clamps, a 74LVC74 /4 and a
+    74HC4040 /256, so /1024 overall; out through 1 k on an SMA for the RG-316
+    run W10 (6A.10, 7.3 frequency grade)
+  - over-SWR trip: LM393 on the reflected detector, threshold on a trimmer,
+    open collector with its 4.7 k pull-up here (6A.4, 7.4)
+  - cal-load RF detector (6B.3a): 3.3 pF 1 kV / 100 pF divider, BAT54S doubler,
+    2.2 nF, 100 k, +1.0 V bias through 1 M, 33 V TVS
+  - local 3V3 from the J-S 5 V; ferrite-split into an analog rail (AD8302) and a
+    digital rail (counter) so the counter's 30 MHz edges stay off the detector
 
-OFF-BOARD: Stockton coupler (chassis toroids), 60 dB SMA attenuator chains.
+OFF-BOARD: the Stockton coupler (its own diecast box), K1/K2 (wired from J-S
+directly, W9b), the cal-load thermostat (W9c).
+
+PACKAGES: 1206 passives, 2512 terminations, SOIC logic, SOT-223 regulator, as on
+the Control board; the AD8302 is TSSOP-14 only. Through-hole: the header, the
+electrolytic, the trimmer, the 1 kV disc and the wire pads.
 """
 from gen_sch import Sch
 
-FP_R  = 'Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal'
-FP_C  = 'Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm'
-FP_CE = 'Capacitor_THT:CP_Radial_D5.0mm_P2.50mm'
-FP_D  = 'Diode_SMD:D_SOD-323'
-FP_SMA= 'Connector_Coaxial:SMA_Amphenol_132134-11_Vertical'
-FP_REG= 'Package_TO_SOT_SMD:SOT-223-3_TabPin2'
-FP_IDC= 'Connector_IDC:IDC-Header_2x08-1MP_P2.54mm_Latch6.5mm_Vertical'
+FP_R    = 'Resistor_SMD:R_1206_3216Metric'
+FP_RP   = 'Resistor_SMD:R_2512_6332Metric'
+FP_C    = 'Capacitor_SMD:C_1206_3216Metric'
+FP_CE6  = 'Capacitor_THT:CP_Radial_D6.3mm_P2.50mm'
+FP_DISC = 'Capacitor_THT:C_Disc_D7.5mm_W5.0mm_P5.00mm'      # 1 kV NP0 disc, leads formed 6.4 -> 5.0 mm
+FP_D123 = 'Diode_SMD:D_SOD-123'
+FP_D123F= 'Diode_SMD:D_SOD-123F'
+FP_SOT23= 'Package_TO_SOT_SMD:SOT-23'
+FP_REG  = 'Package_TO_SOT_SMD:SOT-223-3_TabPin2'
+FP_FB   = 'Inductor_SMD:L_1206_3216Metric'
+FP_SMA  = 'Connector_Coaxial:SMA_Molex_73251-1153_EdgeMount_Horizontal'
+FP_IDC  = 'Connector_IDC:IDC-Header_2x08_P2.54mm_Vertical'   # On Shore 302-S161, shrouded, keyed
+FP_POT  = 'Potentiometer_THT:Potentiometer_Bourns_3296W_Vertical'
+FP_TP   = 'TestPoint:TestPoint_THTPad_D1.5mm_Drill0.7mm'
+FP_WIRE = 'TestPoint:TestPoint_THTPad_D2.5mm_Drill1.2mm'     # 22 AWG wire pad
+FP_MH   = 'MountingHole:MountingHole_3.2mm_M3_Pad_Via'
+SOIC = {8: 'Package_SO:SOIC-8_3.9x4.9mm_P1.27mm', 14: 'Package_SO:SOIC-14_3.9x8.7mm_P1.27mm',
+        16: 'Package_SO:SOIC-16_3.9x9.9mm_P1.27mm'}
 
-s = Sch('Measurement Board -- Sampler Chamber', 'tuner')
-A = s.sym
+s = Sch('Measurement Board -- Sampler Chamber', 'tuner', rev='Rev 3.7c')
+# Each part is tagged with the board block it belongs to; make_pcb.py packs the
+# blocks into fixed regions so the router starts from a sensible floor plan.
+BLOCKS, _blk = {}, ['misc']
+def block(name):
+    _blk[0] = name
+def A(*args, **kw):
+    c = s.sym(*args, **kw)
+    BLOCKS.setdefault(c['ref'], _blk[0])
+    return c
 
-# ---------- forward RF channel ----------
-J1 = A('Connector:Conn_Coaxial','J1','FWD from coupler',(20,30),footprint=FP_SMA)
-R1 = A('Device:R','R1','16R5',(45,30),footprint=FP_R)
-R2 = A('Device:R','R2','16R5',(68,18),footprint=FP_R)
-R3 = A('Device:R','R3','16R5',(68,45),footprint=FP_R)
-J2 = A('Connector:Conn_Coaxial','J2','FWD to 60dB pad',(92,45),footprint=FP_SMA)
-s.net(J1,'In','FWD_CPL'); s.net(J1,'Ext','GND')
-s.net(R1,'1','FWD_CPL'); s.net(R1,'2','FWD_SPLIT')
-s.net(R2,'1','FWD_SPLIT'); s.net(R2,'2','FWD_DET_IN')
-s.net(R3,'1','FWD_SPLIT'); s.net(R3,'2','FWD_TO_PAD')
-s.net(J2,'In','FWD_TO_PAD'); s.net(J2,'Ext','GND')
+# Connections are by label, so the sheet only has to keep pin stubs apart;
+# two-terminal parts go on a grid below the multi-pin parts.
+class Grid:
+    def __init__(self, x0, y0, cols, dx=20.32, dy=22.86):
+        self.x0, self.y0, self.cols, self.dx, self.dy, self.n = x0, y0, cols, dx, dy, 0
+    def __call__(self):
+        r, c = divmod(self.n, self.cols); self.n += 1
+        return (self.x0 + c * self.dx, self.y0 + r * self.dy)
+cell = Grid(20, 165, 19)
 
-# ---------- reflected RF channel ----------
-J4 = A('Connector:Conn_Coaxial','J4','REF from coupler',(20,110),footprint=FP_SMA)
-R4 = A('Device:R','R4','16R5',(45,110),footprint=FP_R)
-R5 = A('Device:R','R5','16R5',(68,98),footprint=FP_R)
-R6 = A('Device:R','R6','16R5',(68,125),footprint=FP_R)
-J5 = A('Connector:Conn_Coaxial','J5','REF to 60dB pad',(92,125),footprint=FP_SMA)
-s.net(J4,'In','REF_CPL'); s.net(J4,'Ext','GND')
-s.net(R4,'1','REF_CPL'); s.net(R4,'2','REF_SPLIT')
-s.net(R5,'1','REF_SPLIT'); s.net(R5,'2','REF_DET_IN')
-s.net(R6,'1','REF_SPLIT'); s.net(R6,'2','REF_TO_PAD')
-s.net(J5,'In','REF_TO_PAD'); s.net(J5,'Ext','GND')
+_count = {}
+def nxt(prefix):
+    _count[prefix] = _count.get(prefix, 0) + 1
+    return f'{prefix}{_count[prefix]}'
 
-# ---------- Schottky envelope detectors ----------
-for ref,din,out,rr,cc,y in (('D1','FWD_DET_IN','V_FWD','R7','C1',18),
-                            ('D2','REF_DET_IN','V_REF_DET','R8','C2',98)):
-    D = A('Device:D_Schottky',ref,'HSMS-2850',(95,y),footprint=FP_D)
-    R = A('Device:R',rr,'10k',(115,y+8),footprint=FP_R)
-    C = A('Device:C',cc,'100n',(132,y+8),footprint=FP_C)
-    s.net(D,'A',din); s.net(D,'K',out)
-    s.net(R,'1',out); s.net(R,'2','GND')
-    s.net(C,'1',out); s.net(C,'2','GND')
+def two(lib_id, prefix, val, a, b, fp, pins=('1', '2')):
+    p = A(lib_id, nxt(prefix), val, cell(), footprint=fp)
+    s.net(p, pins[0], a); s.net(p, pins[1], b)
+    return p
+def R(val, a, b, fp=FP_R):   return two('Device:R', 'R', val, a, b, fp)
+def C(val, a, b, fp=FP_C):   return two('Device:C', 'C', val, a, b, fp)
+def CE(val, pos, neg='GND', fp=FP_CE6):
+    return two('Device:C_Polarized', 'C', val, pos, neg, fp)
+def D(part, anode, cathode, fp=FP_D123, sym='Device:D_Schottky'):
+    return two(sym, 'D', part, anode, cathode, fp, pins=('A', 'K'))
+def FB(a, b):
+    return two('Device:FerriteBead_Small', 'FB', 'BLM31PG601SN1L', a, b, FP_FB)
+_tp = [0]
+def TP(net, label):
+    _tp[0] += 1
+    t = A('Connector:TestPoint', f'TP{_tp[0]}', label, cell(), footprint=FP_TP)
+    s.net(t, '1', net)
 
-# ---------- AD8302 vector detector ----------
-J3 = A('Connector:Conn_Coaxial','J3','FWD from pad',(150,55),footprint=FP_SMA)
-J6 = A('Connector:Conn_Coaxial','J6','REF from pad',(150,85),footprint=FP_SMA)
-U1 = A('RF:AD8302xRU','U1','AD8302',(185,70),footprint='Package_SO:TSSOP-14_4.4x5mm_P0.65mm')
-s.net(J3,'In','FWD_ATT'); s.net(J3,'Ext','GND')
-s.net(J6,'In','REF_ATT'); s.net(J6,'Ext','GND')
-s.net(U1,'INPB','FWD_ATT'); s.net(U1,'INPA','REF_ATT')
-s.net(U1,'VPOS','+3V3A'); s.net(U1,'COMM','GND')
-s.net(U1,'VMAG','V_MAG'); s.net(U1,'VPHS','V_PHS')
-s.net(U1,'VREF','AD_VREF'); s.net(U1,'MSET','AD_VREF'); s.net(U1,'PSET','AD_VREF')
-for ref,pin,x in (('C3','OFSA',150),('C4','OFSB',165),('C5','MFLT',205),('C6','PFLT',220)):
-    c = A('Device:C',ref,'1n',(x,112),footprint=FP_C)
-    s.net(c,'1','U1_'+pin); s.net(c,'2','GND'); s.net(U1,pin,'U1_'+pin)
-C7 = A('Device:C','C7','100n',(212,48),footprint=FP_C); s.net(C7,'1','+3V3A'); s.net(C7,'2','GND')
-C8 = A('Device:C','C8','1u',(228,48),footprint=FP_C);   s.net(C8,'1','+3V3A'); s.net(C8,'2','GND')
+# ================= coupled ports: termination, detector, AD8302 tap (6A.3-6A.5) =================
+# Each port sees 2 x 105 R in parallel (52.5 R, 2 W) against the taps' ~1.2 k
+# (FWD) / ~1.5 k (REF): 50.2 / 50.7 ohm, return loss > 40 dB, so the Stockton
+# separation holds (6A.2). 0.94 W at 1500 W, both ports under full reflection.
+#
+# Detector: 1N5711W, 70 V. At 1500 W the port peaks at 9.7 V and the diode sees
+# ~19 V reverse, past the HSMS-282x's 15 V (and the old HSMS-2850's 3.8 V). The
+# 22 k / 10 k load divides the ~9.4 V peak to 2.9 V for the ADC (3.3 V max).
+#
+# Vector tap: 1.62 k into the AD8302's 52.3 R shunt = -30.2 dB, from a ~50 ohm
+# source as the datasheet assumes. FWD (INPB, the reference channel) then sits
+# at -22 dBm at 10 W and -0.3 dBm at 1500 W (max input -3 dBV), and REF can
+# fall the full 30 dB below it inside the -60 dBm floor from ~2 W up (6A.5).
+def port(tag, sma, sma_val, inp):
+    block('rf_' + tag.lower())
+    J = A('Connector:Conn_Coaxial', sma, sma_val, (40, 35 if tag == 'FWD' else 95), footprint=FP_SMA)
+    rf = f'{tag}_RF'
+    s.net(J, 'In', rf); s.net(J, 'Ext', 'GND')
+    R('105 1W', rf, 'GND', fp=FP_RP); R('105 1W', rf, 'GND', fp=FP_RP)
+    D('1N5711W', rf, f'{tag}_PK')
+    C('10n', f'{tag}_PK', 'GND')
+    out = 'V_FWD' if tag == 'FWD' else 'V_REF_DET'
+    R('22k', f'{tag}_PK', out); R('10k', out, 'GND')
+    R('1k62', rf, f'{tag}_ATT'); R('52R3', f'{tag}_ATT', 'GND')
+    C('10n C0G', f'{tag}_ATT', inp)            # all four AD8302 inputs are biased ~100 mV below VPOS
+    return out
 
-# ---------- frequency front end ----------
-R9  = A('Device:R','R9','470R',(115,32),footprint=FP_R)
-D3  = A('Device:D_Schottky','D3','BAT54',(132,24),footprint=FP_D)
-D4  = A('Device:D_Schottky','D4','BAT54',(132,42),footprint=FP_D)
-U2  = A('Comparator:TLV3501AID','U2','TLV3501',(158,32),
-        footprint='Package_SO:SOIC-8_3.9x4.9mm_P1.27mm')
-R10 = A('Device:R','R10','1M',(180,24),footprint=FP_R)
-R11 = A('Device:R','R11','10k',(40,150),footprint=FP_R)
-R12 = A('Device:R','R12','10k',(40,176),footprint=FP_R)
-s.net(R9,'1','FWD_DET_IN'); s.net(R9,'2','FREQ_RAW')
-s.net(D3,'A','FREQ_RAW'); s.net(D3,'K','+3V3A')
-s.net(D4,'K','FREQ_RAW'); s.net(D4,'A','GND')
-s.net(U2,'+','FREQ_RAW'); s.net(U2,'-','FREQ_BIAS'); s.net(U2,'6','FREQ_TTL')
-s.net(U2,'V+','+3V3A'); s.net(U2,'V-','GND'); s.net(U2,'SHDN','+3V3A')
-s.net(R10,'1','FREQ_TTL'); s.net(R10,'2','FREQ_RAW')
-s.net(R11,'1','+3V3A'); s.net(R11,'2','FREQ_BIAS')
-s.net(R12,'1','FREQ_BIAS'); s.net(R12,'2','GND')
+V_FWD = port('FWD', 'J1', 'SMA FWD in', 'INPB_AC')
+V_REF = port('REF', 'J2', 'SMA REF in', 'INPA_AC')
 
-# ---------- /1024 prescaler (Section 8B.0.1) ----------
-# 29.7 MHz -> 29 kHz, so the count crosses a 1000 pF feedthrough with RF
-# rejection intact. AC variant: plain HC is marginal at 29.7 MHz on 3.3 V.
-U4 = A('4xxx:4040','U4','74AC4040',(205,32),footprint='Package_DIP:DIP-16_W7.62mm')
-C11 = A('Device:C','C11','100n',(232,24),footprint=FP_C)
-s.net(U4,'CLK','FREQ_TTL')
-s.net(U4,'Q9','FREQ_DIV')        # Q9 = /1024
-s.net(U4,'Reset','GND')
-s.net(U4,'VDD','+3V3A'); s.net(U4,'VSS','GND')
-s.net(C11,'1','+3V3A'); s.net(C11,'2','GND')
-for q in ('Q0','Q1','Q2','Q3','Q4','Q5','Q6','Q7','Q8','Q10','Q11'):
-    s.nc(U4,q)        # only Q9 (/1024) is used
+# ================= AD8302, measurement mode (6A.5) =================
+block('ad8302')
+U1 = A('RF:AD8302xRU', 'U1', 'AD8302ARUZ', (90, 65), footprint='Package_SO:TSSOP-14_4.4x5mm_P0.65mm')
+s.net(U1, 'INPA', 'INPA_AC'); s.net(U1, 'INPB', 'INPB_AC')
+s.net(U1, 'VPOS', '+3V3A'); s.net(U1, 'COMM', 'GND')
+# VMAG -> MSET and VPHS -> PSET give the default 30 mV/dB and 10 mV/deg about 900 mV
+s.net(U1, 'VMAG', 'V_MAG'); s.net(U1, 'MSET', 'V_MAG')
+s.net(U1, 'VPHS', 'V_PHS'); s.net(U1, 'PSET', 'V_PHS')
+s.net(U1, 'VREF', 'AD_VREF')
+# offset loop: f_HP (MHz) = 2 / C (nF), so 100 nF puts it at 20 kHz, far under
+# 1.8 MHz (the old 1 nF put it at 2 MHz, inside 160 m)
+s.net(U1, 'OFSA', 'OFSA'); s.net(U1, 'OFSB', 'OFSB')
+C('100n', 'OFSA', 'GND'); C('100n', 'OFSB', 'GND')
+# video filter: T (ns) = 3.3 x C (pF) -> 33 us; the 2f ripple at 1.8 MHz is ~57 dB down
+s.net(U1, 'MFLT', 'MFLT'); s.net(U1, 'PFLT', 'PFLT')
+C('10n', 'MFLT', 'GND'); C('10n', 'PFLT', 'GND')
+C('100p C0G', '+3V3A', 'GND'); C('100n', '+3V3A', 'GND')
+FB('+3V3', '+3V3A'); C('10u', '+3V3A', 'GND')
 
-# ---------- protection comparator -> PERMISSIVE wire-AND ----------
-U3A = A('Comparator:LM393','U3','LM393',(185,150),unit=1,footprint='Package_DIP:DIP-8_W7.62mm')
-U3B = A('Comparator:LM393','U3','LM393',(225,150),unit=2,footprint='Package_DIP:DIP-8_W7.62mm')
-U3P = A('Comparator:LM393','U3','LM393',(225,178),unit=3,footprint='Package_DIP:DIP-8_W7.62mm')
-R13 = A('Device:R','R13','10k',(150,140),footprint=FP_R)
-R14 = A('Device:R','R14','10k',(150,158),footprint=FP_R)
-R15 = A('Device:R','R15','4k7',(212,132),footprint=FP_R)
-s.net(R13,'1','+3V3A'); s.net(R13,'2','SWR_TRIP_REF')
-s.net(R14,'1','SWR_TRIP_REF'); s.net(R14,'2','GND')
-s.net(U3A,'+','SWR_TRIP_REF'); s.net(U3A,'-','V_REF_DET'); s.net(U3A,'1','PERMISSIVE')
-s.net(U3B,'+','GND'); s.net(U3B,'-','+3V3A'); s.nc(U3B,'7')
-s.net(U3P,'V+','+3V3A'); s.net(U3P,'V-','GND')
-s.net(R15,'1','+3V3A'); s.net(R15,'2','PERMISSIVE')
+# ================= frequency (6A.10, 8B.0.1, 7.3 frequency grade) =================
+block('counter')
+# Tap the 50 ohm node through 1 nF and 4.7 k into a node held at mid-rail by
+# 10 k: 0.68 of the port voltage, so 1 W (0.25 V peak) still swings the
+# comparator +/-170 mV, and 1500 W is clamped by the BAT54S at ~1 mA.
+C('1n C0G', 'FWD_RF', 'FREQ_TAP')
+R('4k7', 'FREQ_TAP', 'FREQ_IN')
+R('10k', 'FREQ_IN', 'FREQ_MID')
+R('10k', '+3V3D', 'FREQ_MID'); R('10k', 'FREQ_MID', 'GND'); C('100n', 'FREQ_MID', 'GND')
+Dc = A('Diode:BAT54S', nxt('D'), 'BAT54SLT1G', (150, 30), footprint=FP_SOT23)
+s.net(Dc, 'A', 'GND'); s.net(Dc, 'COM', 'FREQ_IN'); s.net(Dc, 'K', '+3V3D')
+U2 = A('Comparator:TLV3501AID', 'U2', 'TLV3501AIDR', (180, 30), footprint=SOIC[8])
+s.net(U2, '+', 'FREQ_IN'); s.net(U2, '-', 'FREQ_MID'); s.net(U2, '6', 'FREQ_TTL')
+s.net(U2, 'V+', '+3V3D'); s.net(U2, 'V-', 'GND')
+s.net(U2, 'SHDN', 'GND')      # SHDN within 0.9 V of V+ disables it; the old board tied it high
+s.nc(U2, '1'); s.nc(U2, '5')
+R('1M', 'FREQ_TTL', 'FREQ_IN')                 # ~10 mV of hysteresis on top of its own 6 mV
+# 74AC4040 is obsolete and plain HC is marginal at 29.7 MHz on 3.3 V (8B.0.1),
+# so a 74LVC74 (150 MHz) divides by 4 first; the HC4040 then sees <= 7.4 MHz.
+U3 = [A('74xx:74LS74', 'U3', '74LVC74AD', (215 + 30 * i, 30), unit=u, footprint=SOIC[14]) for i, u in enumerate((1, 2, 3))]
+s.net(U3[0], 'C', 'FREQ_TTL'); s.net(U3[0], 'D', 'DIV2_N'); s.net(U3[0], '~{Q}', 'DIV2_N'); s.net(U3[0], 'Q', 'DIV2')
+s.net(U3[1], 'C', 'DIV2');     s.net(U3[1], 'D', 'DIV4_N'); s.net(U3[1], '~{Q}', 'DIV4_N'); s.net(U3[1], 'Q', 'DIV4')
+for u in U3[:2]:
+    s.net(u, '~{S}', '+3V3D'); s.net(u, '~{R}', '+3V3D')
+s.net(U3[2], 'VCC', '+3V3D'); s.net(U3[2], 'GND', 'GND')
+U4 = A('4xxx:4040', 'U4', 'SN74HC4040DR', (310, 30), footprint=SOIC[16])
+s.net(U4, 'CLK', 'DIV4'); s.net(U4, 'Reset', 'GND')
+s.net(U4, 'Q7', 'FREQ_DIV')                    # Q7 = /256, so /1024 overall
+s.net(U4, 'VDD', '+3V3D'); s.net(U4, 'VSS', 'GND')
+for q in ('Q0', 'Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q8', 'Q9', 'Q10', 'Q11'):
+    s.nc(U4, q)
+for _ in range(3):
+    C('100n', '+3V3D', 'GND')
+FB('+3V3', '+3V3D'); C('10u', '+3V3D', 'GND')
+block('freqout')
+J3 = A('Connector:Conn_Coaxial', 'J3', 'SMA /1024 out', (350, 30), footprint=FP_SMA)
+s.net(J3, 'In', 'FREQ_X'); s.net(J3, 'Ext', 'GND')
+R('1k', 'FREQ_DIV', 'FREQ_X')                  # 7.3 frequency grade: 1 k + the FT-P 1000 pF
 
-# ---------- local 3V3 ----------
-U5 = A('Regulator_Linear:AMS1117-3.3','U5','AMS1117-3.3',(55,175),footprint=FP_REG)
-C9  = A('Device:C_Polarized','C9','10u',(78,182),footprint=FP_CE)
-C10 = A('Device:C','C10','100n',(95,182),footprint=FP_C)
-s.net(U5,'VI','+5V'); s.net(U5,'VO','+3V3A'); s.net(U5,'GND','GND')
-s.net(C9,'1','+3V3A'); s.net(C9,'2','GND')
-s.net(C10,'1','+3V3A'); s.net(C10,'2','GND')
+# ================= over-SWR trip (6A.4, 7.4) =================
+block('swr')
+# Reflected-power threshold: 0.15-2.29 V, i.e. ~10 W to ~800 W reflected; set at
+# commissioning with a wattmeter (167 W reflected = 2:1 at 1500 W reads ~0.92 V).
+# LM393 on 5 V for a 0-3.5 V input range; trips (pulls SWR_OK low) when
+# V_REF_DET rises above the threshold. 1 M gives ~10 mV of hysteresis.
+U6 = [A('Comparator:LM393', 'U6', 'LM393DR', (150 + 30 * i, 100), unit=u, footprint=SOIC[8]) for i, u in enumerate((1, 2, 3))]
+s.net(U6[0], '+', 'SWR_TH'); s.net(U6[0], '-', V_REF); s.net(U6[0], '1', 'SWR_OK')
+s.net(U6[1], '+', 'GND'); s.net(U6[1], '-', '+3V3'); s.nc(U6[1], '7')
+s.net(U6[2], 'V+', '+5V'); s.net(U6[2], 'V-', 'GND')
+C('100n', '+5V', 'GND')
+R('4k7', '+3V3A', 'SWR_TH_T')
+RV1 = A('Device:R_Potentiometer_Trim', 'RV1', '10k 3296W', (245, 100), footprint=FP_POT)
+s.net(RV1, '1', 'SWR_TH_T'); s.net(RV1, '3', 'SWR_TH_B'); s.net(RV1, '2', 'SWR_TH')
+R('680', 'SWR_TH_B', 'GND'); C('100n', 'SWR_TH', 'GND')
+R('1M', 'SWR_OK', 'SWR_TH')
+# open collector, pulled up here; the Control board's 100 k pull-down makes an
+# unplugged ribbon read as a trip (7.4)
+R('4k7', '+3V3', 'SWR_OK')
+TP('SWR_TH', 'SWR TH'); TP(V_REF, 'V REF')
 
-# ---------- bulkhead to Control, with the Section 7.3 RC filters ----------
-# Analogue: 1k + 0.01uF -> 15.9 kHz. Frequency: 1k + 1000pF -> 159 kHz, which
-# passes 29 kHz while still rejecting HF.
-J7 = A('Connector_Generic:Conn_02x08_Odd_Even','J7','bulkhead to Control',(265,120),
-       footprint=FP_IDC)
-FILT = [('V_MAG','R16','C12','0.01u',1),  ('V_PHS','R17','C13','0.01u',3),
-        ('V_FWD','R18','C14','0.01u',5),  ('V_REF_DET','R19','C15','0.01u',7),
-        ('AD_VREF','R20','C16','0.01u',9),('FREQ_DIV','R21','C17','1n',11)]
-for i,(net,rr,cc,cval,pin) in enumerate(FILT):
-    R = A('Device:R',rr,'1k',(240,40+i*24),footprint=FP_R)
-    C = A('Device:C',cc,cval,(258,52+i*24),footprint=FP_C)
-    s.net(R,'1',net); s.net(R,'2',net+'_F')
-    s.net(C,'1',net+'_F'); s.net(C,'2','GND')
-    s.net(J7,f'Pin_{pin}',net+'_F')
-s.net(J7,'Pin_13','PERMISSIVE')
-s.net(J7,'Pin_15','+5V')
-for p in (2,4,6,8,10,12,14,16):
-    s.net(J7,f'Pin_{p}','GND')
+# ================= cal-load RF detector (6B.3a) =================
+block('hv')
+# The load node peaks at 77 V at 60 W and 387 V if 1.5 kW reaches the load, so
+# the top capacitor is a 1 kV NP0 disc and the tap pad keeps 2.5 mm to all
+# other copper (IPC-2221 B2, 301-500 V). Divider 1:31; doubler; 0.2 ms.
+J5 = A('Connector_Generic:Conn_01x01', 'J5', 'CAL LOAD TAP', (270, 100), footprint=FP_WIRE)
+J6 = A('Connector_Generic:Conn_01x01', 'J6', 'CAL GND', (285, 100), footprint=FP_WIRE)
+s.net(J5, 'Pin_1', 'CAL_TAP'); s.net(J6, 'Pin_1', 'GND')
+C('3p3 1kV NP0', 'CAL_TAP', 'CAL_DIV', fp=FP_DISC)
+block('cal')
+C('100p C0G', 'CAL_DIV', 'GND')
+Dk = A('Diode:BAT54S', nxt('D'), 'BAT54SLT1G', (305, 100), footprint=FP_SOT23)
+s.net(Dk, 'A', 'GND'); s.net(Dk, 'COM', 'CAL_DIV'); s.net(Dk, 'K', 'CAL_PK')
+C('2n2 C0G', 'CAL_PK', 'GND')
+R('100k', 'CAL_PK', 'CAL_DET')
+R('1M', 'CAL_BIAS', 'CAL_DET')
+R('22k', '+3V3A', 'CAL_BIAS'); R('10k', 'CAL_BIAS', 'GND'); C('100n', 'CAL_BIAS', 'GND')   # +1.03 V
+D('SMF33A', 'GND', 'CAL_DET', fp=FP_D123F, sym='Device:D_Zener')                       # 33 V TVS
+TP('CAL_DET', 'CAL DET')
 
-for i,(nm,xy) in enumerate((('+5V',(30,205)),('GND',(70,220)))):
-    f = A('power:PWR_FLAG',f'#FLG{i+1}','PWR_FLAG',xy)
-    s.net(f,'1',nm)
+# ================= local 3V3 (6A.3b: own regulator behind a filtered feedthrough) =================
+block('power')
+U5 = A('Regulator_Linear:AMS1117-3.3', 'U5', 'AMS1117-3.3', (335, 100), footprint=FP_REG)
+s.net(U5, 'VI', '+5V'); s.net(U5, 'VO', '+3V3'); s.net(U5, 'GND', 'GND')
+C('10u', '+5V', 'GND')
+CE('100u 10V', '+3V3')                         # AMS1117 output stability, as on the Control board
+C('100n', '+3V3', 'GND')
+TP('GND', 'GND')
+
+# ================= J-S: sampler group, pins 1-16 of the J-B allocation (7.3a) =================
+# W9: J-S solder cups 1-16 -> this header one to one, so the pinout is the
+# Control board's J-B pins 1-16. Every line has its own ground; 1 k on each
+# analog output isolates its driver from the 5600 pF contacts and makes the
+# 28 kHz analog-grade corner (7.3).
+block('conn')
+J4 = A('Connector_Generic:Conn_02x08_Odd_Even', 'J4', 'J-S sampler', (380, 95), footprint=FP_IDC)
+JS = {1: 'V_MAG_X', 3: 'V_PHS_X', 5: 'V_FWD_X', 7: 'V_REF_DET_X', 9: 'AD_VREF_X',
+      11: 'CAL_DET', 13: 'SWR_OK', 15: '+5V'}
+for p_ in range(1, 17):
+    s.net(J4, f'Pin_{p_}', JS.get(p_, 'GND'))
+for net in ('V_MAG', 'V_PHS', 'V_FWD', 'V_REF_DET', 'AD_VREF'):
+    R('1k', net, net + '_X')
+
+# ================= mounting: four M3, plated, bonded to GND (the chassis, through the standoffs) =================
+block('mech')
+for i in range(4):
+    h = A('Mechanical:MountingHole_Pad', f'H{i + 1}', 'M3', (300 + 15 * i, 140), footprint=FP_MH)
+    s.net(h, '1', 'GND')
+
+# ================= power flags =================
+block('none')
+# +5V arrives on a connector pin and +3V3A / +3V3D through ferrite beads, so flag
+# them; +3V3 comes from the regulator's output.
+for i, (netname, xy) in enumerate((('+5V', (20, 140)), ('GND', (45, 140)), ('+3V3A', (70, 140)), ('+3V3D', (95, 140)))):
+    f = A('power:PWR_FLAG', f'#FLG{i + 1}', 'PWR_FLAG', xy)
+    s.net(f, '1', netname)
 
 s.write('measurement.kicad_sch')
-print(f'wrote measurement.kicad_sch: {len(s.comps)} components, {len(s.items)//2} connections')
+import json
+json.dump(BLOCKS, open('measurement.blocks.json', 'w'), indent=0, sort_keys=True)
+print(f'wrote measurement.kicad_sch: {len(s.comps)} symbols, {len(s.items)//2} connections')
