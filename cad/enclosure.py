@@ -15,7 +15,7 @@ Writes true-size STEP files (mm) to out/ with the prefix enc-, and out/enclosure
 import json
 import math
 
-from build123d import Align, Compound, Cone, Plane, Polygon, Vector, export_step, extrude
+from build123d import Align, Compound, Cone, Plane, Polygon, RegularPolygon, Vector, export_step, extrude
 
 import roller as R
 from roller import Box, Cylinder, Pos, Rot, rod
@@ -120,28 +120,122 @@ def angle(origin, u, v, length, axis, a=ANG, b=ANG, t=ANG_T):
     return extrude(prof, amount=length)
 
 
+RINGS = [  # (heel z, vertical leg up?, 1/2 front member for the cassette?, name)
+    (Z_FLOOR, True, True, "bottom ring"),        # front: 1/2 lip so the cassette slides
+    (Z_SH0, False, True, "shelf ring lower"),    # under the shelf; 1/2 front leg
+    (Z_SH1, True, False, "shelf ring upper"),    # on the shelf; RF service panel flange
+    (Z_TOP, False, False, "top ring"),
+]
+# ring-to-post junctions (16, TUNER-E-201): a 1-1/2 x 1-1/2 x 1/8 clip nests in each post's inside corner, in the
+# clear band between the ring flange and the ring legs' free edge. Per wall, a #6-32 flat head (82 deg, flush
+# outside, nyloc inside) into the post at 0.55 from the corner and one into the ring member at 1.35. The cassette
+# rings' front legs stop at the post (the tray slides past); their 1/2 front members are held by the floor / shelf.
+CLIP_LEG, CLIP_T = 1.50, ANG_T
+CLIP_H = ANG - ANG_T                             # 0.875: the clear band on a 1" ring leg
+CLIP_SHORT = ANG - ANG_T                         # front leg at the cassette rings: ends at the post's edge
+CLIP_HOLES = (0.55, 1.35)                        # from the frame's outer corner: post, ring member
+CLIP_SCREW, CLIP_CSK = 0.144, (0.28, 0.078)      # #6 clearance; 82 deg countersink dia, depth in the 1/8 leg
+JUNCTION_BANDS = [((z + ANG_T, z + ANG) if up else (z - ANG, z - ANG_T)) for z, up, _s, _n in RINGS]
+JKEEP = 0.30                                     # rivnut blind-side radius 0.225 + margin, around each clip band
+
+
+def junction_holes():
+    """[(center on the outer wall face, outward axis)] for every junction screw (60)."""
+    out = []
+    for z, up, small_front, _n in RINGS:
+        zm = z + (ANG_T + ANG) / 2 if up else z - (ANG_T + ANG) / 2
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                for d in CLIP_HOLES:
+                    out.append(((sx * (F - d), sy * F, zm), (0, sy, 0)))           # side wall
+                    if not (small_front and sx < 0 and d > ANG):
+                        out.append(((sx * F, sy * (F - d), zm), (sx, 0, 0)))       # front / rear wall
+    return out
+
+
+def junction_tool(c, o, csk):
+    """(center, tool): the through hole for one junction screw (frame leg + clip); with csk, its countersink."""
+    r = Pos(*c) * _rot_z_to(o)
+    tool = r * Pos(0, 0, -0.25) * Cylinder(CLIP_SCREW / 2, 0.8)
+    if csk:
+        d, h = CLIP_CSK
+        tool += r * Pos(0, 0, -h) * Cone(CLIP_SCREW / 2, d / 2, h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        tool += r * Cylinder(d / 2, 0.2, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return Vector(*c), tool
+
+
+def _drill(shape, tools, pad=0.3):
+    bb = shape.bounding_box()
+    for c, t in tools:
+        if (bb.min.X - pad <= c.X <= bb.max.X + pad and bb.min.Y - pad <= c.Y <= bb.max.Y + pad
+                and bb.min.Z - pad <= c.Z <= bb.max.Z + pad):
+            shape = shape - t
+    return shape
+
+
 def frame():
-    """[(name, shape)]: 4 corner posts and the horizontal rings (bottom, shelf lower/upper, top)."""
+    """[(name, shape)]: 4 corner posts and the horizontal rings (bottom, shelf lower/upper, top), drilled and
+    countersunk for the junction clips (clips())."""
     out = []
     zlen = Z_TOP - Z_FLOOR
     for sx in (-1, 1):
         for sy in (-1, 1):
             out.append(("post", angle((sx * F, sy * F, Z_FLOOR), (0, -sy, 0), (-sx, 0, 0), zlen, (0, 0, 1))))
     span = 2 * (F - ANG)
-
-    def ring(z, up, small_front=False, name="ring"):
+    for z, up, small_front, name in RINGS:
         vz = (0, 0, 1 if up else -1)
         for sy in (-1, 1):   # side members along X
             out.append((name, angle((-F + ANG, sy * F, z), vz, (0, -sy, 0), span, (1, 0, 0))))
         for sx in (-1, 1):   # front / rear members along Y
             leg = SANG if (sx < 0 and small_front) else ANG
             out.append((name, angle((sx * F, -F + ANG, z), vz, (-sx, 0, 0), span, (0, 1, 0), a=leg, b=leg)))
+    tools = [junction_tool(c, o, csk=True) for c, o in junction_holes()]
+    return [(n, _drill(s, tools)) for n, s in out]
 
-    ring(Z_FLOOR, True, small_front=True, name="bottom ring")       # front: 1/2 lip so the cassette slides
-    ring(Z_SH0, False, small_front=True, name="shelf ring lower")   # under the shelf; 1/2 front leg
-    ring(Z_SH1, True, name="shelf ring upper")                      # on the shelf; RF service panel flange
-    ring(Z_TOP, False, name="top ring")
+
+def clips(drilled=True):
+    """[(name, shape)]: the 16 junction clips, nested in the posts' inside corners (TUNER-E-201)."""
+    tools = [junction_tool(c, o, csk=False) for c, o in junction_holes()] if drilled else []
+    out = []
+    for z, up, small_front, _n in RINGS:
+        z0 = z + ANG_T if up else z - ANG
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                ly = CLIP_SHORT if (small_front and sx < 0) else CLIP_LEG
+                c = angle((sx * (F - ANG_T), sy * (F - ANG_T), z0), (-sx, 0, 0), (0, -sy, 0), CLIP_H, (0, 0, 1),
+                          a=CLIP_LEG, b=ly, t=CLIP_T)
+                out.append(("corner clip", _drill(c, tools)))
     return out
+
+
+def junction_detail(explode=False):
+    """Typical junction for TUNER-E-201 — bottom ring, rear-left corner (+X rear, +Y left) — cut to stubs,
+    with its #6 flat heads and nylocs, the corner moved to the origin. explode pulls clip, screws and nuts apart."""
+    zr = Z_FLOOR
+    box = plate(F - 4.0, F + 0.1, F - 4.0, F + 0.1, zr - 0.1, zr + 2.6)
+    out = []
+    for _n, s in frame():
+        bb = s.bounding_box()
+        if bb.max.X > F - 4 and bb.max.Y > F - 4 and bb.min.Z < zr + 2.6:
+            stub = s & box
+            if stub.volume > 1e-6:
+                out.append(stub)
+    clip = next(s for _n, s in clips() if s.bounding_box().min.X > 0 and s.bounding_box().min.Y > 0
+                and abs(s.bounding_box().min.Z - (zr + ANG_T)) < 1e-6)
+    out.append(Pos(-1.0, -1.0, 0) * clip if explode else clip)
+    zm = zr + (ANG_T + ANG) / 2
+    for c, o in junction_holes():
+        if not (c[0] > 0 and c[1] > 0 and abs(c[2] - zm) < 1e-6):
+            continue
+        r = Pos(*c) * _rot_z_to(o)
+        screw = r * Pos(0, 0, -0.065) * Cone(0.069, 0.131, 0.065, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        screw += r * Pos(0, 0, -0.5) * Cylinder(0.069, 0.436, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        nut = r * Pos(0, 0, -2 * ANG_T - 0.23) * extrude(RegularPolygon(0.3125 / math.sqrt(3), 6), 0.23)
+        if explode:
+            screw = Pos(o[0] * 0.9, o[1] * 0.9, o[2] * 0.9) * screw
+            nut = Pos(o[0] * -1.4, o[1] * -1.4, o[2] * -1.4) * nut
+        out += [screw, nut]
+    return [Pos(-F, -F, -zr) * s for s in out]
 
 
 def plate(x0, x1, y0, y1, z0, z1):
@@ -157,7 +251,9 @@ def connector_flange(cx, cy, z, pitch=CONN_PITCH, d=0.125):
 # solid, the perimeter fastener holes, the hole tables and the drawing view all come from this.
 SCREW_D = 0.177                  # 8-32 clearance; captive panel screws use the retainer's hole size
 PITCH_MAX = 1.75                 # §4: 8-32 on <= 1.75" centers
-CORNER_C = 0.60                  # first hole from a corner along an edge
+CORNER_C = 2.00                  # first hole from a corner along an edge: past the post leg and the junction clip,
+                                 # so every hole lands on a ring flange (the 1" corner squares have none) and the
+                                 # clip zone stays free of rivnuts; corner diagonal to the first post hole ~1.70"
 KEEP_OUT = 0.30                  # perimeter holes stay this far from any cutout
 FAN_FRAME = 4.72                 # 120 mm blower frame
 
@@ -166,6 +262,12 @@ def _rot_to(n):
     n = tuple(round(c) for c in n)
     return {(1, 0, 0): Rot(0, 90, 0), (-1, 0, 0): Rot(0, 90, 0), (0, 1, 0): Rot(90, 0, 0),
             (0, -1, 0): Rot(90, 0, 0)}.get(n, Rot(0, 0, 0))
+
+
+def _rot_z_to(o):
+    """Rotation taking +Z onto the axis o exactly (sign kept, unlike _rot_to): for countersinks and heads."""
+    return {(1, 0, 0): Rot(0, 90, 0), (-1, 0, 0): Rot(0, -90, 0), (0, 1, 0): Rot(-90, 0, 0),
+            (0, -1, 0): Rot(90, 0, 0), (0, 0, 1): Rot(0, 0, 0), (0, 0, -1): Rot(180, 0, 0)}[tuple(round(c) for c in o)]
 
 
 class Panel:
@@ -206,6 +308,24 @@ class Panel:
         n = max(2, math.ceil(span / PITCH_MAX) + 1)
         return [a + i * span / (n - 1) for i in range(n)]
 
+    def _post_segments(self, lo, hi):
+        """[lo, hi] along a vertical panel's side edges (they land on the posts) minus the junction-clip bands,
+        so no rivnut sits behind a clip; each free stretch is spread on its own, keeping the pitch."""
+        if abs(self.V.Z) < 0.99:
+            return [(lo, hi)]
+        blocks = sorted(tuple(sorted(((z0 - JKEEP - self.o.Z) / self.V.Z, (z1 + JKEEP - self.o.Z) / self.V.Z)))
+                        for z0, z1 in JUNCTION_BANDS)
+        free, a = [], lo
+        for v0, v1 in blocks:
+            if v1 <= a or v0 >= hi:
+                continue
+            if v0 > a:
+                free.append((a, v0))
+            a = max(a, v1)
+        if a < hi:
+            free.append((a, hi))
+        return [(x, y) for x, y in free if y - x >= 0.6]
+
     def fastener_holes(self):
         e = self.edges
         pts = []
@@ -217,10 +337,11 @@ class Panel:
             pts += [(u, v) for u in self._spread(CORNER_C, self.L - CORNER_C)]
         lo = (e.get("bottom") or 0) + 0.9
         hi = self.H - (e.get("top") or 0) - 0.9
+        segs = self._post_segments(lo, hi)
         if e.get("left") is not None:
-            pts += [(e["left"], v) for v in self._spread(lo, hi)]
+            pts += [(e["left"], v) for a, b in segs for v in self._spread(a, b)]
         if e.get("right") is not None:
-            pts += [(self.L - e["right"], v) for v in self._spread(lo, hi)]
+            pts += [(self.L - e["right"], v) for a, b in segs for v in self._spread(a, b)]
         out = []
         for u, v in pts:
             if self._blocked(u, v) or any(math.hypot(u - fu, v - fv) < 0.6 for fu, fv in self.forced):
@@ -474,7 +595,8 @@ def axis_module(name, x, y):
 def sampler():
     """Fixed sampler baseplate with reference envelopes; serviced in place via the left lower panel."""
     x0, x1 = X_PART + T12 + 0.1, X_IN - 0.15
-    base = plate(x0, x1, -6.6, 6.6, Z_FLOOR + 0.25, Z_FLOOR + 0.25 + T12)
+    base = plate(x0, x1 - 0.15, -6.6, 6.6, Z_FLOOR + 0.25, Z_FLOOR + 0.25 + T12)   # rear edge clear of the
+    # bottom-rear junction clips (E-201); the parts on it keep their positions
     for t, _k, x, y, _sz, _nt in FLOOR_IO:           # clearance over the floor connectors below
         if x > X_PART and t in FLOOR_BODY:
             _kind, wy, dx, _h = FLOOR_BODY[t]
@@ -629,8 +751,35 @@ def harness():
     return out
 
 
+def rivnut_envelopes():
+    """[(panel, (u, v), shape)]: the blind-side body of each panel-hole rivnut behind its 1/8 frame flange."""
+    out = []
+    for p in panels():
+        for u, v in p.fastener_holes():
+            c = p.p3(u, v, p.t + ANG_T + 0.175)
+            out.append((p.name, (u, v), Pos(c.X, c.Y, c.Z) * _rot_to(p.n) * Cylinder(0.225, 0.35)))
+    return out
+
+
+def orphan_holes():
+    """Panel fastener holes with no frame metal in the 0.10" behind the panel (bulkhead / partition excluded:
+    their 1/2 clip angles are match-drilled, not modeled)."""
+    fr = [(s, s.bounding_box()) for _n, s in frame()] + [(s, s.bounding_box()) for _n, s in clips(drilled=False)]
+    out = []
+    for p in panels():
+        if p.name in ("bulkhead", "motor/sampler partition"):
+            continue
+        for u, v in p.fastener_holes():
+            m = p.p3(u, v, p.t + 0.07)
+            probe = Pos(m.X, m.Y, m.Z) * _rot_to(p.n) * Cylinder(0.02, 0.10)
+            if not any(bb.min.X - 0.1 < m.X < bb.max.X + 0.1 and bb.min.Y - 0.1 < m.Y < bb.max.Y + 0.1
+                       and bb.min.Z - 0.1 < m.Z < bb.max.Z + 0.1 and (probe & s).volume > 1e-6 for s, bb in fr):
+                out.append((p.name, round(u, 3), round(v, 3)))
+    return out
+
+
 def assembly():
-    parts = frame()
+    parts = frame() + clips()
     parts += [(p.name, p.shape()) for p in panels()]
     parts += cassette()
     for tag, (x, y) in AXES.items():
@@ -737,6 +886,18 @@ def main():
     report["choke winding below the deck"] = round(R.Z_DECK - wb.max.Z, 3)
     report["choke rod length"] = round(max(s.bounding_box().max.Z for n, s in choke() if n == "choke rod")
                                        - min(s.bounding_box().min.Z for n, s in choke() if n == "choke rod"), 2)
+    # frame junctions: no panel rivnut may sit under a clip, and every panel hole needs frame metal behind it
+    cl_bb = [(c, c.bounding_box()) for _n, c in clips()]
+    hits = []
+    for pn, (u, v), s in rivnut_envelopes():
+        sb = s.bounding_box()
+        for c, cb in cl_bb:
+            if (sb.max.X > cb.min.X and cb.max.X > sb.min.X and sb.max.Y > cb.min.Y and cb.max.Y > sb.min.Y
+                    and sb.max.Z > cb.min.Z and cb.max.Z > sb.min.Z and (s & c).volume > 1e-6):
+                hits.append(f"{pn} {u:.2f},{v:.2f}")
+    report["junction screws"] = len(junction_holes())
+    report["clip / rivnut conflicts"] = hits
+    report["panel holes with no frame behind"] = orphan_holes()
     export_step(mm(Compound([s for _, s in parts])), str(OUT / "enc-assembly.step"))
     export_step(mm(Compound([s for _, s in parts] + [s for _, s in inner])), str(OUT / "enc-with-internals.step"))
     opened = ("RF service panel", "left upper panel", "left lower panel")
@@ -748,7 +909,16 @@ def main():
     P = panels()
     for p in P:
         export_step(mm(p.shape()), str(OUT / f"enc-panel-{slug(p.name)}.step"))
-    export_step(mm(Compound([s for n, s in frame()])), str(OUT / "enc-frame.step"))
+    export_step(mm(Compound([s for n, s in frame() + clips()])), str(OUT / "enc-frame.step"))
+    # junction detail (E-201): bottom ring, rear-left corner, cut to stubs, with screws and nylocs; and the clips
+    for name, explode in (("enc-frame-joint", False), ("enc-frame-joint-exploded", True)):
+        export_step(mm(Compound(junction_detail(explode))), str(OUT / f"{name}.step"))
+    cl = clips()
+    std = next(s for s in cl if s[1].bounding_box().min.X > 0 and s[1].bounding_box().min.Y > 0)[1]
+    short = next(s for s in cl if s[1].bounding_box().max.X < 0 and s[1].bounding_box().max.Y < 0)[1]
+    for name, s in (("enc-corner-clip", std), ("enc-corner-clip-short", short)):
+        bb = s.bounding_box()
+        export_step(mm(Pos(-bb.min.X, -bb.min.Y, -bb.min.Z) * s), str(OUT / f"{name}.step"))
     named = dict()
     for n, s in parts:
         named.setdefault(n, s)
@@ -792,7 +962,7 @@ def main():
     rails = X_BULK - 0.15 - (-X_IN + SANG + 0.02)
     extra = [["cassette rail (1/2 x 1/2 x 1/8)", 2, round(rails, 3), SANG],
              ["wall flange (2 x 2 x 3/16)", 2, WF_Z[1] - WF_Z[0], WF_LEG],
-             ["corner clip (1 x 1 x 1/8)", 16, 1.5, ANG],
+             ["corner clip (1-1/2 x 1-1/2 x 1/8)", 16, CLIP_H, CLIP_LEG],
              ["bulkhead / partition clip (1/2 x 1/2 x 1/8)", 16, 1.0, SANG]]
     meta = {"report": report, "panels": [p.meta() for p in P],
             "frame_extra": extra,

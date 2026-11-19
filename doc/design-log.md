@@ -88,7 +88,16 @@
      - W15 runs straight to X, W16 is deleted, and W18 is the choke's RG-400;
      - the E-200 front-view height dimension is fixed (it read the flange foot, H − 1).
    - The intake and blower move up with the deck and box (§8).
-6. **§9:**
+6. **Frame joints detailed** (TUNER-E-201; §4):
+   - **What was wrong:** the old note's single 1″ clip per junction could not join a post to both of
+     its ring members.
+   - **The new joint:** 16 corner clips (1-1/2 × 1-1/2 × 1/8 × 7/8″) nested in the post corners, with
+     60 flush #6-32 flat heads and nylocs. The junction and the clip are drawn on E-201.
+   - **Panel fastener rows:** they now start 2.00″ from each corner and skip the clip bands. Seven floor
+     and top corner holes had no frame metal behind them; now every hole lands, and no rivnut sits behind
+     a clip.
+   - **Counts:** 344 panel holes (was 381); E-202 to E-210 regenerated.
+7. **§9:**
    - Items 3, 28–31, 37, 45 and 46 updated.
    - New item **49:** verify the choke installed (VNA sweep, 10 m key-down thermal).
    - New item **50:** the antenna system's common-mode impedance, which sets how balanced 160 / 80 m
@@ -670,8 +679,19 @@ parts), **E-210** (parts list and hardware counts) and **E-211** (nesting); stoc
 thermal warping and oil-canning, and seal the RF bay behind a permanent wall.
 
 
+- **Frame junctions (TUNER-E-201, Rev 3.7c).**
+  - **Clip:** each of the 16 ring-to-post junctions takes a 1-1/2 × 1-1/2 × 1/8 × 7/8″ clip, nested in
+    the post's inside corner between the ring flange and the leg edges.
+  - **Fasteners:** per wall, one #6-32 flat head (82°, flush outside) goes into the post at 0.55″ from
+    the corner and one into the ring member at 1.35″, each with a nyloc inside — 60 in all.
+  - **Faces:** outer faces stay flush for the panels and gasket.
+  - **Cassette corners:** at the cassette rings' four front corners the clip's front leg stops at the
+    post, because the tray slides past. Their 1/2″ front members ride on the floor and shelf screws.
 - 8-32 stainless button-head screws into rivnuts in the frame flanges, pattern per **TUNER-E-210**
-  (363 holes). The earlier rule of 1.75″ centers is far inside λ/20 at 30 MHz (19.7″), so the
+  (344 holes, Rev 3.7c).
+  - **Corners:** every row starts 2.00″ from a corner and skips the clip bands. Every hole lands on frame
+    metal — the floor and top panels' corner holes used to fall in the 1″ corner squares with nothing
+    behind them — and no rivnut sits behind a clip. `enclosure.py` checks both. The earlier rule of 1.75″ centers is far inside λ/20 at 30 MHz (19.7″), so the
   pattern is more than sufficient for HF RF tightness
 - **Conductive-elastomer gasket** on every frame flange under a panel and on both faces of the
   shelf (G-1, §8E.6) — seals RF and dust in one part while keeping the RF bay serviceable
@@ -3244,7 +3264,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 26 | **Used vacuum variable acceptance test** — both caps, per §5.1b and `doc/vacuum-cap-testing.md` | **OPEN — bench test** |
 | 27 | **Homebuilt roller — R-1 = C decided (Rev 3.7b)** — build the 34 µH / 5.2″ / 22-turn roller, no series link (§5.3a); drawings TUNER-L-100 to L-109 regenerated for it (2026-11-16). Run the §5.3a commissioning checks. The Harris / 229-class roller in hand is a spare (§11.5) | **OPEN — blocks 160 m above ~145 W until built** |
 | 28 | ~~Roller orientation~~ — **RESOLVED Rev 3.7** by the vertical stack (§3.0): every element stands upright on a vertical shaft, so element length goes into height. The 34 µH roller at 5.2″ (11.547″ over the plates, §5.3a) and the 9.62″ CB-154 both fit in the 24.00″ box (§3.0 closure; 22.00″ until Rev 3.7c); no right-angle drive. Confirm in the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
-| 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 24″ tall since Rev 3.7c (22″ in 3.7b)**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one 36 × 48 of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
+| 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 24″ tall since Rev 3.7c (22″ in 3.7b)**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one 36 × 48 of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Frame junctions detailed Rev 3.7c (E-201: corner clips, 60 flush #6 flat heads). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
 | 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay — the input choke under the deck is now part of that 200 W (Rev 3.7c, §6; its own key-down check is item 49); (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
 | 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″) and Rev 3.7c (24.00″ — the box grew with the deck, so nothing above it moved):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
@@ -3549,11 +3569,14 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 |--:|:--|:--|:--|:--|
 | 1 | Aluminum sheet, 12 ga | **36 × 48″** 5052-H32 (0.081″), 65% used — floor, top, shelf, bulkhead, partition, deck, tray, sampler base (TUNER-E-211) | Part | E-211 |
 | 1 | Aluminum sheet, 14 ga | **48 × 48″** 5052-H32 (0.064″), 66% used — RF service panel, cassette face, four side panels, rear (TUNER-E-211) | Part | E-211 |
-| — | Angle stock | **6061-T6: 1 × 1 × 1/8 — 26.5 ft; 1/2 × 1/2 × 1/8 — 4.3 ft; 2 × 2 × 3/16 — 3.5 ft** (incl. kerf; TUNER-E-201, Rev 3.7c) | Part | E-201 |
-| 421 | Machine screw | **8-32 stainless button head**, 1/2″ — 381 panel holes (TUNER-E-210) + spares | Part | E-210 |
-| 421 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
+| — | Angle stock | **6061-T6: 1 × 1 × 1/8 — 24.3 ft; 1-1/2 × 1-1/2 × 1/8 — 1.3 ft (corner clips); 1/2 × 1/2 × 1/8 — 4.3 ft; 2 × 2 × 3/16 — 3.5 ft** (incl. kerf; TUNER-E-201, Rev 3.7c) | Part | E-201 |
+| 16 | Corner clip | 1-1/2 × 1-1/2 × 1/8 6061-T6 × 7/8″, two Ø0.144″ holes per leg (4 with the front leg cut to 7/8″, one hole) — fabricate on a drill jig | Fabricate | E-201 |
+| 60 | Flat-head screw | **#6-32 × 1/2″, 82°, stainless** — frame junctions, countersunk flush in the frame legs | Part | E-201 |
+| 60 | Nyloc nut | #6-32 stainless — frame junctions, inside | Part | E-201 |
+| 384 | Machine screw | **8-32 stainless button head**, 1/2″ — 344 panel holes (TUNER-E-210) + spares | Part | E-210 |
+| 384 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
 | ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
-| 68 | Captive panel screw | 8-32, RF service panel (42) and cassette face (26) | Class | §8E.6 |
+| 60 | Captive panel screw | 8-32, RF service panel (38) and cassette face (22) | Class | §8E.6 |
 | 6 | Feedthrough capacitor | **Tusonix 2499-003-X5W0-103ZLF** — 0.01 µF, 500 V, 12-28 nut mount; shelf FT1–FT4 (3 used + 1 spare) + 2 spares | Part | §7.3a |
 | 1 | Filtered DB-25 | **Amphenol FCE17-B25SM-250** — 1000 pF, J-A | Part | §7.3a |
 | 2 | Filtered DB-25 | **Amphenol FCE17-B25SM-290** — 5600 pF, J-B and J-S | Part | §7.3a |

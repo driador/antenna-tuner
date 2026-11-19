@@ -231,11 +231,25 @@ def sheet_bulkhead(doc):
                 [("bulkhead", 92, 180, 0.3), ("motor/sampler partition", 92, 86, 0.3)])
 
 
+JISO = ((-1, -1, 0.9), (1, -1, 0))  # into a rear-left corner from inside the box, above (Z up on the page)
+CPLAN = ((0, 0, 1), (-1, 0, 0))     # corner clip from above: the L, heel at lower left
+CFACE = ((0, 1, 0), (-1, 0, 0))     # corner clip, one leg face-on
+
+
 def sheet_frame(doc):
     page = D.new_page(doc, "E201", "FRAME - 6061-T6 ANGLE", "TUNER-E-201", 2)
-    fr = vw(doc, page, load(doc, "enc-frame.step"), ISO, 0.17, 95, 160, "FrameIso")
+    fr = vw(doc, page, load(doc, "enc-frame.step"), ISO, 0.13, 62, 182, "FrameIso")
+    jt = vw(doc, page, load(doc, "enc-frame-joint.step"), JISO, 0.6, 152, 190, "JointIso")
+    jx = vw(doc, page, load(doc, "enc-frame-joint-exploded.step"), JISO, 0.5, 152, 112, "JointExploded")
+    clip = load(doc, "enc-corner-clip.step")
+    cp = vw(doc, page, clip, CPLAN, 1.0, 40, 74, "ClipPlan")
+    cf = vw(doc, page, clip, CFACE, 1.0, 88, 74, "ClipFace")
     doc.recompute()
-    settle([fr])
+    settle([fr, jt, jx, cp, cf])
+    overall(doc, page, cf, gap=4)            # the L plan has no clean extreme vertices: sizes are in note 3
+    label(doc, page, "JUNCTION (16), FROM INSIDE  0.6:1", 152, 151)
+    label(doc, page, "JUNCTION, EXPLODED  0.5:1", 158, 70)
+    label(doc, page, "CORNER CLIP (16): PLAN, LEG  1:1", 64, 50)
     rows = [("MEMBER", "QTY", "STOCK", "LENGTH", "NOTE")]
     total = {}
     for name, q, length, leg in ENC["frame_cut_list"]:
@@ -252,15 +266,31 @@ def sheet_frame(doc):
         total[st] = total.get(st, 0) + q * (length + 0.125)
     table(doc, page, "FrameCut", rows, (62, 10, 40, 16, 70), 300, 200, size=6.5, row_px=15)
     buy = [f"{k}: {v / 12:.1f} FT INCL. KERF" for k, v in sorted(total.items())]
+    p = ENC["p"]
+    n_screw = ENC["report"]["junction screws"]
     note(doc, page, ["NOTES:",
-        "1. SQUARE-CUT ENDS. RING MEMBERS BUTT THE POST LEGS; EACH JUNCTION GETS A 1 x 1 x 1/8 x 1.5",
-        "   CORNER CLIP INSIDE (16), 2 x 8-32 PER LEG. BOLTED, NOT WELDED (4): NO WARP, NO HAZ LOSS.",
-        "2. FLANGE HOLES: MATCH-DRILL FROM EACH PANEL (TUNER-E-202 TO E-208), THEN 8-32 RIVNUTS.",
-        "3. THE SHELF IS CLAMPED BETWEEN THE LOWER AND UPPER SHELF RINGS; SCREWS THROUGH ALL THREE.",
-        "4. GROUND STUD (FLOOR TAG L) LANDS ON THE REAR-LEFT BOTTOM RING: SINGLE-POINT BOND (8A.2).",
-        "5. BUY: " + "; ".join(buy) + ".",
-        DRAFT, UNITS], 300, 110, 2.4)
-    label(doc, page, "FRAME, ISOMETRIC  1:6", 95, 60)
+        "1. 6061-T6 ANGLE, SQUARE-CUT ENDS. FOUR POSTS RUN FLOOR TO TOP; RING MEMBERS BUTT THE POST LEGS WITH",
+        "   EVERY OUTER FACE FLUSH (PANEL AND GASKET FACES). BOLTED, NOT WELDED (4): NO WARP, NO HAZ LOSS.",
+        "2. JUNCTIONS (16): A CORNER CLIP NESTS IN THE POST'S INSIDE CORNER, IN THE 7/8 BAND BETWEEN THE RING",
+        f"   FLANGE AND THE LEG EDGES. PER WALL, A #6-32 x 1/2 FLAT HEAD (82°, FLUSH OUTSIDE) INTO THE POST AT "
+        f"{p['CLIP_HOLES'][0]:.2f}",
+        f"   FROM THE CORNER AND ONE INTO THE RING MEMBER AT {p['CLIP_HOLES'][1]:.2f}, MID-BAND, NYLOC INSIDE: "
+        f"{n_screw} SCREWS + {n_screw} NYLOCS.",
+        f"3. CLIP: 1-1/2 x 1-1/2 x 1/8 6061-T6 x 7/8. ⌀{p['CLIP_SCREW']:.3f} HOLES "
+        f"{p['CLIP_HOLES'][0] - p['ANG_T']:.3f} AND {p['CLIP_HOLES'][1] - p['ANG_T']:.3f} FROM THE HEEL, ON",
+        "   THE CENTERLINE. BREAK THE HEEL TO CLEAR THE POST'S ROOT FILLET. CASSETTE RINGS (BOTTOM, SHELF LOWER),",
+        "   FRONT CORNERS (4): FRONT LEG CUT TO 7/8, POST HOLE ONLY - THE TRAY SLIDES PAST; THEIR 1/2 FRONT",
+        "   MEMBERS RIDE ON THE FLOOR AND SHELF SCREWS.",
+        "4. BUILD: DRILL THE CLIPS ON A JIG. SQUARE EACH JUNCTION ON A FLAT TABLE (CHECK BOTH DIAGONALS), CLAMP",
+        "   THE CLIP, MATCH-DRILL THE FRAME FROM INSIDE THROUGH IT, COUNTERSINK FROM OUTSIDE, BOLT UP.",
+        "5. PANEL FLANGE HOLES: MATCH-DRILL FROM EACH PANEL (E-202 TO E-208), THEN 8-32 RIVNUTS. PANEL ROWS",
+        f"   START {p['CORNER_C']:.2f} FROM EVERY CORNER AND SKIP THE CLIP BANDS: NO RIVNUT SITS BEHIND A CLIP.",
+        "6. THE SHELF IS CLAMPED BETWEEN THE LOWER AND UPPER SHELF RINGS; SCREWS THROUGH ALL THREE.",
+        "7. GROUND STUD (FLOOR TAG L) LANDS ON THE REAR-LEFT BOTTOM RING: SINGLE-POINT BOND (8A.2).",
+        "8. BUY: " + "; ".join(buy[:2]) + ";",
+        "   " + "; ".join(buy[2:]) + ".",
+        DRAFT, UNITS], 305, 122, 2.3)
+    label(doc, page, "FRAME, ISOMETRIC  1:8", 62, 118)
 
 
 def sheet_small_parts(doc):
@@ -356,6 +386,8 @@ def sheet_exploded(doc):
         ("21", "1 + 1", "HONEYCOMB VENT: INTAKE 8 x 4, EXHAUST 4.7 SQ", "1/8 CELL x 1/2 Al", "-"),
         ("22", "2", "30-40 MESH SS SCREEN + INTAKE FILTER", "8E.3", "-"),
         ("23", "3", "MEMBRANE VENT M12", "ONE PER SEALED CHAMBER", "-"),
+        ("24", str(ENC["report"]["junction screws"]), "#6-32 x 1/2 FLAT HEAD 82°, SS", "FRAME JUNCTIONS, FLUSH", "E-201"),
+        ("25", str(ENC["report"]["junction screws"]), "#6-32 NYLOC NUT, SS", "FRAME JUNCTIONS, INSIDE", "E-201"),
     ]
     rows += items
     table(doc, page, "EncParts", rows, (10, 14, 66, 50, 18), 308, 170, size=6.5, row_px=14)
