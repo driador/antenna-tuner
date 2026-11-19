@@ -84,7 +84,7 @@
    - TUNER-E-200 to E-215:
      - 24″ panels, frame and wall flanges;
      - the choke and its mount in the populated views;
-     - shelf holes CH1–CH3;
+     - shelf holes CH1–CH3, and the choke mount detailed on E-209 (base disc, spider, mount between shelf and deck);
      - W15 runs straight to X, W16 is deleted, and W18 is the choke's RG-400;
      - the E-200 front-view height dimension is fixed (it read the flange foot, H − 1).
    - The intake and blower move up with the deck and box (§8).
@@ -1274,7 +1274,7 @@ the shelf bulkhead — both grounded — which bypassed it (Changes in Rev 3.7c,
 - **Height.** Each face adds ≈ 11.3 mm of arc: 3 cores stand 2.44″, 4 cores 2.95″, 5 cores 3.47″.
   Under the old 3.50″ standoffs only 3 cores fit (2.50″ allowed), so the deck went up 2.00″ (§3.0).
 
-**Mount — nothing metal in or on the winding:**
+**Mount — nothing metal in or on the winding** (dimensioned on TUNER-E-207 and E-209):
 1. **Stack.** Bond the five cores with thin beads of high-temperature RTV. Wrap the bore and the core
    edges in glass-cloth tape.
 2. **Wind.** 15 turns in one layer against the bore wall, with the first-to-last gap facing −X
@@ -1283,6 +1283,9 @@ the shelf bulkhead — both grounded — which bypassed it (Changes in Rev 3.7c,
    - G10 disc, 1/4″ × Ø3.40″.
    - Three G10 standoffs, Ø3/8″ × 5/8″, screwed 8-32 up through the shelf at holes CH1–CH3
      (Ø2.60″ bolt circle, TUNER-E-207).
+   - **Nylon** 8-32 flat heads hold the disc to the standoffs, countersunk flush. The bottom
+     crossings sit right over them: a metal head there would be a floating electrode beside kV
+     turns, and a raised head would dent the coax.
    - Six Ø0.15″ vent holes inside the bore circle let air rise up the bore.
    - A 1/16″ silicone pad sits under the bottom crossings.
 4. **Clamp.**
@@ -3335,9 +3338,11 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
 | 5 | Ferrite toroid | **Fair-Rite 5961003801** (FT-240-61): #61, 61.0 × 35.55 × 12.7 mm, A_L ≈ 172 nH — ~$13 ea (DigiKey), ~$9 at 20+ (TME) | Part | §6 |
 | 1 | Winding coax | **RG-400 (M17/128)**, **12 ft** (9.6 ft used: 15 turns ≈ 9.0 ft + leads) — ~$1.85–2.90/ft | Part | §6 |
 | 1 | PL-259, chassis end | **Amphenol 83-1SP** (PTFE) + **UG-175/U** reducer for 0.195″ cable; mates the shelf coax bulkhead | Part | §6 |
-| 1 | Base disc | G10, 1/4″ × Ø3.40″: Ø0.52″ center hole, six Ø0.15″ vents on Ø0.72″, three 8-32 clearance holes on Ø2.60″ | Fabricate | §6, E-207 |
-| 1 | Top spider | G10, 1/8″, three arms on Ø2.60″, Ø0.52″ center hole | Fabricate | §6 |
-| 3 | Standoff | G10 (or glass-filled nylon), Ø3/8″ × 5/8″, 8-32 female both ends; 8-32 screws up through the shelf (CH1–CH3) | Class | §6, E-207 |
+| 1 | Base disc | G10, 1/4″ × Ø3.40″: Ø0.52″ center hole, six Ø0.15″ vents on Ø0.72″, three Ø0.177″ holes countersunk 82° × Ø0.34″ on Ø2.60″ | Fabricate | §6, E-209 |
+| 1 | Top spider | G10, 1/8″: Ø1.00″ hub, three 0.50″ arms with round ends on Ø2.60″, Ø0.52″ center hole | Fabricate | §6, E-209 |
+| 3 | Standoff | G10 (or glass-filled nylon), Ø3/8″ × 5/8″, 8-32 female both ends | Class | §6, E-207, E-209 |
+| 3 | Flat-head screw | **Nylon 8-32 × 1/2″, 82°** — base disc to standoffs, countersunk flush (no metal under the winding) | Class | §6, E-209 |
+| 3 | Machine screw | Stainless 8-32 × 3/8″ — up through the shelf into the standoffs (CH1–CH3) | Class | §6, E-207 |
 | 1 | Center rod + 2 nuts | **1/2″-13 fiberglass (FRP) threaded rod**, ~5″ (cut to fit), with FRP nuts | Class | §6 |
 | — | Pads, tape, bond | 1/16″ silicone rubber sheet; glass-cloth tape for the bore and core edges; high-temperature RTV between the cores; PTFE lacing cord | Class | §6 |
 | 2 | SO-239 bulkhead connector | **Amphenol 83-798** (SO-239A), PTFE — **not 83-1R**, which is glass-filled PBT | Part | §7.3 |

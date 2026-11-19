@@ -15,7 +15,7 @@ Writes true-size STEP files (mm) to out/ with the prefix enc-, and out/enclosure
 import json
 import math
 
-from build123d import Align, Compound, Plane, Polygon, Vector, export_step, extrude
+from build123d import Align, Compound, Cone, Plane, Polygon, Vector, export_step, extrude
 
 import roller as R
 from roller import Box, Cylinder, Pos, Rot, rod
@@ -505,12 +505,27 @@ def choke():
     for i in range(6):                              # vent holes inside the open bore center
         a = math.radians(30 + 60 * i)
         base -= Pos(CHOKE_X + 0.36 * math.cos(a), CHOKE_Y + 0.36 * math.sin(a), 0) * Cylinder(0.075, 60)
+    # nylon 8-32 flat heads down into the standoffs, countersunk flush: the bottom crossings sit right over
+    # them, so no metal head (a floating electrode next to kV turns) and nothing standing proud of the disc
+    csk_d, csk_h = CHOKE_CSK
+    for i in range(3):
+        a = math.radians(90 + 120 * i)
+        hx, hy = CHOKE_X + CHOKE_BC / 2 * math.cos(a), CHOKE_Y + CHOKE_BC / 2 * math.sin(a)
+        base -= Pos(hx, hy, 0) * Cylinder(0.177 / 2, 60)
+        base -= Pos(hx, hy, z + CHOKE_BASE - csk_h) * Cone(0.177 / 2, csk_d / 2, csk_h,
+                                                          align=(Align.CENTER, Align.CENTER, Align.MIN))
     out.append(("choke base", base - Pos(CHOKE_X, CHOKE_Y, 0) * Cylinder(rod_d / 2 + 0.01, 60)))
     z += CHOKE_BASE + CHOKE_PAD
     winding = Pos(CHOKE_X, CHOKE_Y, z) * (rod(CHOKE_OD, CHOKE_H) - Pos(0, 0, -0.01) * rod(CHOKE_BORE, CHOKE_H + 0.02))
     out.append(("choke winding envelope", winding))
     z += CHOKE_H + CHOKE_PAD
-    spider = Pos(CHOKE_X, CHOKE_Y, z) * rod(CHOKE_SPIDER[0], CHOKE_SPIDER[1])
+    t_sp = CHOKE_SPIDER[1]
+    r_end = CHOKE_SPIDER[0] / 2 - CHOKE_ARM / 2     # arm-end centers: round ends reach the tip circle
+    sp = rod(CHOKE_HUB, t_sp)
+    for i in range(3):                              # arms between the standoffs
+        arm = Pos(r_end / 2, 0, t_sp / 2) * Box(r_end, CHOKE_ARM, t_sp) + Pos(r_end, 0, 0) * rod(CHOKE_ARM, t_sp)
+        sp += Rot(0, 0, 30 + 120 * i) * arm
+    spider = Pos(CHOKE_X, CHOKE_Y, z) * sp
     out.append(("choke spider", spider - Pos(CHOKE_X, CHOKE_Y, 0) * Cylinder(rod_d / 2 + 0.01, 60)))
     z += CHOKE_SPIDER[1]
     nut = rod(nut_d, CHOKE_NUT) - Pos(0, 0, -0.01) * rod(rod_d + 0.002, CHOKE_NUT + 0.02)
@@ -559,7 +574,9 @@ CHOKE_BORE = 0.96                                # open center left by one layer
 CHOKE_TURN_LEN = 2 * CHOKE_CORES * 0.5 + math.pi * (0.501 + 0.195)   # in per turn: core stack + arcs over the faces
 CHOKE_SO, CHOKE_BASE, CHOKE_PAD = 0.625, 0.25, 0.0625   # G10 standoffs, G10 base disc, silicone pads
 CHOKE_BASE_D, CHOKE_BC = 3.40, 2.60              # base disc, standoff bolt circle
-CHOKE_SPIDER = (2.60, 0.125)                     # G10 three-arm spider, modeled as its disc envelope
+CHOKE_SPIDER = (2.60, 0.125)                     # G10 three-arm spider: tip circle, thickness
+CHOKE_HUB, CHOKE_ARM = 1.00, 0.50                # spider hub dia, arm width (round ends)
+CHOKE_CSK = (0.34, 0.094)                        # 82 deg countersink for #8 flat heads: dia, depth
 CHOKE_ROD, CHOKE_NUT = (0.50, 0.85), 0.44        # FRP 1/2-13 rod dia, nut across corners; nut height
 FLOOR_BODY = {  # inside body above the floor per FLOOR_IO tag: (kind, w_y, d_x, h) incl. mating plug / tail zone
     "A": ("box", 1.14, 1.30, 1.50),   # IEC body 29 x 33 mm + quick-connect tabs - ASSUMED depth
@@ -712,6 +729,14 @@ def main():
         "aluminum weight, enclosure (lb)": round(sum(s.volume for n, s in parts
                                                       if "envelope" not in n and not n.endswith("motor")) * 0.0975, 1),
     }
+    ch = {}
+    for n, s in choke():
+        ch.setdefault(n, s)
+    wb = ch["choke winding envelope"].bounding_box()
+    report["choke winding above the shelf"] = round(wb.min.Z - Z_SH1, 3)
+    report["choke winding below the deck"] = round(R.Z_DECK - wb.max.Z, 3)
+    report["choke rod length"] = round(max(s.bounding_box().max.Z for n, s in choke() if n == "choke rod")
+                                       - min(s.bounding_box().min.Z for n, s in choke() if n == "choke rod"), 2)
     export_step(mm(Compound([s for _, s in parts])), str(OUT / "enc-assembly.step"))
     export_step(mm(Compound([s for _, s in parts] + [s for _, s in inner])), str(OUT / "enc-with-internals.step"))
     opened = ("RF service panel", "left upper panel", "left lower panel")
@@ -729,6 +754,13 @@ def main():
         named.setdefault(n, s)
     for n in ("cassette tray", "cassette rail", "C1 axis bracket", "sampler baseplate", "wall flange"):
         export_step(mm(named[n]), str(OUT / f"enc-{slug(n)}.step"))
+    # input choke mount (E-209): base disc, spider, and the stack with shelf / deck stubs for the elevation
+    export_step(mm(ch["choke base"]), str(OUT / "enc-choke-base.step"))
+    export_step(mm(ch["choke spider"]), str(OUT / "enc-choke-spider.step"))
+    stub = 2.3
+    ref = [plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, Z_SH0, Z_SH1),
+           plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, R.Z_DECK, R.Z_DECK + R.DECK_T)]
+    export_step(mm(Compound([s for _, s in choke()] + ref)), str(OUT / "enc-choke-assembly.step"))
     explode = {"RF service panel": (-6, 0, 2), "cassette face": (-9, 0, -1), "cassette tray": (-9, 0, -1),
                "cassette rail": (-9, 0, -1), "rear panel": (6, 0, 0), "top panel": (0, 0, 6), "floor": (0, 0, -6),
                "wall flange": (9, 0, 0), "bulkhead": (-5, 0, -1)}

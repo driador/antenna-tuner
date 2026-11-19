@@ -273,10 +273,32 @@ def sheet_small_parts(doc):
     base = vw(doc, page, load(doc, "enc-sampler-baseplate.step"), PLAN, 0.3, 75, 80, "Base")
     fl_src = load(doc, "enc-wall-flange.step")
     fl = vw(doc, page, fl_src, ((1, 0, 0), (0, 1, 0)), 0.18, 215, 120, "FlangeWall")
+    # input choke mount (6, Rev 3.7c): base disc and spider in plan, the stack between shelf and deck stubs
+    cb = vw(doc, page, load(doc, "enc-choke-base.step"), PLAN, 0.5, 232, 232, "ChokeBase")
+    cs = vw(doc, page, load(doc, "enc-choke-spider.step"), PLAN, 0.5, 298, 232, "ChokeSpider")
+    ca = vw(doc, page, load(doc, "enc-choke-assembly.step"), FRONT, 0.35, 368, 226, "ChokeAsm", hidden=True)
     doc.recompute()
-    settle([tray, rail, br_iso, br_side, base, fl])
+    settle([tray, rail, br_iso, br_side, base, fl, cb, cs, ca])
     for v in (tray, rail, br_side, base, fl):
         overall(doc, page, v, gap=5)
+    # overall() reads vertices, which a disc does not have at its extremes: dimension the outer circle instead
+    for v, (dx, dy) in ((cb, (24, 22)), (cs, (20, 18))):
+        circ = D.circles(v)
+        if circ:
+            D.dim(doc, page, v, "Diameter", [circ[max(circ)]], dx, dy, fmt="⌀%.3f")
+    label(doc, page, "CHOKE BASE (G10 1/4)", 232, 199)
+    label(doc, page, "CHOKE SPIDER (G10 1/8)", 298, 199)
+    label(doc, page, "CHOKE MOUNT", 368, 195)
+    rep = ENC["report"]
+    note(doc, page, [
+        "5. INPUT CHOKE MOUNT (6) - ALL INSULATING, NOTHING METAL IN OR ON THE WINDING. BASE DISC: G10 1/4,",
+        "   ⌀3.40; ⌀0.52 CENTER; 6 x ⌀0.15 VENTS ON ⌀0.72; 3 x ⌀0.177 CSK 82° x ⌀0.34 ON ⌀2.60 FOR NYLON 8-32",
+        "   FLAT HEADS, FLUSH. SPIDER: G10 1/8, HUB ⌀1.00, 3 ARMS 0.50 WIDE, ROUND ENDS ON ⌀2.60, ⌀0.52 CENTER,",
+        "   ARMS BETWEEN THE STANDOFFS. STANDOFFS: 3 x G10 ⌀3/8 x 5/8, 8-32 F-F; SS 8-32 UP THROUGH THE SHELF",
+        f"   (E-207 CH1-CH3). ROD: 1/2-13 FIBERGLASS x {rep['choke rod length']:.2f}, FRP NUTS. WINDING (15 t RG-400,",
+        f"   5 x FT-240-61) ON 1/16 SILICONE PADS: {rep['choke winding above the shelf']:.2f} ABOVE THE SHELF,"
+        f" {rep['choke winding below the deck']:.2f} BELOW THE DECK. PLANS 0.5:1; MOUNT 0.35:1, SHELF TO DECK, ROD HIDDEN.",
+    ], 318, 179, 2.1)
     label(doc, page, "CASSETTE TRAY (12 GA)  0.3:1", 75, 237)
     label(doc, page, "RAIL END  1:1", 165, 237)
     label(doc, page, "MOTOR AXIS BRACKET (x3)", 112, 184)
@@ -296,7 +318,7 @@ def sheet_small_parts(doc):
         "4. WALL FLANGE: 2 x 2 x 3/16 6061 x 21. ONE LEG BOLTS THROUGH THE SIDE PANEL INTO THE REAR",
         "   POST (3 x 8-32, LONGER SCREWS, SHARED WITH THE PANEL LINE), THE OTHER LIES FLUSH WITH THE",
         "   REAR. 3 SLOTS 0.40 x 0.75 FOR 3/8 LAGS INTO A 3/4 PLYWOOD BACKER ACROSS THE STUDS.",
-        DRAFT, UNITS], 322, 118, 2.3)
+        DRAFT, UNITS], 322, 112, 2.3)
 
 
 def sheet_exploded(doc):
