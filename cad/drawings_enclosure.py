@@ -20,7 +20,7 @@ from drawings import (  # noqa: E402
 )
 
 D.SUBTITLE = "ENCLOSURE - DRAFT"
-D.N_SHEETS = 16
+D.N_SHEETS = 17
 ENC = json.load(open(os.path.join(OUT, "enclosure.json")))
 DRAFT = "DRAFT - DERIVED FROM DESIGN LOG 3.0 / 4 / 6 / 8 / 8D / 8E REV 3.7c. NOT FOR FABRICATION."
 UNITS = "DIMENSIONS IN INCHES."
@@ -522,7 +522,7 @@ def sheet_harness(doc):
         "2. NO WIRE FOLLOWS A DRIVE TRAIN; THE ONLY SHELF CROSSINGS ARE FT1-FT4 AND THE COAX BULKHEAD (7.1, 7.3).",
         "3. ROUTE THE SAMPLER CABLE (W8) LOW ALONG THE LEFT WALL, AWAY FROM THE STEPPERS (7.3a).",
         "4. BLOWER LEAD RUNS OUTSIDE THE LEFT PANELS IN FLEX CONDUIT TO THE FILTERED DE-9 (E-203).",
-        "5. PURPLE RUN CONTINUES IN THE RF BAY TO THE TANK THERMAL PROBE AND THE IMBALANCE CT (NOT DRAWN).",
+        "5. PURPLE RUN CONTINUES IN THE RF BAY: TANK THERMAL, IMBALANCE CT, RF PANEL SWITCH (NOT DRAWN).",
         DRAFT], 318, 150, 2.1)
 
 
@@ -537,16 +537,101 @@ def sheet_wirelist(doc):
     total = sum(r["length_in"] for r in HJ.get("runs", [])) / 12
     note(doc, page, ["NOTES:",
         f"1. CUT LENGTH = 3-D ROUTE (harness.py) x 1.15, PLUS 6 in SERVICE LOOP ON CASSETTE RUNS. TOTAL {total:.0f} ft.",
-        "2. PIN ASSIGNMENTS FOLLOW THE CONTROL-BOARD REVISION (9 ITEM 35); CONNECTOR GRADES PER 7.3a.",
+        "2. J-A / J-B / J-E PINOUTS: CONTROL BOARD (kicad/board_control.py, LOG 8B.0.4); CONNECTOR GRADES PER 7.3a.",
         "3. COLOR CODE ON E-213 / E-214. COAX RG-393 PTFE; PRESCALER RG-316.",
         DRAFT], 185, 92, 2.1)
     symbol(doc, page, "svg-legend", 62, 72)
 
 
+
+def sheet_choke(doc):
+    """TUNER-E-216: the input choke (§6) itself - every turn - and how it mounts between shelf and deck."""
+    page = D.new_page(doc, "E216", "INPUT CHOKE ASSEMBLY", "TUNER-E-216", 17)
+    ch, rep, p = ENC["choke"], ENC["report"], ENC["p"]
+    sec = vw(doc, page, load(doc, "enc-choke-halfsection.step"), ((0, -1, 0), (1, 0, 0)), 1.0, 78, 150, "ChokeSection")
+    hat = D.overlay(doc, page, sec, "hatch-choke.step", "ChokeHatch")
+    plan = vw(doc, page, load(doc, "enc-choke-plansection.step"), PLAN, 0.75, 208, 205, "ChokePlan")
+    hat_b = D.overlay(doc, page, plan, "hatch-choke-plan.step", "ChokePlanHatch")
+    ex = load(doc, "enc-choke-exploded.step")
+    iso = vw(doc, page, ex, ISO, 0.4, 208, 98, "ChokeIso")
+    doc.recompute()
+    settle([sec, hat, plan, hat_b, iso])
+    # stack-up chained up the right of the section: shelf top / winding bottom / winding top / deck underside
+    cx, cz = ch["section_center"]
+    x_st, x_w = p["CHOKE_X"] + 2.3, p["CHOKE_X"] + p["CHOKE_OD"] / 2
+    z_sh, z_w0 = ENC["p"]["Z_SH1"], ENC["p"]["Z_SH1"] + p["CHOKE_SO"] + p["CHOKE_BASE"] + p["CHOKE_PAD"]
+    z_w1, z_dk = z_w0 + p["CHOKE_H"], z_w0 + p["CHOKE_H"] + rep["choke winding below the deck"]
+    v = {k: D.near_vertex(sec, pt, (cx, cz)) for k, pt in
+         (("sh", (x_st, z_sh)), ("w0", (x_w, z_w0)), ("w1", (x_w, z_w1)), ("dk", (x_st, z_dk)))}
+    sc = IN * sec.Scale
+    for a, b, off in (("sh", "w0", 64), ("w0", "w1", 64), ("w1", "dk", 64), ("sh", "dk", 78)):
+        za = {"sh": z_sh, "w0": z_w0, "w1": z_w1, "dk": z_dk}
+        D.dim(doc, page, sec, "DistanceY", [v[a], v[b]], off, ((za[a] + za[b]) / 2 - cz) * sc)
+    # section B-B: base disc, core OD and bore (FT-240: 2.402 / 1.400)
+    circ = D.circles(plan)
+    for r_in, (dx, dy) in ((p["CHOKE_BASE_D"] / 2, (44, 32)), (2.402 / 2, (-44, 34)), (1.400 / 2, (-40, -30))):
+        hit = [r for r in circ if abs(r - r_in * IN) < 0.3]
+        if hit:
+            D.dim(doc, page, plan, "Diameter", [circ[hit[0]]], dx, dy, fmt="⌀%.3f")
+    # balloons: anchors projected the way TechDraw centers the view (2-D bounding box of the projection)
+    pts = [iso.projectPoint(vx.Point) for vx in ex.Shape.Vertexes]
+    mx = (min(q.x for q in pts) + max(q.x for q in pts)) / 2
+    my = (min(q.y for q in pts) + max(q.y for q in pts)) / 2
+    half_w = (max(q.x for q in pts) - min(q.x for q in pts)) * iso.Scale / 2
+    placed = []
+    for item, a in ch["anchors"].items():
+        q = iso.projectPoint(App.Vector(*a))
+        placed.append((item, (q.x - mx) * iso.Scale, (q.y - my) * iso.Scale))
+    k = 1 / iso.Scale
+    for side in (-1, 1):
+        col = sorted((t for t in placed if (t[1] >= 0) == (side > 0)), key=lambda t: -t[2])
+        for n, (item, u, w) in enumerate(col):
+            b = doc.addObject("TechDraw::DrawViewBalloon", "Balloon")
+            b.SourceView = iso
+            page.addView(b)  # adding to the page resets the position, so set it afterwards
+            b.OriginX, b.OriginY = u * k, w * k
+            b.X = side * (half_w + 12) * k
+            b.Y = (46 - n * 92 / max(len(col) - 1, 1)) * k
+            b.Text = item
+            b.BubbleShape = "Circular"
+    rows = [("ITEM", "QTY", "DESCRIPTION", "MATERIAL / PART", "REF")]
+    for item in sorted(ch["items"], key=int):
+        desc, qty, mat, ref = ch["items"][item]
+        if item == "6":
+            desc += f" x {rep['choke rod length']:.2f}"
+        rows.append((item, qty, desc, mat, ref))
+    table(doc, page, "ChokeParts", rows, (8, 11, 55, 49, 14), 338, 212, size=7.2, row_px=15)
+    label(doc, page, "SECTION A-A: HALF SECTION  1:1", 82, 62)
+    label(doc, page, "SECTION B-B AT MID-WINDING  3:4", 208, 166)
+    label(doc, page, "EXPLODED, ASSEMBLY ORDER  2:5", 208, 40)
+    note(doc, page, [
+        "NOTES:",
+        "1. ALL INSULATING (6): NOTHING METAL IN OR ON THE WINDING; ONLY THE SS SCREWS (10) UNDER THE SHELF.",
+        "   A-A: FRONT-RIGHT QUARTER REMOVED, SEEN FROM -Y. B-B: LOOKING DOWN, -X (GAP AND LEADS) DOWN.",
+        "2. STACK: BOND THE 5 CORES WITH THIN BEADS OF HIGH-TEMPERATURE RTV; WRAP THE BORE AND THE CORE",
+        "   EDGES IN GLASS-CLOTH TAPE.",
+        f"3. WIND 15 TURNS RG-400 IN ONE LAYER, PACKED AGAINST THE BORE WALL ({ch['pitch']:.0f}° PITCH), THE FIRST-TO-",
+        f"   LAST GAP FACING -X (BULKHEAD AND C1). BEND OVER EACH FACE ~{ch['bend_mm']:.0f} mm CENTERLINE: RG-400",
+        "   (STRANDED CENTER) ONLY; DO NOT FLEX THE WINDING ONCE MADE. TURNS DRAWN AS CLOSED LOOPS.",
+        "4. LEADS: THE CHASSIS LEAD LEAVES THE BOTTOM FOR THE SHELF COAX BULKHEAD (PL-259); THE DECK",
+        "   LEAD LEAVES THE TOP FOR C1'S LOWER TERMINAL, SHIELD CLAMPED TO THE DECK (W18). LACE BOTH",
+        "   TO THE BASE (11).",
+        "5. CLAMP: ROD (6) THROUGH THE OPEN CENTER, NUTS (7) ABOVE AND BELOW; SPIDER (5) OVER THE TOP",
+        "   PAD, SNUG BY HAND. ITS ARMS SIT BETWEEN THE STANDOFFS, CROSSINGS LEFT IN THE AIRFLOW.",
+        f"6. STACK FROM THE SHELF: STANDOFF {p['CHOKE_SO']:.3f}, BASE {p['CHOKE_BASE']:.3f}, PAD {p['CHOKE_PAD']:.3f},"
+        f" WINDING {p['CHOKE_H']:.2f}",
+        f"   (WORST-CASE CORES + ARCS), PAD, SPIDER. WINDING {rep['choke winding above the shelf']:.2f} ABOVE THE SHELF,"
+        f" {rep['choke winding below the deck']:.2f}",
+        "   BELOW THE DECK. ~1.7 lb.",
+        "7. BASE AND SPIDER DETAILS: E-209. SHELF HOLES CH1-CH3: E-207. VERIFY INSTALLED: LOG 9 ITEM 49.",
+        DRAFT, UNITS], 338, 128, 2.2)
+
+
 STEMS = {"E200": "E-200-overview", "E202": "E-202-front", "E203": "E-203-left", "E204": "E-204-right",
          "E205": "E-205-top-rear", "E206": "E-206-floor", "E207": "E-207-shelf", "E208": "E-208-bulkhead",
          "E201": "E-201-frame", "E209": "E-209-small-parts", "E210": "E-210-exploded", "E211": "E-211-nesting",
-         "E212": "E-212-populated", "E213": "E-213-utility-plan", "E214": "E-214-harness", "E215": "E-215-wire-list"}
+         "E212": "E-212-populated", "E213": "E-213-utility-plan", "E214": "E-214-harness", "E215": "E-215-wire-list",
+         "E216": "E-216-choke"}
 
 
 def main():
@@ -557,7 +642,7 @@ def main():
     only = [n for n in os.environ.get("ONLY", "").split(",") if n]
     for fn in (sheet_overview, sheet_frame, sheet_front, sheet_left, sheet_right, sheet_top_rear, sheet_floor,
                sheet_shelf, sheet_bulkhead, sheet_small_parts, sheet_exploded, sheet_nesting,
-               sheet_populated, sheet_populated_plan, sheet_harness, sheet_wirelist):
+               sheet_populated, sheet_populated_plan, sheet_harness, sheet_wirelist, sheet_choke):
         if only and fn.__name__ not in only:
             continue
         try:

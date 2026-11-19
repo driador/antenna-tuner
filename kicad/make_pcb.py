@@ -7,31 +7,42 @@ the top half, reflected channel on the bottom half, mirrored.
 """
 import pcbnew, sexpr, io, os, sys
 
-import sys
+import sys, json
 BOARD = sys.argv[1] if len(sys.argv) > 1 else 'measurement'
 NET = f'{BOARD}.net'
 OUT  = f'{BOARD}.kicad_pcb'
-W, H = (215.0, 145.0) if BOARD == 'measurement' else (240.0, 190.0)          # board outline, mm
+# control: fits the cassette's 5.5 x 3.6 in envelope (enclosure.py BOARD), standing upright
+W, H = (215.0, 145.0) if BOARD == 'measurement' else (139.0, 91.0)          # board outline, mm
 MM = pcbnew.FromMM
 
-# ref -> (x, y) in mm.  Two mirrored RF channels, logic to the right.
-PLACE_CONTROL = {
- 'A1': (118, 26),                                     # Teensy, 61 x 18 mm
- 'J15':(206, 26), 'R13':(178, 26), 'C5':(178, 44),    # recovery button
- 'J1': (26, 60),  'J2': (26, 88),  'U1': (62, 88),    # power in, buck, 3V3
- 'C1': (62, 110), 'C2': (84, 110), 'C3': (106, 110), 'C4': (26, 110),
- 'J3': (26, 136), 'J4': (26, 158), 'J5': (26, 168),   # stepper drivers
- 'J6': (76, 136), 'J7': (76, 162),                    # encoders, limits
- 'R1': (116, 140),'R2': (116, 160),'R3': (116, 168),  # limit pull-ups
- 'R4': (140, 140),'R5': (140, 160),'R6': (140, 168),
- 'Q1': (178, 70), 'D1': (202, 62), 'R7': (152, 62), 'R9': (152, 82),
- 'Q2': (178, 100),'D2': (202, 92), 'R8': (152, 102),'R10':(152, 122),
- 'Q3': (178, 130),'D3': (202, 122),'R11':(152, 142),'R12':(152, 162),
- 'J8': (218, 70), 'J9': (218, 130),                   # relay coils, blower
- 'J10':(206, 152),                                    # POF interlock
- 'J11':(186, 168),                                    # bulkhead to measurement
- 'J12':(96, 60),  'J13':(96, 36),                     # sensors, panel
- '#FLG1': (60, 20), '#FLG2': (60, 168), '#FLG3': (210, 168),
+# Control board floor plan: board_control.py tags every part with a block; each
+# column (x0, y0, x1, y1 in mm, 3 mm clear of the edge) takes its blocks in order.
+# Left end = cabinet +Y, where the bulkhead ribbons, the POF and the blower lead
+# arrive; right end = cabinet -Y, where the PSU's 24 V lead lands.
+COLUMNS_CONTROL = [
+    ((3, 3, 44, 88),    ['conn', 'ja', 'jb', 'je', 'fiber']),         # ribbons and their R/C
+    ((44, 3, 106, 88),  ['teensy', 'logic', 'relay', 'cal', 'freq', 'panel']),
+    ((106, 3, 136, 88), ['power', 'blower']),
+]
+ROT_CONTROL = {'A1': 90, 'U13': 90, 'J1': 90, 'J5': 90, 'J6': 90, 'J7': 90, 'J8': 90, 'J9': 90, 'J10': 90}
+# Parts that must face out of an edge, placed before their column is packed:
+# ref -> (column index, 'top' | 'bottom', courtyard left x in mm).
+# - The Teensy (flat on its sockets, as always) is turned 90 deg in the board's
+#   plane so its SD end is at the top edge. The board stands on edge in the
+#   cassette, so that edge points up and is open once the cassette slides out:
+#   the clear approach §8B.5.6 asks for. Its USB end faces a kept-clear strip.
+# - The HFBR's fiber port faces the left end (the POF rises from the floor I/O
+#   strip on that side).
+# - The 24 V terminal block's wire entry faces the right end.
+PINNED_CONTROL = {'A1': (1, 'top', 44.0), 'U13': (0, 'bottom', 0.5), 'J1': (2, 'top', None)}
+# Strips no part may be packed into: (column index, x0, x1) from the top part down
+# to the board edge. Below the Teensy's USB end, so a plug reaches it in place.
+KEEPOUT_CONTROL = [(1, 44.0, 62.6)]
+# wider tracks where current flows; everything else keeps the 0.15 mm default
+NETCLASS_CONTROL = {
+    'Power':  (0.60, ['+24V_IN', '+24V', '+24V_5', '+24V_12', '+12V', 'BLOWER_LO',
+                      'K1_PLUS', 'K2_PLUS', 'K1_LO', 'K2_LO', 'K1_SNS', 'K2_SNS', 'HFBR_A', 'HFBR_K']),
+    'Supply': (0.40, ['+5V', '+3V3']),
 }
 
 PLACE = {
@@ -77,6 +88,179 @@ def load_netlist(path):
             nets.setdefault(nm, []).append((r, p))
     return comps, nets
 
+def write_netclasses():
+    """Net classes live in the project file, not the board: route.sh's DSN export
+    and kicad-cli DRC both load them from <board>.kicad_pro, so write them there."""
+    pro = f'{BOARD}.kicad_pro'
+    p = json.load(open(pro))
+    ns = p.setdefault('net_settings', {})
+    base = next(c for c in ns['classes'] if c['name'] == 'Default')
+    # Route at 0.2 mm: freerouting necks down to 75 % between pads, which lands at
+    # 0.15 mm (6 mil), inside every fab's minimum (OSH Park 4-layer is 5 mil). One
+    # clearance for every class, because freerouting does not apply the larger of
+    # two classes' clearances and KiCad's DRC does (24 V needs only 0.1 mm, IPC-2221
+    # B2). One via size everywhere (0.6 / 0.3 carries the ~1 A of the 24 V input),
+    # so imported vias never mix padstacks.
+    base.update(track_width=0.2, clearance=0.15, via_diameter=0.6, via_drill=0.3)
+    ns['classes'] = [base] + [dict(base, name=cname, track_width=width, priority=i)
+                              for i, (cname, (width, _)) in enumerate(NETCLASS_CONTROL.items())]
+    p['board']['design_settings']['rules']['min_track_width'] = 0.15
+    ns['netclass_patterns'] = [{'netclass': cname, 'pattern': m}
+                               for cname, (_, members) in NETCLASS_CONTROL.items() for m in members]
+    json.dump(p, open(pro, 'w'), indent=2)
+    print(f'  net classes written to {pro}: ' +
+          ', '.join(f'{c} {w} mm ({len(m)} nets)' for c, (w, m) in NETCLASS_CONTROL.items()))
+
+def gnd_fanout(b, gnd, edge_m):
+    """4-layer board: every SMD ground pad gets its own locked via to the In1
+    plane before routing. The router treats GND as a plane net and otherwise
+    leaves these pads to the outer pours, which island; a via at each pad is also
+    the right way to ground a decoupling capacitor. Candidate spots step outward
+    from the pad, away from its footprint's center, until one clears every other
+    pad and every via placed so far."""
+    VIA_R, CLR, TW = 0.3, 0.2, 0.3                 # mm: via radius, clearance, stub width
+    pads = list(b.GetPads())
+    boxes = [(p, [pcbnew.ToMM(v) for v in (p.GetBoundingBox().GetLeft(), p.GetBoundingBox().GetTop(),
+                                           p.GetBoundingBox().GetRight(), p.GetBoundingBox().GetBottom())])
+             for p in pads]
+    vias = []
+    def dist_box(x, y, bb):
+        dx = max(bb[0] - x, 0, x - bb[2]); dy = max(bb[1] - y, 0, y - bb[3])
+        return (dx * dx + dy * dy) ** 0.5
+    def clear(x, y, src, r):
+        if not (edge_m + r < x < W - edge_m - r and edge_m + r < y < H - edge_m - r):
+            return False
+        if any(p is not src and dist_box(x, y, bb) < r + CLR for p, bb in boxes):
+            return False
+        return all(((x - vx) ** 2 + (y - vy) ** 2) ** 0.5 >= 2 * VIA_R + CLR for vx, vy in vias)
+    placed_n, failed, bridged = 0, [], []
+    for pad in pads:
+        if pad.GetNetname() != 'GND' or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+            continue
+        fp = pad.GetParentFootprint()
+        px, py = pcbnew.ToMM(pad.GetPosition().x), pcbnew.ToMM(pad.GetPosition().y)
+        cx, cy = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)
+        bb = next(bx for p, bx in boxes if p is pad)
+        hw, hh = (bb[2] - bb[0]) / 2, (bb[3] - bb[1]) / 2
+        import math
+        base_a = math.atan2(py - cy, px - cx) if (px, py) != (cx, cy) else math.pi / 2
+        spot = None
+        for da in (0, 45, -45, 90, -90, 135, -135, 180):
+            a = base_a + math.radians(da); ux, uy = math.cos(a), math.sin(a)
+            d0 = abs(ux) * hw + abs(uy) * hh + CLR + VIA_R
+            for extra in (0.0, 0.3, 0.6, 1.0, 1.5):
+                x, y = px + ux * (d0 + extra), py + uy * (d0 + extra)
+                # the stub from the pad edge to the via must clear other pads too
+                steps = [(px + ux * s, py + uy * s) for s in
+                         [abs(ux) * hw + abs(uy) * hh + k * 0.1 for k in range(int((d0 + extra) / 0.1))]]
+                if clear(x, y, pad, VIA_R) and all(clear(sx, sy, pad, TW / 2) for sx, sy in steps):
+                    spot = (x, y); break
+            if spot: break
+        if not spot:
+            # tied-off gate inputs sit next to another ground pin that already
+            # has its via: bridge to that pad instead
+            mate = min((q for q in fp.Pads() if q is not pad and q.GetNetname() == 'GND'),
+                       key=lambda q: (q.GetPosition() - pad.GetPosition()).EuclideanNorm(), default=None)
+            if mate is not None and pcbnew.ToMM((mate.GetPosition() - pad.GetPosition()).EuclideanNorm()) < 2.6:
+                t = pcbnew.PCB_TRACK(b)
+                t.SetStart(pad.GetPosition()); t.SetEnd(mate.GetPosition())
+                t.SetWidth(MM(TW)); t.SetLayer(pcbnew.F_Cu); t.SetNet(gnd); t.SetLocked(True)
+                b.Add(t); bridged.append(f"{fp.GetReference()}.{pad.GetNumber()}")
+            else:
+                failed.append(f"{fp.GetReference()}.{pad.GetNumber()}")
+            continue
+        vias.append(spot)
+        v = pcbnew.PCB_VIA(b)
+        v.SetPosition(pcbnew.VECTOR2I(MM(spot[0]), MM(spot[1])))
+        v.SetWidth(MM(2 * VIA_R)); v.SetDrill(MM(0.3)); v.SetNet(gnd); v.SetLocked(True)
+        b.Add(v)
+        t = pcbnew.PCB_TRACK(b)
+        t.SetStart(pad.GetPosition()); t.SetEnd(v.GetPosition())
+        t.SetWidth(MM(TW)); t.SetLayer(pcbnew.F_Cu); t.SetNet(gnd); t.SetLocked(True)
+        b.Add(t)
+        placed_n += 1
+    print(f'  GND fanout: {placed_n} vias placed' + (f', {len(bridged)} pads bridged to a neighbour' if bridged else '')
+          + (f'; NO ROOM at {failed}' if failed else ''))
+
+def courtyard(fp):
+    bb = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+    if bb.GetWidth() == 0:
+        bb = fp.GetBoundingBox(False, False)
+    return bb
+
+def pack_blocks(placed, gap=0.7):            # > the relaxation's 0.6 mm GAP
+    """Skyline-pack each column: blocks in the listed order, each block's parts
+    tallest first, every part at the highest free spot (then leftmost), by real
+    courtyards. A block therefore stays together, and small parts fill the space
+    beside tall connectors. Anything that does not fit is reported and parked
+    off-board, so the run fails loudly instead of routing an overlapping board."""
+    blocks = json.load(open(f'{BOARD}.blocks.json'))
+    by = {}
+    for ref in placed:
+        by.setdefault(blocks.get(ref, 'misc'), []).append(ref)
+    def size(r):
+        bb = courtyard(placed[r])
+        return pcbnew.ToMM(bb.GetWidth()) + gap, pcbnew.ToMM(bb.GetHeight()) + gap
+    def put(r, x, y):                         # courtyard top-left to (x, y) mm
+        fp = placed[r]; bb = courtyard(fp); pos = fp.GetPosition()
+        fp.SetPosition(pcbnew.VECTOR2I(MM(x) + pos.x - bb.GetLeft(), MM(y) + pos.y - bb.GetTop()))
+    overflow, done = [], set()
+    for ci, ((x0, y0, x1, y1), names) in enumerate(COLUMNS_CONTROL):
+        sky = [(x0, x1, y0)]                  # (x start, x end, first free y) segments
+        floor = []                            # (x start, x end, last usable y) under pinned parts
+        for r, (col, edge, xl) in PINNED_CONTROL.items():
+            if col != ci or r not in placed:
+                continue
+            w, h = size(r)
+            xl = x1 - w if xl is None else xl
+            if edge == 'top':
+                put(r, xl, y0)
+                sky = sorted([s_ for s_ in [(x0, xl, y0), (xl + w, x1, y0)] if s_[1] > s_[0]] + [(max(xl, x0), min(xl + w, x1), y0 + h)])
+            else:
+                put(r, xl, y1 - h + gap)
+                floor.append((xl, xl + w, y1 - h))
+        for col, kx0, kx1 in KEEPOUT_CONTROL:
+            if col == ci:
+                floor.append((kx0, kx1, y0))     # nothing may end below the top: blocked
+        def limit(xs, w):
+            return min([y1] + [y for a, b_, y in floor if a < xs + w - 1e-6 and b_ > xs + 1e-6])
+        for name in names:
+            done.add(name)
+            for r in sorted(by.get(name, []), key=lambda r: (-size(r)[1], -size(r)[0], r)):
+                if r in PINNED_CONTROL:
+                    continue
+                w, h = size(r)
+                best = None
+                # try every skyline step, and the edges of pinned parts and keep-outs,
+                # so a sliver of overlap with one of them cannot block a whole row
+                starts = sorted({s_[0] for s_ in sky} | {b_ for a, b_, y in floor if x0 <= b_ < x1})
+                for xs in starts:
+                    if xs + w > x1 + 1e-6:
+                        continue
+                    top = max(y for a, b_, y in sky if a < xs + w - 1e-6 and b_ > xs + 1e-6)
+                    if top + h <= limit(xs, w) + 1e-6 and (best is None or (top, xs) < best):
+                        best = (top, xs)
+                if best is None:
+                    overflow.append(r); continue
+                top, xs = best
+                fp = placed[r]; bb = courtyard(fp); pos = fp.GetPosition()
+                fp.SetPosition(pcbnew.VECTOR2I(MM(xs) + pos.x - bb.GetLeft(), MM(top) + pos.y - bb.GetTop()))
+                new = []
+                for a, b_, y in sky:              # raise the skyline under the part
+                    if b_ <= xs or a >= xs + w:
+                        new.append((a, b_, y)); continue
+                    if a < xs: new.append((a, xs, y))
+                    if b_ > xs + w: new.append((xs + w, b_, y))
+                new.append((xs, xs + w, top + h))
+                sky = sorted(new)
+    overflow += [r for n, refs in by.items() if n not in done for r in refs]
+    if overflow:
+        print(f'  OVERFLOW, {len(overflow)} parts did not fit their regions: {sorted(overflow)}')
+        for i, r in enumerate(sorted(overflow)):
+            placed[r].SetPosition(pcbnew.VECTOR2I(MM(W + 10 + 6 * (i % 10)), MM(10 + 6 * (i // 10))))
+    else:
+        print(f'  block packing: all {len(placed)} parts inside their regions')
+
 def main():
     comps, nets = load_netlist(NET)
     b = pcbnew.BOARD()
@@ -99,11 +283,15 @@ def main():
         if fp is None:
             skipped.append(ref + ' (load failed)'); continue
         fp.SetReference(ref); fp.SetValue(c['val'])
-        table = PLACE if BOARD == 'measurement' else PLACE_CONTROL
-        x, y = table.get(ref, (W - 14, H - 14))
-
-        fp.SetPosition(pcbnew.VECTOR2I(MM(x), MM(y)))
+        if BOARD == 'measurement':
+            x, y = PLACE.get(ref, (W - 14, H - 14))
+            fp.SetPosition(pcbnew.VECTOR2I(MM(x), MM(y)))
+        else:
+            fp.SetOrientationDegrees(ROT_CONTROL.get(ref, 0))
         b.Add(fp); placed[ref] = fp
+
+    if BOARD != 'measurement':
+        pack_blocks(placed)
 
     # assign nets to pads
     assigned = 0
@@ -174,8 +362,17 @@ def main():
         seg.SetWidth(MM(0.15))
         b.Add(seg)
 
-    # ground pour on both layers -- RF detectors need a solid reference
-    for layer in (pcbnew.B_Cu, pcbnew.F_Cu):
+    # ground pour on both layers -- RF detectors need a solid reference. The control
+    # board is 4-layer: at 51 % courtyard fill two layers chopped the pour into
+    # islands. In1 is a solid GND plane (a "power" layer); it is the only pour the
+    # router sees, so every SMD ground pad gets its own via down to it. route.sh
+    # pours F, In2 and B after the SES import.
+    copper = (pcbnew.B_Cu, pcbnew.F_Cu)
+    if BOARD != 'measurement':
+        b.SetCopperLayerCount(4)
+        b.SetLayerType(pcbnew.In1_Cu, pcbnew.LT_POWER)
+        copper = (pcbnew.In1_Cu,)
+    for layer in copper:
         z = pcbnew.ZONE(b)
         z.SetLayer(layer)
         z.SetNet(netmap['GND'])
@@ -203,9 +400,13 @@ def main():
     ds.m_MinResolvedSpokes = 1            # GND pour: one thermal spoke suffices
     for z in b.Zones():
         z.SetMinThickness(MM(0.2))
+    if b.GetCopperLayerCount() == 4:
+        gnd_fanout(b, netmap['GND'], EDGE_M)
     pcbnew.ZONE_FILLER(b).Fill(b.Zones())
 
     pcbnew.SaveBoard(OUT, b)
+    if BOARD != 'measurement':
+        write_netclasses()
     print(f'placed {len(placed)} footprints, {assigned} pad-net assignments')
     print(f'skipped (no footprint): {skipped}')
     print(f'nets: {len(netmap)}  board: {W} x {H} mm  zones: {b.GetAreaCount()}')

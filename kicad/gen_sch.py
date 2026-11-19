@@ -16,8 +16,9 @@ def uid(*parts):
     return f'{h[0:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}'
 
 class Sch:
-    def __init__(self, title, project):
+    def __init__(self, title, project, paper='A3', rev='Rev 3.4'):
         self.title, self.project = title, project
+        self.paper, self.rev = paper, rev
         self.libs, self.used = {}, {}
         self.items, self.comps = [], []
         self._conn = []
@@ -117,10 +118,10 @@ class Sch:
             ['generator', sexpr.q('tuner-gen')],
             ['generator_version', sexpr.q('10.0')],
             ['uuid', sexpr.q(uid('sheet', self.title))],
-            ['paper', sexpr.q('A3')],
+            ['paper', sexpr.q(self.paper)],
             ['title_block',
                 ['title', sexpr.q(self.title)],
-                ['company', sexpr.q('1500W Doublet Tuner  Rev 3.4')]]]
+                ['company', sexpr.q(f'1500W Doublet Tuner  {self.rev}')]]]
         lib = ['lib_symbols']
         for lib_id, sd in sorted(self.used.items()):
             libname = lib_id.split(':')[0]

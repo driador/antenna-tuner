@@ -1,21 +1,29 @@
 digraph intl {
-  rankdir=LR; nodesep=0.3; ranksep=0.5;
+  rankdir=LR; nodesep=0.18; ranksep=0.3;
   graph [fontname="Noto Sans", fontsize=10, bgcolor="transparent", pad=0.15];
   node  [fontname="Noto Sans", fontsize=10, shape=box, style="rounded,filled",
          fillcolor="#F2F7F8", color="#0C6B7A", penwidth=1.2, margin="0.16,0.09"];
   edge  [fontname="Noto Sans", fontsize=8.5, color="#5A6360", arrowsize=0.75,
          fontcolor="#4A5557"];
   subgraph cluster_t {
-    label="AT THE TUNER  (entry box)"; fontname="Noto Sans"; fontsize=9;
+    label="AT THE TUNER  (control board, all hardware)"; fontname="Noto Sans"; fontsize=9;
     color="#A8B3B2"; style=dashed; fontcolor="#4A5557";
-    mcu  [label="MCU permissive"];
-    cmp  [label="over-SWR comparator"];
-    lim  [label="limit-fault clear"];
-    lid  [label="lid interlock"];
-    and  [label="AND", shape=circle, width=0.42, fillcolor="#0C6B7A",
-          fontcolor="white", color="#0C6B7A"];
-    led  [label="LED driver\n10 kHz modulated"];
-    mcu->and; cmp->and; lim->and; lid->and; and->led;
+    swr  [label="over-SWR comparator\n(measurement board)"];
+    mcu  [label="MCU_PERMIT\n(pulled down)"];
+    byp  [label="bypass key (8B.4d)", fillcolor="#FBF2DA", color="#8A6A1E"];
+    win  [label="cal-load window (6B.3a)"];
+    thm  [label="cal-load thermal (6B.3)"];
+    pnl  [label="RF service-panel switch"];
+    lim  [label="limit switches\n(any open trips)"];
+    and1 [label="AND", shape=circle, fixedsize=true, width=0.46, fontsize=9, fillcolor="#0C6B7A", fontcolor="white", color="#0C6B7A"];
+    or1  [label="OR",  shape=circle, fixedsize=true, width=0.46, fontsize=9, fillcolor="#8A6A1E", fontcolor="white", color="#8A6A1E"];
+    hard [label="AND", shape=circle, fixedsize=true, width=0.46, fontsize=9, fillcolor="#0C6B7A", fontcolor="white", color="#0C6B7A"];
+    and2 [label="AND", shape=circle, fixedsize=true, width=0.46, fontsize=9, fillcolor="#0C6B7A", fontcolor="white", color="#0C6B7A"];
+    led  [label="LED driver, HFBR-1521Z\nkeyed at 10 kHz (LMC555)"];
+    swr->and1; mcu->and1; and1->or1; byp->or1;
+    win->hard; thm->hard; pnl->hard; lim->hard;
+    or1->and2; hard->and2 [label=" HARD_OK"];
+    and2->led;
   }
   fib [label="fiber\n(POF strand)", shape=box, style="filled", fillcolor="#F7EBCC",
        color="#8A5D04"];

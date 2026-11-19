@@ -120,9 +120,11 @@ def pins_unit(sym, unit, lib=None):
         parts = nm.rsplit('_', 2)
         if len(parts) < 3:
             continue
-        try: u = int(parts[1])
+        try: u, style = int(parts[1]), int(parts[2])
         except ValueError: continue
-        if u not in (0, unit):
+        # body style 2 is the De Morgan alternate (74xx gates): same pin numbers,
+        # different drawing -- reading both would overwrite style 1's pin positions
+        if u not in (0, unit) or style > 1:
             continue
         for pn in find(sub, 'pin'):
             at = find1(pn, 'at'); num = find1(pn, 'number'); nam = find1(pn, 'name')

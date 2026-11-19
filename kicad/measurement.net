@@ -1,7 +1,7 @@
 (export
 	(version "E")
 	(design
-		(source "/home/rapopp/tuner-kicad/measurement.kicad_sch")
+		(source "measurement.kicad_sch")
 		(date "2026-10-21T17:56:28")
 		(tool "Eeschema 10.0.7")
 		(sheet

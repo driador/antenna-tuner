@@ -20,7 +20,7 @@ repo paths.
 | `nec/` | nec2++ and Python analyses: capacitor and inductor demand, roller and choke sweeps, tuning time |
 | `nec/out/*.csv`, `*.txt` | Analysis summaries the log quotes |
 | `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B) |
-| `kicad/` | Control and measurement boards, generated from Python (schematic → netlist → PCB → freerouting) |
+| `kicad/` | Control and measurement boards, generated from Python (schematic → netlist → PCB → freerouting → DRC, `route.sh`); fab zip from `fab.sh` |
 | `archive/` | Early drafts and the Rev 3.3 / 3.4 log snapshots the log cites |
 
 ## Toolchain

@@ -15,7 +15,7 @@ Writes true-size STEP files (mm) to out/ with the prefix enc-, and out/enclosure
 import json
 import math
 
-from build123d import Align, Compound, Cone, Plane, Polygon, RegularPolygon, Vector, export_step, extrude
+from build123d import Align, Compound, Cone, Plane, Polygon, RegularPolygon, Torus, Vector, export_step, extrude
 
 import roller as R
 from roller import Box, Cylinder, Pos, Rot, rod
@@ -70,8 +70,8 @@ UI = [  # (tag, kind, x_from_left, z_from_bottom, size, note)
     ("A", "rect+", 4.20, 2.55, ((2.95, 1.99), pattern(3.705, 1.911, 0.130, cx=-DISPLAY_OFF),
                                 "4x⌀0.130 ON 3.705x1.911"),
      "DISPLAY WINDOW, NX4832K035; HOLE PATTERN 0.095 LEFT OF WINDOW, RIBBON END LEFT (7.5)"),
-    ("B", "hole", 9.40, 2.55, 0.380, "ENCODER 1, GRAYHILL 62A15-02-060C, 3/8-32 (NO TAB, KEYWAY)"),
-    ("C", "hole", 11.40, 2.55, 0.380, "ENCODER 2, GRAYHILL 62A15-02-060C, 3/8-32 (NO TAB, KEYWAY)"),
+    ("B", "hole", 9.40, 2.55, 0.380, "ENCODER 1, GRAYHILL 62V15-02-080CH, 3/8-32 (NO TAB, KEYWAY)"),
+    ("C", "hole", 11.40, 2.55, 0.380, "ENCODER 2, GRAYHILL 62V15-02-080CH, 3/8-32 (NO TAB, KEYWAY)"),
     ("D", "dflat", 13.40, 3.30, (0.748, 0.669), "KEYED BYPASS SWITCH, E-SWITCH KO128A2007, KEY OUT IN OFF (8B.4d)"),
     ("E", "hole", 13.40, 1.60, 0.630, "RECOVERY BUTTON, E-SWITCH PV6F240SS, FLUSH + GUARD RING (8B.4f)"),
 ]
@@ -552,7 +552,7 @@ BULKHEAD_IO = [  # (tag, kind, y, z, size, note) on the control/motor bulkhead, 
     # the C1 axis module on the motor side and of the PSU on the control side; plugs mate from the control side
     ("A", "dsub", 4.0, 4.2, DB25, "FILTERED DB-25, 1000 pF: CONTROL -> MOTOR (STEP/DIR/EN, SPI, LIM) - FCE17-B25SM-250"),
     ("B", "dsub", 4.0, 3.15, DB25, "FILTERED DB-25, 5600 pF: SAMPLER GROUP (7.3, 9.38) - FCE17-B25SM-290"),
-    ("E", "dsub", 4.0, 2.1, DE9, "FILTERED DE-9, 5600 pF: TANK THERMAL + IMBALANCE CT - FCE17-E09SM-290"),
+    ("E", "dsub", 4.0, 2.1, DE9, "FILTERED DE-9, 5600 pF: THERMAL, CT, RF PANEL SW - FCE17-E09SM-290"),
     ("C", "hole", 1.9, 4.0, 0.221, "24 V FILTERED FEEDTHROUGH, 0.30 uF 15 A, 12-32 - SPECTRUM 9910-381-6002"),
     ("D", "hole", 1.9, 3.3, 0.221, "24 V RETURN, SAME PART"),
     ("P", "hole", 1.9, 2.5, 0.221, "PRESCALER FEEDTHROUGH 1000 pF, 12-28 - TUSONIX 2499-003-X5U0-102PLF"),
@@ -588,7 +588,7 @@ def shelf_holes():
         rows.append((tag if tag != "ROLLER" else "R", x, y, R.SHELF_HOLE, "G10 SHAFT BUSHING, FLANGED BRONZE 3/8 BORE"))
     rows += SHELF_EXTRA
     for i, (x, y, d) in enumerate(SHELF_FT):
-        rows.append((f"FT{i + 1}", x, y, d, "FEEDTHROUGH 0.01 uF 12-28, TUSONIX 2499-003-X5W0-103ZLF: TANK THERMAL 1-2, CT 3, SPARE 4"))
+        rows.append((f"FT{i + 1}", x, y, d, "FEEDTHROUGH 0.01 uF 12-28, TUSONIX 2499-003-X5W0-103ZLF: THERMAL 1, CT 2, RETURN 3, PANEL SW 4"))
     s = R.DECK_SIZE / 2 - 0.5
     for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (1, 1), (-1, 1))):
         rows.append((f"S{i + 1}", sx * s, sy * s, 0.201, "DECK STANDOFF, #10 SCREW FROM BELOW"))
@@ -710,6 +710,146 @@ def choke():
     return out
 
 
+# ---- the choke turn by turn, for TUNER-E-216 (§6). choke() keeps the winding as an envelope for the
+# interference checks; this draws what goes inside it.
+
+
+def choke_detail():
+    """[(item, name, shape)] in place: the mount from choke() with the envelope replaced by five cores and
+    fifteen turns, plus the leads, silicone pads and screws. Item numbers key the E-216 parts list."""
+    parts = {n: [] for n in ("choke standoff", "choke base", "choke spider", "choke nut", "choke rod")}
+    for n, s in choke():
+        if n in parts:
+            parts[n].append(s)
+    z_w0 = Z_SH1 + CHOKE_SO + CHOKE_BASE + CHOKE_PAD           # bottom of the winding envelope
+    zc0 = z_w0 + CHOKE_R_BEND + RG400_D / 2                     # bottom face of the core stack
+    hc = CHOKE_CORES * CHOKE_CORE_H
+    out = [(1, "core", Pos(CHOKE_X, CHOKE_Y, zc0 + i * CHOKE_CORE_H)
+            * (rod(FT240[0], CHOKE_CORE_H) - Pos(0, 0, -0.01) * rod(FT240[1], CHOKE_CORE_H + 0.02)))
+           for i in range(CHOKE_CORES)]
+    # one turn: up the bore, over the top face, down the outside, under the bottom face. Rods and half-tori
+    # only (no sweeps), so a section cuts clean circles. Drawn as closed loops at a fixed angle.
+    r_mid, tube = (CHOKE_R_IN + CHOKE_R_OUT) / 2, RG400_D / 2
+    turn = (Pos(CHOKE_R_IN, 0, 0) * rod(RG400_D, hc) + Pos(CHOKE_R_OUT, 0, 0) * rod(RG400_D, hc)
+            + Pos(r_mid, 0, hc) * Rot(90, 0, 0) * Torus(CHOKE_R_BEND, tube, major_angle=180, align=None)
+            + Pos(r_mid, 0, 0) * Rot(-90, 0, 0) * Torus(CHOKE_R_BEND, tube, major_angle=180, align=None))
+    angles = [(k - (CHOKE_TURNS - 1) / 2) * CHOKE_PITCH for k in range(CHOKE_TURNS)]   # gap centered on -X
+    out += [(2, "turn", Pos(CHOKE_X, CHOKE_Y, zc0) * Rot(0, 0, a) * turn) for a in angles]
+    # leads off the first and last turns, both toward -X: the chassis lead down to the shelf coax
+    # bulkhead, the deck lead up to C1 (§6, harness W18)
+    rb, run = 0.35, 0.55
+    for a, z, down, end in ((angles[0], zc0, True, Z_SH1 + 0.45), (angles[-1], zc0 + hc, False, R.Z_DECK - 0.35)):
+        x0 = CHOKE_X + CHOKE_R_OUT * math.cos(math.radians(a))
+        y0 = CHOKE_Y + CHOKE_R_OUT * math.sin(math.radians(a))
+        xe = x0 - run
+        lead = Pos(xe, y0, z) * Rot(0, -90, 0) * rod(RG400_D, run)
+        if down:
+            lead += Pos(xe, y0, z - rb) * Rot(90, 0, 0) * Rot(0, 0, 90) * Torus(rb, tube, major_angle=90, align=None)
+            lead += Pos(xe - rb, y0, end) * rod(RG400_D, z - rb - end)
+        else:
+            lead += Pos(xe, y0, z + rb) * Rot(90, 0, 0) * Rot(0, 0, 180) * Torus(rb, tube, major_angle=90, align=None)
+            lead += Pos(xe - rb, y0, z + rb) * rod(RG400_D, end - z - rb)
+        out.append((2, "lead", lead))
+    out += [(3, "base disc", s) for s in parts["choke base"]]
+    out += [(4, "standoff", s) for s in parts["choke standoff"]]
+    out += [(5, "spider", s) for s in parts["choke spider"]]
+    out += [(6, "rod", s) for s in parts["choke rod"]]
+    out += [(7, "nut", s) for s in parts["choke nut"]]
+    pad = rod(CHOKE_OD, CHOKE_PAD) - Pos(0, 0, -0.01) * rod(CHOKE_BORE, CHOKE_PAD + 0.02)
+    out += [(8, "pad", Pos(CHOKE_X, CHOKE_Y, z) * pad) for z in (z_w0 - CHOKE_PAD, z_w0 + CHOKE_H)]
+    (d9, l9), (d10, l10) = CHOKE_SCREWS
+    csk_d, csk_h = CHOKE_CSK
+    z_base_top = Z_SH1 + CHOKE_SO + CHOKE_BASE
+    for i in range(3):
+        a = math.radians(90 + 120 * i)
+        hx, hy = CHOKE_X + CHOKE_BC / 2 * math.cos(a), CHOKE_Y + CHOKE_BC / 2 * math.sin(a)
+        head = Pos(hx, hy, z_base_top - csk_h) * Cone(d9 / 2, csk_d / 2, csk_h, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        out.append((9, "flat head", head + Pos(hx, hy, z_base_top - l9) * rod(d9, l9 - csk_h)))
+        out.append((10, "shelf screw", Pos(hx, hy, Z_SH0 - 0.10) * rod(0.30, 0.10)
+                    + Pos(hx, hy, Z_SH0) * rod(d10, l10)))
+    return out
+
+
+CHOKE_ITEMS = {   # E-216 parts list: description, qty, material / part, reference
+    1: ("FERRITE CORE 61.0 x 35.6 x 12.7, RTV-BONDED STACK", "5", "FAIR-RITE 5961003801 (FT-240-61)", "6"),
+    2: ("WINDING, 15 T, LEADS AS NOTE 4", "9.6 ft", "RG-400 (M17/128), ORDER 12 ft", "6, W18"),
+    3: ("BASE DISC ⌀3.40 x 1/4", "1", "G10", "E-209"),
+    4: ("STANDOFF ⌀3/8 x 5/8, 8-32 F-F", "3", "G10", "E-207"),
+    5: ("SPIDER, 3 ARMS, 1/8", "1", "G10", "E-209"),
+    6: ("THREADED ROD 1/2-13", "1", "FIBERGLASS (FRP)", "-"),
+    7: ("NUT 1/2-13", "2", "FRP", "-"),
+    8: ("PAD ⌀2.81 / ⌀0.96 x 1/16", "2", "SILICONE SHEET", "-"),
+    9: ("FLAT HEAD 82° 8-32 x 1/2", "3", "NYLON", "-"),
+    10: ("PAN HEAD 8-32 x 3/8", "3", "STAINLESS", "-"),
+    11: ("LACING CORD", "AR", "PTFE", "NOTE 4"),
+    12: ("TAPE / RTV", "AR", "GLASS CLOTH / HIGH-TEMP RTV", "NOTE 2"),
+}
+
+
+def export_choke_detail():
+    """TUNER-E-216 sources: the choke half-sectioned (front-right quarter removed, seen from -Y), sectioned
+    at mid-winding (seen from above), each with its hatching, and exploded along its axis. Returns the parts list and balloon anchors (mm)."""
+    det = choke_detail()
+    screws = Compound([s for i, _, s in det if i in (9, 10)])
+    det = [(i, n, s - screws if n == "standoff" else s) for i, n, s in det]   # tapped: screws show engaged
+    stub = 2.3
+    shelf = plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, Z_SH0, Z_SH1)
+    deck = plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, R.Z_DECK, R.Z_DECK + R.DECK_T)
+    quarter = Pos(CHOKE_X + 5, CHOKE_Y - 5, 5) * Box(10, 10, 20)
+    cut = [c for c in ((s - quarter) for s in [s for _, _, s in det] + [shelf, deck]) if c.volume > 1e-9]
+    export_step(mm(Compound(cut)), str(OUT / "enc-choke-halfsection.step"))
+    export_step(mm(R.hatch_overlay(cut, (0, -1, 0), (0, CHOKE_Y, 0), 1.6 / 25.4)), str(OUT / "hatch-choke.step"))
+    # section B-B at mid-winding, looking down: the turns packed at the bore, the gap toward -X
+    z_cut = Z_SH1 + CHOKE_SO + CHOKE_BASE + CHOKE_PAD + CHOKE_H / 2
+    below = Pos(CHOKE_X, CHOKE_Y, z_cut - 5) * Box(20, 20, 10)
+    cut_b = [c for c in ((s & below) for _, n, s in det if n != "shelf screw") if c.volume > 1e-9]
+    export_step(mm(Compound(cut_b)), str(OUT / "enc-choke-plansection.step"))
+    export_step(mm(R.hatch_overlay(cut_b, (0, 0, 1), (0, 0, z_cut), 1.6 / 25.4 / 0.75)),
+                str(OUT / "hatch-choke-plan.step"))
+    # exploded along the axis in assembly order; the rod stands aside
+    z_mid = (Z_SH1 + R.Z_DECK) / 2
+    lift = {1: 2.6, 2: 2.6, 3: 0.6, 4: 0.0, 5: 4.3, 9: 1.3, 10: -1.3}
+    ex, anchors = [], {}
+    c45 = math.cos(math.radians(135)), math.sin(math.radians(135))   # toward the iso viewer
+    for i, n, s in det:
+        top = s.center().Z > z_mid
+        v = ((0, -3.2, 1.2) if i == 6 else (0, 0, (4.9 if top else -0.55)) if i == 7
+             else (0, 0, (3.7 if top else 1.9)) if i == 8 else (0, 0, lift[i]))
+        ex.append(Pos(*v) * s)
+        bb = (Pos(*v) * s).bounding_box()
+        cx, cy = CHOKE_X + v[0], CHOKE_Y + v[1]
+        pt = None
+        if i == 3:
+            pt = (cx + CHOKE_BASE_D / 2 * c45[0], cy + CHOKE_BASE_D / 2 * c45[1], bb.center().Z)
+        elif i == 4 and bb.center().Y > CHOKE_Y + 1:
+            pt = (bb.center().X - 0.19 * 0.7071, bb.center().Y + 0.19 * 0.7071, bb.center().Z)
+        elif i == 5:
+            a = math.radians(150)
+            pt = (cx + 1.2 * math.cos(a), cy + 1.2 * math.sin(a), bb.max.Z)
+        elif i == 6:
+            pt = (cx, cy, bb.max.Z)
+        elif (i == 7 or i == 8) and top:
+            r = CHOKE_ROD[1] / 2 if i == 7 else CHOKE_OD / 2
+            pt = (cx + r * c45[0], cy + r * c45[1], bb.max.Z)
+        elif i in (9, 10) and bb.center().Y > CHOKE_Y + 1:
+            pt = (bb.center().X, bb.center().Y, bb.max.Z if i == 9 else bb.min.Z)
+        if pt and i not in anchors:
+            anchors[i] = [round(c * 25.4, 3) for c in pt]
+    # cores: the gap (no turns) faces the viewer, so the middle core shows there; the winding: the outer
+    # run of the turn nearest the viewer
+    zc = Z_SH1 + CHOKE_SO + CHOKE_BASE + CHOKE_PAD + CHOKE_H / 2 + lift[2]
+    anchors[1] = [round(c * 25.4, 3) for c in (CHOKE_X + FT240[0] / 2 * c45[0], CHOKE_Y + FT240[0] / 2 * c45[1], zc)]
+    k = max(range(CHOKE_TURNS), key=lambda k: math.cos(math.radians((k - (CHOKE_TURNS - 1) / 2) * CHOKE_PITCH - 135)))
+    a = math.radians((k - (CHOKE_TURNS - 1) / 2) * CHOKE_PITCH)
+    anchors[2] = [round(c * 25.4, 3) for c in (CHOKE_X + (CHOKE_R_OUT + RG400_D / 2) * math.cos(a),
+                                                 CHOKE_Y + (CHOKE_R_OUT + RG400_D / 2) * math.sin(a), zc + 0.6)]
+    export_step(mm(Compound(ex)), str(OUT / "enc-choke-exploded.step"))
+    bb = Compound(cut).bounding_box()
+    return {"items": {str(k): list(v) for k, v in CHOKE_ITEMS.items()}, "anchors": {str(k): v for k, v in anchors.items()},
+            "section_center": [(bb.min.X + bb.max.X) / 2, (bb.min.Z + bb.max.Z) / 2],
+            "pitch": CHOKE_PITCH, "bend_mm": CHOKE_R_BEND * 25.4, "core_h": CHOKE_CORE_H}
+
+
 def wall_flanges():
     out = []
     for sy in (-1, 1):
@@ -753,6 +893,16 @@ CHOKE_SPIDER = (2.60, 0.125)                     # G10 three-arm spider: tip cir
 CHOKE_HUB, CHOKE_ARM = 1.00, 0.50                # spider hub dia, arm width (round ends)
 CHOKE_CSK = (0.34, 0.094)                        # 82 deg countersink for #8 flat heads: dia, depth
 CHOKE_ROD, CHOKE_NUT = (0.50, 0.85), 0.44        # FRP 1/2-13 rod dia, nut across corners; nut height
+# the choke turn by turn (choke_detail(), TUNER-E-216)
+FT240 = (2.402, 1.400)                            # Fair-Rite 5961003801 (FT-240-61): OD, ID
+RG400_D, CHOKE_TAPE = 0.195, 0.010                # coax OD; glass-cloth tape on the bore and core edges
+CHOKE_R_IN = FT240[1] / 2 - CHOKE_TAPE - RG400_D / 2      # turn centerline up the bore, against the wall
+CHOKE_R_OUT = FT240[0] / 2 + CHOKE_TAPE + RG400_D / 2     # and down the outside
+CHOKE_R_BEND = (CHOKE_R_OUT - CHOKE_R_IN) / 2             # arc over each face (§6: ~8.8 mm centerline)
+# cores drawn at the height that makes the turns fill the worst-case envelope exactly
+CHOKE_CORE_H = (CHOKE_H - 2 * (CHOKE_R_BEND + RG400_D / 2)) / CHOKE_CORES
+CHOKE_PITCH = math.degrees(RG400_D / CHOKE_R_IN)          # turns packed side by side at the bore
+CHOKE_SCREWS = ((0.164, 0.50), (0.164, 0.375))            # nylon 8-32 flat heads; SS 8-32 up through the shelf
 FLOOR_BODY = {  # inside body above the floor per FLOOR_IO tag: (kind, w_y, d_x, h) incl. mating plug / tail zone
     "A": ("box", 1.14, 1.30, 1.50),   # IEC body 29 x 33 mm + quick-connect tabs - ASSUMED depth
     "B": ("box", 1.00, 1.00, 2.40),   # RJ45 coupler + patch-cord plug from above
@@ -997,6 +1147,7 @@ def main():
     ref = [plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, Z_SH0, Z_SH1),
            plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, R.Z_DECK, R.Z_DECK + R.DECK_T)]
     export_step(mm(Compound([s for _, s in choke()] + ref)), str(OUT / "enc-choke-assembly.step"))
+    choke_meta = export_choke_detail()
     explode = {"RF service panel": (-6, 0, 2), "cassette face": (-9, 0, -1), "cassette tray": (-9, 0, -1),
                "cassette rail": (-9, 0, -1), "rear panel": (6, 0, 0), "top panel": (0, 0, 6), "floor": (0, 0, -6),
                "wall flange": (9, 0, 0), "bulkhead": (-5, 0, -1)}
@@ -1030,7 +1181,7 @@ def main():
              ["wall flange (2 x 2 x 3/16)", 2, WF_Z[1] - WF_Z[0], WF_LEG],
              ["corner clip (1-1/2 x 1-1/2 x 1/8)", 16, CLIP_H, CLIP_LEG],
              ["bulkhead / partition clip (1/2 x 1/2 x 1/8)", 16, 1.0, SANG]]
-    meta = {"report": report, "panels": [p.meta() for p in P],
+    meta = {"report": report, "panels": [p.meta() for p in P], "choke": choke_meta,
             "frame_extra": extra,
             "nesting": {g: {"sheet": sh, "parts": pl, "area": a} for g, (sh, pl, a) in nest_res.items()},
             "flat_parts": flat_parts(),

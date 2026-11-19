@@ -53,8 +53,8 @@
   only the current design. DECISION R-1 = C with a **single 34 µH homebuilt roller**; **output pad and
   series link deleted** (no vacuum relays in the RF tank); box **22.00″ H**. See *Changes in Rev 3.7b*.
 - **Rev 3.7c (2026-11-17)** — **input choke rebuilt on #61 ferrite and moved into the RF bay**, under a
-  deck raised 2.00″; box **24.00″ H**. Fixes a routing error that grounded the choke's deck side. See
-  *Changes in Rev 3.7c*.
+  deck raised 2.00″; box **24.00″ H**. Fixes a routing error that grounded the choke's deck side.
+  Control board rebuilt to the log (§10.5). See *Changes in Rev 3.7c*.
 
 **Changes in Rev 3.7c**
 1. **Routing error fixed.** Through Rev 3.7b the choke sat in the sampler chamber, and its deck-side
@@ -104,10 +104,47 @@
      control side.
    - The old note's side clips are dropped.
 8. **§9:**
-   - Items 3, 28–31, 37, 45 and 46 updated.
+   - Items 3, 28–31, 35, 37, 41, 45 and 46 updated.
    - New item **49:** verify the choke installed (VNA sweep, 10 m key-down thermal).
    - New item **50:** the antenna system's common-mode impedance, which sets how balanced 160 / 80 m
      really is.
+   - New items **51** (the RF service-panel switch and its run) and **52** (the sampler cable needs
+     11 pairs; M13197 has 8).
+9. **Control board rebuilt to the log** (§10.5; the old board is in §11.13). The generator had not
+   followed the log since Rev 3.4. It now carries:
+   - **The §7.4 hardware permissive.** The bypass key overrides only the SWR trip and the MCU's
+     vote. The 10 kHz tone comes from an LMC555, so the bypass works with a dead controller.
+   - **The §6B additions:** K1/K2 coil-current sense, the cal-load window comparator and the
+     cal-load thermal input.
+   - **The §5.5 blanking latch.**
+   - **Panel and blower:** the Nextion on Serial8, and the 3.3 V 62V15 encoders.
+   - **On-board parts:** the 12 V and 5 V DC-DCs and the HFBR-1521Z.
+   - **Wiring:** one ribbon per bulkhead D-sub, with the §7.3 series resistors; encoder MOSI; and
+     the blower tach.
+   - **Layout:** 139 × 91 mm, 4 layers, 1206/SOIC parts, so it fits the 5.5 × 3.6″ cassette
+     envelope. Every new part was checked for stock and price (2026-11-19). New Teensy pin map
+     §8B.0.4.
+10. **New Appendix C:** both boards rendered from KiCad on every build (`doc/build.sh`: 3D views of
+    the bare board with silkscreen, the silkscreen as line art, each copper layer).
+11. **New sheet TUNER-E-216 — the input choke assembled** (§6, Appendix B):
+    - Section A-A at 1:1, a half section: the five cores and the turns cut, the mount stack, and both
+      leads leaving toward −X.
+    - Section B-B at mid-winding: the 15 turns packed against the bore, and the gap.
+    - An exploded view with a 12-item parts and hardware list.
+    - The winding and clamp notes.
+    The turns are modeled one by one (`enclosure.py` `choke_detail()`), and fill the worst-case 3.47″
+    envelope that the interference checks use.
+12. **PDF figures brought up to the text** (`doc/diagrams/`, `inject_diagrams.py`). The figures had
+    not changed since Rev 3.6:
+    - **§7.1 coupling train:** it had dropped out of the PDF when the Rev 3.7b wording changed. It is
+      redrawn with the direct NEMA 23 drive, and the belt takeoff to the 2-stage reduction, encoder
+      and limit cams.
+    - **§7.4 interlock:** now the Rev 3.7c permissive. (SWR ∧ MCU) ∨ bypass, ANDed with HARD_OK
+      (cal-load window, cal-load thermal, RF service-panel switch, limits), drives the LED keyed at
+      10 kHz.
+    - **§6A.3b crossing:** the 5600 pF D-sub filter, which replaces 0.01 µF.
+    - **§6A counter:** the 1000 pF feedthroughs at both walls, with RG-316 between, into the control
+      board's SMA.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -572,7 +609,7 @@ a new N-N bulkhead adapter (X, Amphenol RF 172124, §9 item 43). Since Rev 3.7c 
 side, ahead of the choke (§6).
 
 **What crosses the shelf:** three G10 shafts in bushings, one coax bulkhead, and discrete filtered
-feedthroughs FT1–FT4 for the tank thermal and imbalance-CT lines (3 used + 1 spare, §7.3a). The §7.1
+feedthroughs FT1–FT4 for the tank thermal, imbalance-CT and RF service-panel switch lines (all four used, §7.3a). The §7.1
 rule — no wires between the motors and the RF bay — still holds: no wire follows the drive train.
 
 **Shaft geometry.** Each G10 shaft runs from coupler A (on the motor, in the utility layer)
@@ -1252,6 +1289,14 @@ Neither may hot-switch:
 > Confirmation is coil-current sense on each driver channel plus the cal-load RF detector (§6B.2,
 > §6B.3a).
 
+*Rev 3.7c — the blanking timer as built (control board, §10.5).* The K1/K2 drivers are fed through a
+74HC373 latch. Its enable is the permissive delayed by an RC: when the permissive rises, the latch
+closes at once; after the permissive falls, it stays closed until 560 kΩ × 100 nF (C0G) has decayed
+past the 74HC14's lower threshold. That takes 39–67 ms over the threshold spread, never under 30 ms.
+While the permissive is up, the MCU can command anything and the relays do not move. With the bypass
+key on, the permissive is held up, so the relays freeze in place. At power-up the permissive is down,
+the latch is open, and the relay commands are pulled low: both relays are off, which is TUNE (§6B.2).
+
 ## Section 6 — Input Common-Mode Choke
 
 *Rev 3.7c: a #61 ferrite choke standing in the RF bay, under the deck. It replaces air-core design C in
@@ -1313,7 +1358,8 @@ the shelf bulkhead — both grounded — which bypassed it (Changes in Rev 3.7c,
 - **Height.** Each face adds ≈ 11.3 mm of arc: 3 cores stand 2.44″, 4 cores 2.95″, 5 cores 3.47″.
   Under the old 3.50″ standoffs only 3 cores fit (2.50″ allowed), so the deck went up 2.00″ (§3.0).
 
-**Mount — nothing metal in or on the winding** (dimensioned on TUNER-E-207 and E-209):
+**Mount — nothing metal in or on the winding** (dimensioned on TUNER-E-207 and E-209; the assembled
+choke, every turn, is drawn on **TUNER-E-216**):
 1. **Stack.** Bond the five cores with thin beads of high-temperature RTV. Wrap the bore and the core
    edges in glass-cloth tape.
 2. **Wind.** 15 turns in one layer against the bore wall, with the first-to-last gap facing −X
@@ -1720,7 +1766,7 @@ perfect SWR, too fast for the thermal switch. The detector sees it directly.
 | At 60 W in the load | 77 V peak → 2.5 V peak at the diode → ≈ 2.2 V DC (+1.0 V bias) |
 | At 1.5 kW in the load | 387 V peak → 12.5 V → clamped; the trip is long over by then |
 | Response | ≈ 0.2 ms (100 kΩ × 2.2 nF), then the 28 kHz analog-grade feedthrough — far inside the load's survival time at 1.5 kW |
-| Comparator | **Window** on the control board's hardware permissive: trip **above** the 60 W level **or below** 0.5 V. An open or shorted detector line reads ≈ 0 V, so a broken detector **trips** instead of going blind |
+| Comparator | **Window** on the control board's hardware permissive: trip **above** the 60 W level **or below** 0.5 V. An open or shorted detector line reads ≈ 0 V, so a broken detector **trips** instead of going blind. *Rev 3.7c, as built:* the 1 MΩ bias makes the node too weak to load, so it enters through 100 kΩ into an MCP6002 follower. A **10 MΩ pull-down** at the control board is what makes an open line read 0 V; it moves the idle level from 1.00 to 0.91 V. An LM393 runs on 5 V, keeping the ~2.1 V threshold inside its input range; the high trip is set with a 3296W trimmer (0.86–3.08 V), and the 0.50 V low trip is fixed |
 | Calibration | Set the 60 W threshold once with a wattmeter in CAL; the firmware also logs the detector reading against forward power on every calibration run, so drift shows |
 
 The detector sits on the measurement board beside the load (Sampler chamber). The 3.3 pF top
@@ -1934,7 +1980,7 @@ encoder SPI clock. *The earlier single-0.01 µF rule is in §11.7.*
 
 | Grade | Lines | Part at the wall | Series element (board side) | Corner |
 |:--|:--|:--|:--|:--|
-| **Analog / slow** | Detector outputs, CT, thermal, relay read-backs, relay coils | 5600 pF C-filter D-sub contact | **1 kΩ carbon comp** on ADC inputs | 28 kHz |
+| **Analog / slow** | Detector outputs, CT, thermal, relay read-backs, relay coils | 5600 pF C-filter D-sub contact | **1 kΩ carbon comp** on ADC inputs (Rev 3.7c board: 1206 anti-surge thick film) | 28 kHz |
 | **Logic** | STEP/DIR/EN, encoder SPI (≤ 1 MHz), limit switches | 1000 pF C-filter D-sub contact | **47 Ω** source resistor | 3.4 MHz (47 Ω) |
 | **Frequency** | ÷1024 prescaler (~29 kHz) | **Discrete 1000 pF** feedthrough at each wall | 1 kΩ | 159 kHz |
 | **RF tank** (shelf) | Imbalance CT, tank thermal | **Discrete 0.01 µF** feedthrough (Tusonix 2499) | 1 kΩ on CT/thermal | 15.9 kHz |
@@ -1949,7 +1995,7 @@ analog grade gives ~36 dB from the RC alone, before the D-sub's shell bond to th
 | Sampler → Control | Filtered DB-25 at the partition → **Alpha Wire M13197** (8 pr, overall foil; ≡ Belden 9508) across the motor chamber → filtered DB-25 at the bulkhead (§7.3a). Prescaler on **RG-316** between two discrete 1000 pF feedthroughs |
 | Sampler → RF Tank | RG-393 PTFE coax, PTFE bulkhead (Amphenol 83-798 SO-239A) |
 | Control → Motor | Filtered DB-25, logic grade (§7.3a), shielded harness on the motor side. **No glands** |
-| Control → RF Tank | Filtered DE-9 J-E at the bulkhead, then discrete 0.01 µF feedthroughs FT1–FT4 in the shelf (3 used + 1 spare; item 16) |
+| Control → RF Tank | Filtered DE-9 J-E at the bulkhead, then discrete 0.01 µF feedthroughs FT1–FT4 in the shelf (all four used; item 16) |
 | **Motor → RF Tank** | **Insulated shaft only. No wires.** |
 
 ### 7.3a Connector allocation *(Rev 3.7a — TUNER-E-208)*
@@ -1963,15 +2009,15 @@ in `enclosure.py`.
 
 | Ref | Wall | Part | Grade | Carries |
 |:--|:--|:--|:--|:--|
-| J-A | Bulkhead | FCE17-B25SM-250 (DB-25, 1000 pF) | Logic | STEP1–3, DIR1–3, DRV_EN, encoder SPI + 3V3 (6), LIM1–6 — 19 + 6 GND |
+| J-A | Bulkhead | FCE17-B25SM-250 (DB-25, 1000 pF) | Logic | STEP1–3, DIR1–3, DRV_EN, encoder SPI incl. MOSI + 3V3 (7), LIM1–6 — 20 + 5 GND |
 | J-B | Bulkhead | FCE17-B25SM-290 (DB-25, 5600 pF) | Analog | Sampler group: 7 detector/sampler lines, K1/K2 coils (4), cal-load thermal (2), cal-load RF detector (1) — 14 + GND |
-| J-E | Bulkhead | FCE17-E09SM-290 (DE-9, 5600 pF) | Analog | Tank thermal + imbalance CT (3) + GND (blower on J-F) |
+| J-E | Bulkhead | FCE17-E09SM-290 (DE-9, 5600 pF) | Analog | Tank thermal, imbalance CT, RF service-panel switch (3) + GND (blower on J-F) |
 | J-S | Partition | FCE17-B25SM-290 (DB-25, 5600 pF) | Analog | Sampler group, as J-B |
 | FT-C, FT-D | Bulkhead | Spectrum Control **9910-381-6002** (0.30 µF, 100 V, 15 A, 12-32) | Power | 24 V and return to the drivers |
 | J-F | Left lower panel | FCE17-E09SM-290 (DE-9, 5600 pF) | Analog | Blower +12 V, GND, tach (exterior lead in conduit) |
 | X | Partition | **Amphenol RF 172124** N-N bulkhead, PTFE, jam nut (§9 item 43) | RF | K1 NC (W15) → X → shelf coax bulkhead (W17), all chassis side; the choke starts at the shelf bulkhead (Rev 3.7c, §6) |
 | FT-P | Bulkhead + partition | Tusonix **2499-003-X5U0-102PLF** (1000 pF, 500 V, 12-28) | Frequency | ÷1024 prescaler, RG-316 between |
-| FT1–FT4 | Shelf | Tusonix **2499-003-X5W0-103ZLF** (0.01 µF, 500 V, 12-28), 0.55″ pitch | RF tank | Tank thermal + CT on FT1–FT3; FT4 spare |
+| FT1–FT4 | Shelf | Tusonix **2499-003-X5W0-103ZLF** (0.01 µF, 500 V, 12-28), 0.55″ pitch | RF tank | FT1 tank thermal, FT2 CT, FT3 common return, FT4 RF service-panel switch (*Rev 3.7c*; was spare) |
 
 **Sampler run (§9 item 38).** Alpha Wire M13197 (Belden 9508 equivalent): pair each signal with a ground or return (relay coil +
 with its own return), drain to the backshell at both ends, and keep the cable against the floor
@@ -1984,9 +2030,10 @@ Alternate if the C-filter proves insufficient on the bench: **Spectrum Control 5
 
 ### 7.4 Amplifier interlock — optical permissive, fail-safe on loss of signal
 
-*Rev 3.7a:* §6B adds two inputs to the hardware permissive while CAL is selected: a
-cal-load RF detector (6B.3a, ~60 W at the load) and the cal-load thermal switch. Relay changes K1/K2 follow the
-§5.5 sequence.
+*Rev 3.7a:* §6B adds two inputs to the hardware permissive: the cal-load RF detector (6B.3a, ~60 W at
+the load) and the cal-load thermal switch. Both are in it at all times, whatever K1 and K2 are doing
+(§6B.3). Relay changes K1/K2 follow the §5.5 sequence. *Rev 3.7c:* built on the control board as drawn
+below (§10.5).
 
 > **Corrected for entry-box siting.** Earlier revisions specified *"a hardware loop in series with
 > the amplifier keying line"* at the tuner. That assumed tuner and amplifier were co-located. With
@@ -2000,19 +2047,30 @@ contradicts Section 8C.6 — protection must never depend on the link.
 **The interlock is its own dedicated optical channel, independent of the data link.**
 
 ```
-   AT THE TUNER (entry box)                      AT THE BENCH
-   -----------------------                       ------------
-   MCU permissive      ----+
-   over-SWR comparator ----+--> AND --> LED --> [ fiber ] --> receiver
-   limit-fault clear   ----+                                     |
-   RF panel interlock  ----+                                      v
-                                                        opto-isolated switch
-                                                                  |
-                                           [ rig PTT ] -- E-STOP -+- [ amp key in ]
+   AT THE TUNER (control board, all hardware)                       AT THE BENCH
+   ------------------------------------------                       ------------
+   over-SWR comparator (meas. bd) --+
+                                    AND --+
+   MCU_PERMIT (pulled down) --------+     OR --+
+   bypass key (8B.4d) --------------------+    |
+                                               AND --+
+   cal-load window (6B.3a) -----+              |     AND --> LED --> [ fiber ] --> receiver
+   cal-load thermal (6B.3) -----+-- AND -------+     |                                |
+   RF service-panel switch -----+                    |                                v
+   any limit switch open -------+        10 kHz LMC555                    opto-isolated switch
+                                                                                      |
+                                                           [ rig PTT ] -- E-STOP -----+- [ amp key in ]
 ```
 
 - The permissive is the **logical AND** of every protective condition, formed in hardware, not
   computed by firmware.
+- **The bypass key overrides exactly what §8B.4d says it defeats:** the over-SWR trip and the MCU's
+  vote, which carries the relay sequencing. The cal-load window, the cal-load thermal switch, the RF
+  service-panel switch and the limits stay in force, so the key cannot defeat personnel or load
+  protection.
+- Every input fails toward inhibit. A broken switch lead reads as a trip; an unplugged sampler
+  ribbon pulls the SWR term low; an open detector line reads 0 V and trips the window (§6B.3a). The
+  RF service-panel switch uses shelf feedthrough FT4 (§7.3a).
 - It drives an LED into a dedicated fiber strand — **not** the data link, no protocol, no software.
 - At the bench a receiver drives an **opto-isolated switch in series with the keying line**, in
   series with the hardwired E-STOP of Section 8C.2.
@@ -2025,7 +2083,7 @@ contradicts Section 8C.6 — protection must never depend on the link.
 | LED or its driver fails open | dark | **inhibit** ✓ |
 | Tuner loses power | dark | **inhibit** ✓ |
 | Bench receiver loses power | switch unpowered, NO contacts | **inhibit** ✓ |
-| MCU hangs | permissive is hardware AND, not firmware | **inhibit** ✓ |
+| MCU hangs | its watchdog resets it, and MCU_PERMIT is pulled down through the reset | **inhibit** ✓ (unless the bypass key is on) |
 | **LED driver fails shorted — stuck on** | **light present** | **permissive stuck closed — FAILS DANGEROUS** |
 
 Every failure mode is safe except the last one, and the last one matters: a stuck-closed permissive
@@ -2035,12 +2093,15 @@ means the tuner can traverse the roller or switch K1/K2 while the amplifier is k
 #### 7.4.2 Dynamic permissive — closing the stuck-on hole
 
 Do not send steady light. Send a **modulated permissive**: the tuner pulses the LED at a fixed
-tone (10 kHz is convenient from an MCU PWM output), and the bench receiver requires *that tone*,
-not merely the presence of light, before closing the switch.
+tone (10 kHz), and the bench receiver requires *that tone*, not merely the presence of light, before
+closing the switch.
 
 - Stuck-on LED → DC light, no tone → **inhibit** ✓
 - Stuck-off, broken, dark → **inhibit** ✓
-- A tone detector is a handful of parts; the MCU side is one timer channel.
+- A tone detector is a handful of parts.
+- *Rev 3.7c:* **the tone comes from a hardware LMC555 on the control board, not from the MCU.** An
+  MCU-generated tone dies with the controller, and the §8B.4d bypass exists precisely so a dead
+  controller still leaves a working station (§6B.2). The MCU's vote is a level instead, MCU_PERMIT.
 
 This converts the only dangerous failure mode into a safe one. It is standard practice in safety
 interlocks and is proportionate here: the consequence of a stuck-closed permissive is hot-switching
@@ -2125,8 +2186,12 @@ is in §11.1.*
 - **Selected parts (Rev 3.7a, TUNER-E-202):** display **Nextion NX4832K035** (board 3.957 × 2.163″,
   M3 holes on 3.705 × 1.911″; panel window **2.95 × 1.99″**, the active area plus 0.03″ a side, whose
   center sits 0.095″ off the board center away from the ribbon end; 1/8″ standoffs keep the panel
-  edge off the resistive touch layer). Encoders **Grayhill 62A15-02-060C** (optical, 24 detent, push,
-  3/8-32 bushing, Ø0.380″ hole, keyway instead of a tab). Bypass key **E-Switch KO128A2007** (SPST,
+  edge off the resistive touch layer). Encoders **Grayhill 62V15-02-080CH** (optical, 24 detent, push,
+  3/8-32 bushing, Ø0.380″ hole, keyway instead of a tab). *Rev 3.7c:* the 3.3 V version of the
+  62A15-02-060C, in the same body behind the same cutout. Its outputs are push-pull, so the 5 V part
+  would drive the Teensy past its 3.3 V limit. It has a 0.100″ connector on an 8″ cable that plugs
+  straight into the control board. It is a factory order (Future, MOQ 1, ~$47, lead time unconfirmed,
+  2026-11-19); the stocked 62V15-02-P (~$77, PC pins) is the fallback, with your own pigtail. Bypass key **E-Switch KO128A2007** (SPST,
   key removable in OFF only, Ø0.748″ hole with a flat at 0.669″). Recovery **E-Switch PV6F240SS**
   (flush, sealed, Ø0.630″) with a 1/4″ guard ring so it is not pressed by accident (§8B.4f.2).
 - **Menu architecture:**
@@ -2170,7 +2235,7 @@ Natural convection through honeycomb cannot move 200 W. **Forced air required.**
 | Intake | *Rev 3.7a (wall mount): **right side panel, low and toward the front of the RF bay**, 8 × 4″ honeycomb + filter + screen* — still *not* the chassis floor. Air crosses the bay diagonally, past the caps and then the roller, rising with convection. *Rev 3.7c:* centered 0.41″ below the deck underside (up 2″ with the deck), so 2.4″ of it sweeps under the deck past the input choke (§6) |
 | Intake filter | Washable electrostatic cartridge over hex-cell honeycomb |
 | Exhaust | Left-side hex-cell aluminum honeycomb behind the blower, 1/8″ cell, 1/2″ thick (>90 dB to 1 GHz) — the rear is on the wall |
-| Fan wiring | *Rev 3.7a:* **not through the RF bay.** The lead runs down the outside of the left panels in flex conduit to a **filtered DE-9 (FCE17-E09SM-290, 5600 pF)** in the left lower panel at the control chamber; +12 V from the control board's TSR 2-24120, tach to an MCU input (blower-fail fault). 4.7 µF across the fan supply per Delta |
+| Fan wiring | *Rev 3.7a:* **not through the RF bay.** The lead runs down the outside of the left panels in flex conduit to a **filtered DE-9 (FCE17-E09SM-290, 5600 pF)** in the left lower panel at the control chamber; +12 V from the control board's TSR 2-24120, tach to an MCU input (blower-fail fault). 4.7 µF across the fan supply per Delta. *Rev 3.7c:* speed is low-side PWM on the fan's return, with the gate pulled **up**, so a reset or dead MCU leaves the blower at full (the §8B.4d bypass relies on that). The tach reads true only while the switch is on, so measure it at 100 % or across an on-phase |
 
 **Air path.** With the RF bay on top, cool air enters low at the front of the right side panel and
 leaves high on the left side, toward the rear, so the forced flow runs with convection instead of
@@ -2205,9 +2270,12 @@ considerably less from the supply than the per-phase current suggests.
 mounted** to pass the front opening. **Selected: Mean Well UHP-200-24** — 201.6 W, fanless, PFC,
 EN55032 **Class B**, 194 × 55 × 26 mm; on edge it stands **2.17″** tall and 1.02″ deep (§9 item 39
 resolved). Its rating assumes a conduction plate: bolt its base to the cassette's 12 ga tray, or
-derate (100 % to 50 °C without the plate). Low rails: **TRACO TSR 2-24120** (24 → 12 V, 2 A) for the
-blower and **TRACO TSR 3-2450** (24 → 5 V, 3 A, through-hole; give it an LC input filter and
-treat its ~300 kHz switching harmonics as a 160 m source). Mains in through a **TE Corcom 3EGG1-2**
+derate (100 % to 50 °C without the plate). Low rails: **TRACO TSR 2-24120N** (24 → 12 V, 2 A) for the
+blower and **TRACO TSR 3-2450N** (24 → 5 V, 3 A, through-hole; give it an LC input filter and
+treat its ~300 kHz switching harmonics as a 160 m source). *Rev 3.7c:* both are SIP-3 78xx
+drop-ins on the control board. Each sits behind TRACO's reflected-ripple filter: 220 µF low-ESR,
+1 µH, then 150 µF (5 V) or 100 µF (12 V). A 1.85 A PTC protects the 24 V input (§10.5). The 5-pin
+TSR 3-2450 is still active but costs ~4× as much. Mains in through a **TE Corcom 3EGG1-2**
 filtered, fused IEC inlet (3 A, 2 × T2.5 A, 5 × 20 mm; 36 dB at 1 MHz rising to ≥ 48 dB above 5 MHz), with a **Fair-Rite 2631803802** (31 material)
 toroid wound 6–8 bifilar turns on both the AC and the 24 V leads.
 
@@ -2279,7 +2347,7 @@ already be satisfied by the existing entry panel — **verify it rather than ass
 | Count the operating frequency | **÷1024 prescaler on the measurement board**, then count 29 kHz on the Teensy |
 | ADC: V_MAG, V_PHS, V_FWD, V_REF_DET, AD_VREF | Filtered DC across the bulkhead (Section 7.3, as originally specified) |
 | Network solver: sqrt, atan2, complex arithmetic | M7 with FPU at 600 MHz — the closed-form T solution is trivial |
-| ~37 control signals | 55 IO available; the MCU mounts directly, no ribbon |
+| 42 control signals (Rev 3.7c, §8B.0.4) | all 42 edge pins used, plus an MCP23017 on I2C for the panel and status inputs; the MCU mounts directly, no ribbon |
 
 #### 8B.0.1 Why a prescaler rather than a second MCU
 
@@ -2313,7 +2381,16 @@ detectors, AD8302, comparator, divider. Everything leaves as filtered DC plus on
 #### 8B.0.3 Teensy 4.1 notes
 
 - **Not 5 V tolerant.** Every input must be held at or below 3.3 V. The counter front end already
-  clamps (Section 6A.10); check the limit-switch and encoder interfaces too.
+  clamps (Section 6A.10). *Rev 3.7c:* everything else is 3.3 V by construction:
+  - Limits and the encoder SPI run from the board's 3V3.
+  - The panel encoders are the 3.3 V version, read through the MCP23017.
+  - The Nextion's TX is 3.2 V.
+  - The blower tach comes in through 10 kΩ with Schottky clamps.
+- **Power.** The board feeds the Teensy's VIN from its 5 V rail and leaves the Teensy's own 3V3
+  pins unconnected; the board's logic runs from its AMS1117. **Cut the VUSB–VIN pad** on the Teensy
+  before programming it in place, or the PC's USB 5 V and the board's 5 V get tied together.
+- **Watchdog is mandatory.** A hung MCU only drops out of the permissive when RTWDOG resets it
+  (§7.4.1). The watchdog must be armed before MCU_PERMIT is first raised.
 - **No built-in SWD debugger**, unlike an ST-Link-equipped Nucleo. Programming is over USB; add SWD
   via the pads if hardware debugging proves necessary for the state machine.
 - **FreqCount is documented for 1 kHz–8 MHz on Teensy 4.x** (the 65 MHz figure on PJRC's page is
@@ -2323,6 +2400,32 @@ detectors, AD8302, comparator, divider. Everything leaves as filtered DC plus on
 - **Ethernet carries the data link** (Section 8C.3, as revised). The 4.1's MAC and PHY pads serve
   the web UI and telemetry; the interlock stays on its own POF strand. *(Earlier drafts left
   Ethernet unused and put data on fiber.)*
+
+#### 8B.0.4 Pin allocation *(Rev 3.7c — `kicad/board_control.py` `PINMAP`)*
+
+| Teensy pins | Signal | Notes |
+|:--|:--|:--|
+| 0, 2, 4 · 1, 3, 7 · 8 | STEP1–3 · DIR1–3 · DRV_EN → J-A | 47 Ω series (§7.3) |
+| 9 | ÷1024 frequency, from the SMA | FreqCount's fixed input |
+| 13, 11, 12 · 10, 5, 6 | Encoder SPI SCK, MOSI, MISO · CS1–3 → J-A | AS5048A; MOSI carries the command frames (diagnostics/AGC, error clear) |
+| 14–17, 20 | V_MAG, V_PHS, V_FWD, V_REF_DET, AD_VREF ← J-B | ADC; 1 kΩ + 10 nF |
+| 21, 22 | Tank thermal, imbalance CT ← J-E | ADC; 1 kΩ + 10 nF; thermal biased for a 10 kΩ NTC |
+| 23 | Cal-load detector, buffered, ÷2 | ADC (§6B.3a) |
+| 38, 39 | K1, K2 coil current | ADC; 1 Ω sense (§6B.2) |
+| 24–29 | LIM1–6 ← J-A | high = tripped **or** open (NC contacts) |
+| 30, 31 | K1, K2 commands → the hold latch | take effect only after the permissive has been down ≥ 30 ms (§5.5) |
+| 32 · 36 | MCU_PERMIT (out, pulled down) · PERMIT read-back | the MCU's vote in the permissive (§7.4) |
+| 33 · 40 | Blower PWM · blower tach | gate pulled up: a reset or dead MCU leaves the blower on; tach is 2 pulses/rev |
+| 34, 35 | Nextion RX8, TX8 (Serial8) | 3.3 V UART, Teensy 4.1 only |
+| 18, 19 · 41 | I2C SDA, SCL · MCP23017 interrupt | 4.7 kΩ pull-ups |
+| 37 | Recovery button | sampled at boot (§8B.4f.2) |
+
+**MCP23017 (address 0x20):**
+- GPA0–2 and GPA3–5: encoder 1 and encoder 2 (A, B, push).
+- GPA6: the bypass key.
+- GPB0–6: SWR_OK, CALDET_OK, CALTH_OK, PANEL_OK, LIMIT_OK, HARD_OK and BYP_OK. The firmware can
+  therefore name which term dropped the permissive.
+- GPA7 and GPB7: unused; they are output-only on current silicon.
 
 ### 8B.1 State machine
 
@@ -2806,7 +2909,11 @@ normal way to change configuration.** The card is for backup, transfer, and insp
 
 > **Placement constraint:** the Teensy's SD socket needs insertion and ejection clearance. Orient
 > the module so the socket faces the cassette front or an edge, and keep that approach clear when
-> laying out the Control board.
+> laying out the Control board. *Met Rev 3.7c:* the Teensy lies flat on its sockets, parallel to the
+> board, turned so its long axis runs down from the board's top edge with the SD socket at that edge.
+> The board stands on edge in the cassette, so that edge points up and is open once the cassette
+> slides out. Its USB end faces a strip kept
+> free of parts. It plugs into two 1×24 socket strips, so it can also come out.
 
 ## Section 8C — Remote Head and Control Link
 
@@ -3289,13 +3396,13 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
 | 33 | **Teensy 4.1 row spacing** — verify 15.24 mm with calipers before ordering control boards (§10.5) | **OPEN — check** |
 | 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2 never carries more than 60 W — no issue. **K1 is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1 | **OPEN — K1 rating** |
-| 35 | **Control board for §6B** — two more relay drivers with coil-current sense, thermal-switch input, and the cal-load detector **window comparator** in the hardware permissive (6B.3a; replaces the K2 auxiliary-contact scheme, Rev 3.7a). Measurement board gains the detector. Board revision (`kicad/`) | **OPEN — design** |
+| 35 | **Boards for §6B.** *Control board — **done Rev 3.7c** (§10.5):* K1/K2 drivers with coil-current sense, the thermal-switch input, and the cal-load window comparator in the hardware permissive. The two drivers are the former RF-tank relay channels; those relays were deleted Rev 3.7b. *Measurement board — open:* add the cal-load detector (6B.3a), and move the ÷1024 output from its ribbon to a coax connector for the RG-316 run (W10) | **OPEN — measurement board** |
 | 36 | **CAL reference plane** — match the K1→choke and K1→load electrical lengths, or measure and store the offset, before trusting vector calibration (§6B.3) | **OPEN — commissioning** |
 | 37 | ~~Roller shaft-to-shelf creepage~~ — was 2.02″ vs the 2″ rule. **Resolved Rev 3.7a:** brass stub below the thrust collar cut from 1.0″ to 0.65″ (Oldham engagement 0.595″) → 2.37″; **4.37″ since the Rev 3.7c deck raise**. A longer Oldham hub would not help: the path is the axial tip-to-bushing distance (TUNER-L-109) | **RESOLVED** |
 | 38 | ~~Sampler → control signal path~~ — **Resolved Rev 3.7a (§7.3a):** filtered DB-25 J-S at the partition, Alpha Wire M13197 (≡ Belden 9508) across the motor chamber to J-B at the bulkhead; prescaler on RG-316 between discrete 1000 pF feedthroughs at both walls; relay-coil diodes at the relay | **RESOLVED** |
 | 39 | ~~24 V supply height~~ — **Resolved Rev 3.7a: Mean Well UHP-200-24**, 2.17″ tall on edge, fanless, Class B (§8A.1) | **RESOLVED** |
 | 40 | ~~Filtered bulkhead connectors~~ — **Resolved Rev 3.7a (§7.3a):** Amphenol FCE17 DB-25 1000 pF (J-A), DB-25 5600 pF (J-B, J-S), DE-9 5600 pF (J-E, Rev 3.7b; was DA-15); Spectrum Control 9910-381-6002 power feedthroughs; Tusonix 2499 discrete feedthroughs. Connectors moved to the +Y half, clear of the C1 axis module and the PSU; plug envelopes checked | **RESOLVED** |
-| 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62A15-02-060C, KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout | **OPEN — check in hand** |
+| 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout | **OPEN — check in hand** |
 | 42 | ~~Link coil has no RF-bay position~~ — **RESOLVED Rev 3.7b:** series link and pad deleted (§5.2, §5.4); the deck holds only C1, C2 and the roller. The imbalance CT rides the output conductors at the top feedthroughs and the tank thermal is a small probe — neither needs deck area. Original entry in §11.6 | **RESOLVED** |
 | 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-208, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
 | 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly: the 28–31 MHz resonance must sit above ~30.5 MHz.** If it lands in-band: slimmer rib contact at the notches, or fewer idle turns | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
@@ -3305,6 +3412,8 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 48 | **Overtravel settings (§7.2)** — (a) the vacuum capacitors' end-stop torque rating (Jennings data, or a careful spring-scale test on C2) sets the driver current ceiling; (b) count each capacitor's shaft turns stop to stop (sets the ≥ (turns + 2):1 module reduction and §8B.3a times; 30 assumed); (c) measure the roller's stopping distance at the slow-zone speed to place its inner cam | **OPEN — bench measurement** |
 | 49 | **Input choke, verify installed** (§6, Rev 3.7c) — (a) VNA sweep deck end to chassis with the choke and deck installed: expect the impedance peak near 5–7 MHz and \|Z\| ≥ ~1 kΩ across 10 m; a sharp in-band dip means the winding capacitance or a lead resonance differs from the model — re-dress the leads, then take off a turn; (b) 1500 W key-down on 28.0 MHz for 10 min with temperature labels on the bore bundle and cores, < ~100 °C; (c) inspect the jackets at the core edges after winding | **OPEN — build / commissioning** |
 | 50 | **Antenna-system common-mode impedance** — the choke is rated with the whole V_cm across it (Z_a → 0). The real 160 / 80 m balance against the §2.2 ≤ 5% spec depends on Z_a: model the doublet + 40 ft feeder + tuner common-mode path in NEC, and read the output imbalance CT in service. If 160 m falls short, the 7-core stack (0.80× the deck reactance) fits the 5.50″ standoffs (§6) | **OPEN — model, then measure** |
+| 51 | **RF service-panel interlock switch** — now in the hardware permissive (§7.4) on shelf feedthrough FT4 and J-E pin 5, but neither the switch nor its RF-bay run is chosen. Pick an NC microswitch that the front upper panel closes, and route its lead from FT4 along the right wall at shelf level, clear of the §3.2 HV distances (harness W12b) | **OPEN — select and route** |
+| 52 | **Sampler cable pair count** — J-B/J-S now carry 14 lines, and §7.3a pairs each with its own ground or return: 11 pairs (5 detector lines, the cal-load detector, the SWR permissive and +5 V with grounds; K1, K2 and the thermal switch as their own pairs). Alpha Wire M13197 / Belden 9508 has 8. Choose a ≥ 12-pair overall-shielded cable, after checking its stock and price | **OPEN — select** |
 
 **Closed in this revision:** static drain and lightning protection (existing entry-box bonded
 baseplate and arrestors); capacitor adequacy (C2 position 2.50×; C1 needs a 15 kV-class part,
@@ -3345,8 +3454,15 @@ Section 10 without reading Sections 1–9 first.
 | **DECISION** | A genuine open selection — requirement stated, alternatives given, not yet chosen |
 | **Fabricate** | Made from stock listed elsewhere in this section |
 
-No prices are given. They go stale, they vary by territory, and three of the DECISION items span
-an order of magnitude in cost — those carry indicative bands because the cost *is* the decision.
+*Rev 3.7c:* prices and stock now appear where they drove a choice. They are qty-1 US distributor
+prices with the date checked (2026-11-19, §10.5). They go stale and vary by territory, so re-check
+before ordering; every part selected for the Rev 3.7c control board was checked for stock and
+lifecycle. Three of the DECISION items span an order of magnitude in cost; those carry indicative
+bands because the cost *is* the decision.
+
+**One table per subsystem; each part is counted once.** Everything soldered to a board is in that
+board's table (§10.4 measurement, §10.5 control). A part that also belongs to another subsystem is
+listed there with Qty **—** and a pointer, so ordering section by section never buys it twice.
 
 Reference designators (R1, U3, J7 …) refer to the KiCad schematics in `kicad/`.
 Quantities are per tuner, excluding the bench panel of 10.9, which is one per operating position.
@@ -3438,30 +3554,85 @@ the four SOD-323 diodes, the AD8302 (TSSOP-14), the TLV3501 (SOIC-8) and the AMS
 | 6 | SMA vertical jack | Amphenol 132134-11 | J1–J6 |
 | 1 | IDC header 2×08, latching | 2.54 mm, shrouded | J7 |
 
-### 10.5 Control board — 40 components
+### 10.5 Control board — 166 components *(Rev 3.7c)*
 
-`kicad/control.kicad_sch`. Routed, 0 unconnected. The Teensy mounts directly — verify the
-**15.24 mm row spacing with calipers** before ordering boards (§9 item 33).
+`kicad/control.kicad_sch` / `control.kicad_pcb`, generated by `kicad/board_control.py` and
+`kicad/route.sh`. *The Rev 3.4 board it replaces is in §11.13.*
 
-| Qty | Value | Package | Refs |
-|--:|:--|:--|:--|
-| 10 | 10 kΩ, 1 % | Axial DIN0207 | R1–R6, R9, R10, R12, R13 |
-| 3 | 100 Ω | Axial DIN0207 | R7, R8, R11 |
-| 3 | 0.1 µF, 50 V ceramic | Disc, 5.00 mm pitch | C1, C3, C5 |
-| 1 | 100 µF electrolytic | Radial D5.0 P2.50 | C2 |
-| 1 | 220 µF electrolytic | Radial D5.0 P2.50 | C4 |
-| 3 | **IRLZ44N** logic-level N-MOSFET | TO-220-3 | Q1–Q3 |
-| 3 | **1N4007** flyback diode | DO-41 | D1–D3 |
-| 1 | **AMS1117-3.3** regulator | SOT-223 | U1 |
-| 1 | **Teensy 4.1** | PJRC, 48-pin, 60.96 × 17.78 mm | A1 |
-| 1 | Terminal block, 2-pos | Phoenix MKDS-1,5-2-5.08 | J1 (24 V in) |
-| 6 | Pin header 1×04 | 2.54 mm vertical | J2–J5, J8, J10 |
-| 3 | Pin header 1×08 | 2.54 mm vertical | J6, J7, J13 |
-| 1 | Pin header 1×06 | 2.54 mm vertical | J12 |
-| 2 | Pin header 1×02 | 2.54 mm vertical | J9, J15 |
-| 1 | IDC header 2×08, latching | 2.54 mm, shrouded | J11 |
+- **Outline:** 139 × 91 mm, standing in the cassette's 5.5 × 3.6″ envelope.
+- **Stackup:** 4 layers, 1.6 mm FR4. In1 is a solid GND plane; In2 is a third signal layer.
+- **Rules:**
+  - 0.2 mm tracks (the router necks down to 0.15 mm), 0.15 mm clearance.
+  - 0.6 / 0.3 mm vias.
+  - Power nets 0.6 mm, logic supplies 0.4 mm.
+- **Routing:** freerouting, then DRC shows 0 unconnected and no electrical errors; only
+  silkscreen-overlap warnings remain. 2,444 tracks, 295 vias.
+- **Assembly:** sized for hot-air hand soldering. 141 SMD parts (1206 passives, SOIC, SOT-223,
+  SMA/SOD-123 diodes, 1812/2920 PTCs) and 25 through-hole (Teensy, connectors, DC-DCs,
+  electrolytics, inductors, trimmer, fiber transmitter).
+- **Floor plan:**
+  - The bulkhead ribbons, POF and blower lead are at the left end (cabinet +Y); the 24 V entry is at the
+    right end.
+  - The Teensy lies flat on two 1×24 socket strips, parallel to the board as usual. It is turned so
+    its SD end sits at the board's top edge (§8B.5.6), which points up in the cassette. The socket
+    strips also let it come out; verify the 15.24 mm row spacing with calipers before ordering boards (§9 item 33),
+    and cut VUSB–VIN before programming in place (§8B.0.3).
+  - Every SMD ground pad has its own via to the In1 plane.
+- **Pin and connector map:** §8B.0.4. The J-A/J-B/J-E pinouts are in `board_control.py`.
+- **Rendered views:** 3D top and bottom, the silkscreen and each copper layer are in **Appendix C**.
+- **Fab outputs:** `kicad/fab.sh control` writes the Gerbers, drill files and paste layer (for the
+  stencil) to `kicad/fab/control-fab.zip`.
 
-**Bare boards:** 2 × 2-layer PCB, 1.6 mm FR4, HASL or ENIG. Gerbers generate from `route.sh`.
+Prices are qty-1 distributor prices checked 2026-11-19 (Digi-Key, Mouser, Arrow, Newark via
+Octopart). Passives with no part number are commodity: 1 %, X7R 50 V, any maker.
+
+| Qty | Part | Package | Refs | ≈ $ ea |
+|--:|:--|:--|:--|--:|
+| 1 | **Teensy 4.1** (PJRC / SparkFun DEV-16771) | 48 pins, 2 × 24 at 15.24 mm | A1 | 31.50 |
+| 2 | 1×24 socket strip for A1, **Sullins PPPC241LFBN-RC** | 2.54 mm | — | 1.53 |
+| 1 | **TRACO TSR 3-2450N**, 24 → 5 V 3 A | SIP-3 | U1 | 8.38 |
+| 1 | **TRACO TSR 2-24120N**, 24 → 12 V 2 A | SIP-3 | U2 | 6.60 |
+| 1 | **AMS1117-3.3** | SOT-223 | U3 | — |
+| 1 each | **SN74HC08DR** · **SN74HC32DR** · **SN74HC21DR** · **SN74HC14DR** | SOIC-14 | U4 · U5 · U6 · U7 | 0.40–0.54 |
+| 1 | **LMC555CMX/NOPB** (10 kHz interlock tone) | SOIC-8 | U8 | 1.15 |
+| 1 | **SN74HC373DWR** (K1/K2 hold latch) | SOIC-20W | U9 | 0.96 |
+| 1 | **MCP23017-E/SO** | SOIC-28W | U10 | 1.53 |
+| 1 each | **LM393DR** · **MCP6002-I/SN** (cal-load window) | SOIC-8 | U11 · U12 | 0.23 · 0.89 |
+| 1 | **Broadcom HFBR-1521Z**: single source, 18–20 wk factory lead; **order early** | Versatile Link | U13 | ~16 |
+| 4 | **IRLL2705TRPBF**: 55 V, Vgs(th) 1–2 V, ≤ 65 mΩ at 4 V (alt. IRLL024NTRPBF, NDT3055L) | SOT-223 | Q1–Q4 | 0.99 |
+| 2 · 1 | **S1M-E3/61T** · **SS14-E3/61T** | SMA | D7, D8 · D9 | 0.35 |
+| 9 | **BAT42W-7-F**, I_R ≤ 0.5 µA | SOD-123 | D1–D6, D10–D12 | 0.19 |
+| 1 | PTC 1.85 A / 33 V, **Littelfuse 2920L185DR** | 2920 | F1 | 1.05 |
+| 2 | PTC 0.3 A / 60 V, **Bourns MF-MSMF030/60X-2** | 1812 | F2, F3 | 0.73 |
+| 2 | 1 µH 7.5 A, **Fastron 07HCP-1R0M-50** (alt. Würth 744772010) | radial 7.8 mm, 5 mm | L1, L2 | 0.99 |
+| 1 | 220 µF 35 V low-ESR, **Panasonic EEU-FR1V221** | radial 8 × 11.5, 3.5 mm | C1 | 0.71 |
+| 1 | 150 µF 35 V, **Nichicon UHE1V151MPD** | radial 8 × 11.5, 3.5 mm | C2 | 0.60 |
+| 1 | 100 µF 35 V, **Panasonic ECA-1VM101** | radial 6.3, 2.5 mm | C3 | 0.34 |
+| 4 | 47 µF 10 V · 22 µF 25 V · 100 µF 10 V · 4.7 µF 25 V | radial 5–6.3 | C4 · C5 · C6 · C22 | — |
+| 1 | 100 nF C0G (blanking timer), **TDK C3216C0G1H104J160AA** | 1206 | C27 | 0.18 |
+| 1 | 10 nF C0G (tone timing), **KEMET C1206C103J5GACTU** | 1206 | C25 | 1.66 |
+| 27 | 100 nF (17) · 10 nF (9) · 1 nF (1) | 1206 | C7, C8, C16–C19, C23, C24, C28–C36 · C9–C13, C15, C20, C21, C26 · C14 | — |
+| 17 | 1 kΩ anti-surge, **Panasonic ERJ-P08J102V** (the §7.3 series element) | 1206 | R27–R31, R33, R35, R41, R48, R52, R54, R55, R57, R58, R67, R75, R80 | 0.17 |
+| 19 | 47 Ω (§7.3 logic grade) | 1206 | R1–R19 | — |
+| 25 | 10 kΩ | 1206 | R20–R25, R34, R38–R40, R44, R46, R50, R53, R56, R60–R62, R65, R66, R68–R71, R78 | — |
+| 15 | 100 Ω (6) · 100 kΩ (5) · 4.7 kΩ (2) · 10 MΩ, 1 MΩ, 560 kΩ, 56 kΩ, 6.8 kΩ, 3.9 kΩ | 1206 | R45, R49, R59, R63, R64, R77 · R32, R37, R74, R82, R83 · R72, R73 · R36, R26, R81, R43, R76, R42 | — |
+| 3 | 1 Ω 1 W (coil sense) · 56 Ω 1 W (fiber LED) | 2512 | R47, R51 · R79 | — |
+| 1 | 10 kΩ multi-turn trimmer, **Bourns 3296W-1-103LF** (60 W trip) | 3296W | RV1 | 2.56 |
+| 1 | SMA jack, vertical, **Cinch 142-0701-201** (Amphenol 132134-11 is $17) | THT | J11 | 6.53 |
+| 1 | Terminal block 2-pos 5.08 mm, **Phoenix 1729128** (1715721 is out of stock) | THT | J1 | 0.95 |
+| 2 · 1 | Shrouded IDC header 2×13 · 2×5, **On Shore 302-S261 · 302-S101** | THT | J2, J3 · J4 | 0.37 · 0.27 |
+| 6 | Pin header 1×02 (2), 1×03, 1×04, 1×06 (2) | 2.54 mm | J5–J10 | — |
+
+- **Parts for one board:** ≈ **$109** at qty-1 prices, with commodity passives estimated. The
+  panel adds the Nextion ($39.90) and two encoders ($94–154, §7.5).
+- **Bare boards** (JLCPCB quote, 2026-11-19, 5 pcs, 139 × 91 mm, 4-layer, 1.6 mm):
+  - $32.80 with leaded HASL (+$18.10 for ENIG).
+  - Top stencil, frameless, 200 × 150 mm custom size: $7.22. (The standard 380 × 280 mm stencil costs
+    the same and roughly doubles the shipping weight.)
+  - UPS DDP shipping: $31.07.
+  - About **$71 delivered**, $89 with ENIG.
+  - For comparison, OSH Park charges $196 for three 4-layer boards ($10/in²).
+- **Paste:** Chip Quik SMD291AX10 (Sn63/Pb37, no-clean, 35 g) is ~$21.
 
 ---
 
@@ -3517,8 +3688,8 @@ De-energized at idle (§8A.1), otherwise ~42 W of standing heat in a sealed box.
 
 | Qty | Item | Specification | Type | Ref |
 |--:|:--|:--|:--|:--|
-| 1 | Display | **Nextion NX4832K035** (or T035, same outline) — window 2.95 × 1.99″ | Part | §7.5 |
-| 2 | Rotary encoder | **Grayhill 62A15-02-060C** — optical, 24 detent, push, 3/8-32 bushing | Part | §7.5 |
+| 1 | Display | **Nextion NX4832K035** (or T035, same outline) — window 2.95 × 1.99″; Itead stock, $39.90 (2026-11-19), on Itead's availability list to 2027 | Part | §7.5 |
+| 2 | Rotary encoder | **Grayhill 62V15-02-080CH** — optical, 3.3 V, 24 detent, push, 3/8-32 bushing, 0.100″ connector on 8″ cable; factory order ~$47 (Future, MOQ 1); fallback 62V15-02-P ~$77, stocked | Part | §7.5 |
 | 1 | Bypass keyswitch | **E-Switch KO128A2007** — SPST, key out in OFF only, Ø19 mm with flat | Part | §8B.4d |
 | 2 | Encoder shaft extension | **Delrin**, short, unloaded — RF isolation, not stiffness | Fabricate | §7.1a |
 | 1 | Recovery button | **E-Switch PV6F240SS** — flush, sealed, Ø16 mm, with a 1/4″ guard ring | Part | §8B.4f.2 |
@@ -3534,7 +3705,7 @@ De-energized at idle (§8A.1), otherwise ~42 W of standing heat in a sealed box.
 
 | Qty | Item | Specification | Type | Ref |
 |--:|:--|:--|:--|:--|
-| 1 | POF transmitter | **Broadcom HFBR-1521Z** class, 660 nm | Class | §8C.3.3 |
+| — | POF transmitter | **Broadcom HFBR-1521Z**, 660 nm — on the control board, **counted in §10.5 (U13)**. Single source with thin US stock (Digi-Key quotes an 18–20 week factory lead): **order early** | Part | §8C.3.3 |
 | 1 | POF receiver | **Broadcom HFBR-2521Z** class | Class | §8C.3.3 |
 | — | Plastic optical fiber | 1 mm duplex POF, length = tuner to bench + 20 % | Class | §8C.3.3 |
 | 4 | POF crimp connector | Simplex latching — razor-blade termination, no polishing | Class | §8C.3.3 |
@@ -3570,8 +3741,8 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | Qty | Item | Specification | Type | Ref |
 |--:|:--|:--|:--|:--|
 | 1 | Main supply | **Mean Well UHP-200-24** — 201.6 W, fanless, Class B, 2.17″ on edge | Part | §8A.1 |
-| 1 | DC-DC converter | **TRACO TSR 2-24120** — 24 → 12 V, 2 A, blower | Part | §8A.1 |
-| 1 | DC-DC converter | **TRACO TSR 3-2450** — 24 → 5 V, 3 A, 5-SIP through-hole, with an LC input filter (Recom RPMB5.0-3.0 is on 17-week lead) | Part | §8A.1 |
+| — | DC-DC converter | **TRACO TSR 2-24120N** — 24 → 12 V, 2 A, blower — on the control board, **counted in §10.5 (U2)** | Part | §8A.1 |
+| — | DC-DC converter | **TRACO TSR 3-2450N** — 24 → 5 V, 3 A, with an LC input filter — on the control board, **counted in §10.5 (U1)**. (The 5-SIP TSR 3-2450 is ~4× the price; Recom RPMB5.0-3.0 is on a 17-week lead) | Part | §8A.1 |
 | 2 | Common-mode choke | **Fair-Rite 2631803802** (31 material), 6–8 bifilar turns, on supply input **and** output leads | Part | §8A.1 |
 | 1 | Ground strap | Tinned copper braid, 1″ wide × 18″ — chassis to arrestor baseplate | Class | §8A.2 |
 | 1 | IEC inlet | **TE Corcom 3EGG1-2** — 3 A, fused (2 × 5 × 20, T2.5 A), filtered (≥ 48 dB line-to-ground 5–30 MHz, 36 dB at 1 MHz), screw flange; cutout 1.14 × 1.30″, Ø0.138″ holes 1.417″ apart (Schaffner FN9260-4-06 is on 21-week lead) | Part | §8A.1 |
@@ -3599,7 +3770,7 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | 384 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
 | ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
 | 60 | Captive panel screw | 8-32, RF service panel (38) and cassette face (22) | Class | §8E.6 |
-| 6 | Feedthrough capacitor | **Tusonix 2499-003-X5W0-103ZLF** — 0.01 µF, 500 V, 12-28 nut mount; shelf FT1–FT4 (3 used + 1 spare) + 2 spares | Part | §7.3a |
+| 6 | Feedthrough capacitor | **Tusonix 2499-003-X5W0-103ZLF** — 0.01 µF, 500 V, 12-28 nut mount; shelf FT1–FT4 (all four used) + 2 spares | Part | §7.3a |
 | 1 | Filtered DB-25 | **Amphenol FCE17-B25SM-250** — 1000 pF, J-A | Part | §7.3a |
 | 2 | Filtered DB-25 | **Amphenol FCE17-B25SM-290** — 5600 pF, J-B and J-S | Part | §7.3a |
 | 2 | Filtered DE-9 | **Amphenol FCE17-E09SM-290** — 5600 pF; J-E (tank thermal + CT, bulkhead) and J-F (blower, left lower panel) — verify stock | Part | §7.3a, §8 |
@@ -3608,7 +3779,7 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | — | Shielded cable | **Alpha Wire M13197** — 8 pr 24 AWG, overall foil + drain, cut to length (Digi-Key); Belden 9508 is equivalent but sold only on 100 ft reels | Part | §7.3a |
 | — | Coax | **RG-316** — prescaler, partition → bulkhead | Class | §7.3a |
 | 3 | Feedthrough capacitor | **Tusonix 2499-003-X5U0-102PLF** — 1000 pF, 500 V, 12-28; prescaler at partition and bulkhead + spare | Part | §8B.0.1 |
-| 20 | Series resistor | **1 kΩ carbon composition**, on ADC/sensor inputs only (≈ 14) + spares | Part | §7.3 |
+| — | Series resistor | *Rev 3.7c:* the 1 kΩ ADC/sensor-input resistors are on the control board as 1206 anti-surge parts (§10.5, Panasonic ERJ-P08J102V); no discrete carbon comp | — | §7.3 |
 | 2 | Honeycomb vent panel | **Hex-cell aluminum, 1/8″ cell, 1/2″ thick** (>90 dB to 1 GHz) | Class | §8 |
 | 1 | Blower | **Delta AFB1212VHE-F00** — 120 × 38 mm, 12 V 0.6 A, ball bearing, tach; alt. AFB1212SH-F00 (25 mm) | Part | §8 |
 | 1 | Fan guard | **Orion G109-15A**, 120 mm wire | Part | §8 |
@@ -3646,18 +3817,18 @@ quantities come from TUNER-E-210 (§10.11); the 16 × 16 × 12″ fastener and B
 
 | Crossing | Part at the wall | Lines |
 |:--|:--|--:|
-| Control → Motor (logic): STEP1–3, DIR1–3, DRV_EN, encoder SPI + 3V3, LIM1–6 | J-A, filtered DB-25, 1000 pF | 19 |
+| Control → Motor (logic): STEP1–3, DIR1–3, DRV_EN, encoder SPI incl. MOSI + 3V3, LIM1–6 | J-A, filtered DB-25, 1000 pF | 20 |
 | Sampler group, bulkhead: detector/sampler 7, K1/K2 coils 4, cal-load thermal 2, cal-load detector 1 | J-B, filtered DB-25, 5600 pF | 14 |
 | Sampler group, partition | J-S, filtered DB-25, 5600 pF | same 14 |
-| Control → RF tank: tank thermal + imbalance CT | J-E, filtered DE-9, 5600 pF (FCE17-E09SM-290) | 3 |
+| Control → RF tank: tank thermal, imbalance CT, RF service-panel switch | J-E, filtered DE-9, 5600 pF (FCE17-E09SM-290) | 3 |
 | Control → blower: +12 V, GND, tach | J-F, filtered DE-9, 5600 pF, left lower panel | 3 |
 | Frequency: ÷1024 prescaler | FT-P, 2 × discrete 1000 pF (partition + bulkhead) | 1 |
-| Shelf: tank thermal + imbalance CT | FT1–FT4, discrete 0.01 µF (3 used + 1 spare) | 3 |
+| Shelf: tank thermal, imbalance CT, common return, RF service-panel switch | FT1–FT4, discrete 0.01 µF (all four used) | 4 |
 
 Discrete 0.01 µF: 4 shelf + 2 spare = **6**. Discrete 1000 pF: **3** (2 + 1 spare). Filtered D-subs:
 DB-25 1000 pF × 1 (J-A), DB-25 5600 pF × 2 (J-B, J-S), DE-9 5600 pF × 2 (J-E, J-F). Plugs and
-hoods: DB-25 × 3, DE-9 × 2. 1 kΩ carbon-comp series resistors on ADC/sensor inputs only: ≈ 14,
-**order 20**. *The earlier 36-line tally is in §11.7.*
+hoods: DB-25 × 3, DE-9 × 2. The 1 kΩ series resistors on ADC/sensor inputs are on the control board
+(§10.5): 1206 anti-surge thick film, Panasonic ERJ-P08J102V, in place of discrete carbon comp. *The earlier 36-line tally is in §11.7.*
 
 ---
 
@@ -3752,7 +3923,7 @@ text was written.
 
 ### 11.1 Side-column enclosure (Rev 3.3–3.6)
 
-*Superseded by the Rev 3.7 vertical stack (§3.0; TUNER-E-200 to E-215).*
+*Superseded by the Rev 3.7 vertical stack (§3.0; TUNER-E-200 to E-216).*
 
 #### Rev 3.3–3.6 side-column layout *(SUPERSEDED by §3.0)*
 
@@ -4579,6 +4750,48 @@ that left 1.75″ of air and creepage to the grounded shelf, under the ≥ 2″ 
 §5.3a. At 3.50″ it is 2.75″. The roller shaft is at deck potential (§5.3a), so it needs only the
 deck's own clearance.
 
+### 11.13 Control board as generated through Rev 3.7b (Rev 3.4 generator)
+
+*Superseded Rev 3.7c: `kicad/board_control.py` had not followed the log since Rev 3.4. It was
+rebuilt to the current text (§10.5). What the old board got wrong:*
+
+- **Panel bus.** The panel was an I2C expander on 3V3 only. The selected Nextion is a 5 V UART
+  display, so it now runs on Serial8 (§7.5, §8B.0.4).
+- **Blower.** The blower was switched +24 V on two pins with no tach. §8 calls for 12 V from an
+  on-board TSR 2-24120 and a tach input. The PWM line was also on pin 32, which has no PWM.
+- **Encoder MOSI.** It ended at the Teensy, so the AS5048As could receive no command (diagnostics,
+  error clear).
+- **No hardware permissive.**
+  - The MCU drove the fiber tone directly, so software was in the interlock path. §7.4 forbids that.
+  - The bypass could not have worked with a dead controller (§8B.4d).
+  - None of §6B's inputs existed: the cal-load window, the cal-load thermal switch, coil-current
+    sense, and the §5.5 blanking timer.
+- **Missing parts.**
+  - No DC-DCs, no fiber transmitter, no §7.3 series resistors.
+  - Separate pin headers instead of one ribbon per bulkhead D-sub.
+  - The two "RF tank" relay drivers outlived the RF-tank relays (deleted Rev 3.7b).
+- **Size.** The outline was 240 × 190 mm. The cassette's envelope is 5.5 × 3.6″ (140 × 91 mm).
+
+Bill of materials as it stood (40 components, all through-hole except U1):
+
+| Qty | Value | Package | Refs |
+|--:|:--|:--|:--|
+| 10 | 10 kΩ, 1 % | Axial DIN0207 | R1–R6, R9, R10, R12, R13 |
+| 3 | 100 Ω | Axial DIN0207 | R7, R8, R11 |
+| 3 | 0.1 µF, 50 V ceramic | Disc, 5.00 mm pitch | C1, C3, C5 |
+| 1 | 100 µF electrolytic | Radial D5.0 P2.50 | C2 |
+| 1 | 220 µF electrolytic | Radial D5.0 P2.50 | C4 |
+| 3 | **IRLZ44N** logic-level N-MOSFET | TO-220-3 | Q1–Q3 |
+| 3 | **1N4007** flyback diode | DO-41 | D1–D3 |
+| 1 | **AMS1117-3.3** regulator | SOT-223 | U1 |
+| 1 | **Teensy 4.1** | PJRC, 48-pin, 60.96 × 17.78 mm | A1 |
+| 1 | Terminal block, 2-pos | Phoenix MKDS-1,5-2-5.08 | J1 (24 V in) |
+| 6 | Pin header 1×04 | 2.54 mm vertical | J2–J5, J8, J10 |
+| 3 | Pin header 1×08 | 2.54 mm vertical | J6, J7, J13 |
+| 1 | Pin header 1×06 | 2.54 mm vertical | J12 |
+| 2 | Pin header 1×02 | 2.54 mm vertical | J9, J15 |
+| 1 | IDC header 2×08, latching | 2.54 mm, shrouded | J11 |
+
 ---
 
 ## Appendix A — Homebuilt Roller Drawings (TUNER-L-100 to L-109)
@@ -4611,7 +4824,7 @@ wiper geometry, which §5.3a specifies by function only, has been reviewed.
 <div class="drawing-sheet"><img src="sheets/L-109-install.svg" alt="TUNER-L-109 — Roller installation in the RF bay: stack section, plan, holes, clearances"/><p>TUNER-L-109 — Roller installation in the RF bay: stack section, plan, holes, clearances</p></div>
 
 
-## Appendix B — Enclosure Drawings (TUNER-E-200 to E-215)
+## Appendix B — Enclosure Drawings (TUNER-E-200 to E-216)
 
 Draft fabrication drawings for the wall-mounted, modular vertical-stack enclosure (§3.0 Rev 3.7a),
 generated from `cad/enclosure.py` by `cad/drawings_enclosure.py`. Every panel's
@@ -4650,6 +4863,32 @@ against the roller, caps, deck and drive trains. DRAFT — NOT FOR FABRICATION u
 <div class="drawing-sheet"><img src="sheets/E-214-harness.svg" alt="TUNER-E-214 — Harness routing, color-coded (floor to shelf)"/><p>TUNER-E-214 — Harness routing, color-coded (floor to shelf)</p></div>
 
 <div class="drawing-sheet"><img src="sheets/E-215-wire-list.svg" alt="TUNER-E-215 — Wire list with cut lengths"/><p>TUNER-E-215 — Wire list with cut lengths</p></div>
+
+<div class="drawing-sheet"><img src="sheets/E-216-choke.svg" alt="TUNER-E-216 — Input choke assembly: half section, section at mid-winding, exploded view and parts list"/><p>TUNER-E-216 — Input choke assembly: half section, section at mid-winding, exploded view and parts list</p></div>
+
+## Appendix C — Control and Measurement Boards (KiCad)
+
+Rendered by `doc/build.sh` from the routed boards in `kicad/` on every build. The 3D views are the bare
+board as the fab delivers it: solder mask, silkscreen reference designators, pads and vias. No
+component models are installed, so parts appear only as their silkscreen and pads. The silkscreen
+view is the same layer as vector line art, with the pad openings, as the fab prints it; values are
+in the BOM by reference. Placement, routing and
+DRC are described in §10.5 (control) and §10.4 (measurement). The measurement board is still the
+Rev 3.4 layout and will change under §9 item 35.
+
+<div class="drawing-sheet"><img src="sheets/pcb-control-top.png" alt="Control board — top, 3D render (139 × 91 mm, 4 layers; Teensy A1 flat on sockets with its SD end at the top edge)"/><p>Control board — top, 3D render (139 × 91 mm, 4 layers; Teensy A1 flat on sockets with its SD end at the top edge)</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-control-silk.svg" alt="Control board — top silkscreen and pad openings, as the fab prints them (values are in the §10.5 BOM by reference)"/><p>Control board — top silkscreen and pad openings, as the fab prints them (values are in the §10.5 BOM by reference)</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-control-bottom.png" alt="Control board — bottom, 3D render"/><p>Control board — bottom, 3D render</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-control-F.svg" alt="F.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-In1.svg" alt="In1.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-In2.svg" alt="In2.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-B.svg" alt="B.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><p>Control board — copper: F.Cu (top left), In1.Cu GND plane (top right), In2.Cu (bottom left), B.Cu (bottom right), each viewed from the top</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-top.png" alt="Measurement board — top, 3D render (Rev 3.4 layout, 215 × 145 mm, 2 layers)"/><p>Measurement board — top, 3D render (Rev 3.4 layout, 215 × 145 mm, 2 layers)</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-silk.svg" alt="Measurement board — top silkscreen and pad openings (values in the §10.4 BOM)"/><p>Measurement board — top silkscreen and pad openings (values in the §10.4 BOM)</p></div>
+
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-F.svg" alt="F.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-measurement-B.svg" alt="B.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><p>Measurement board — copper: F.Cu (left), B.Cu (right), viewed from the top</p></div>
 
 ---
 

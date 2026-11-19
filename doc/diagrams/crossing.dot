@@ -13,7 +13,7 @@ digraph x {
     det [label="Schottky detectors"]; ad  [label="AD8302"];
     cpl->pad; pad->det; pad->ad;
   }
-  f1 [label="0.01 µF + 1 kΩ", shape=box, style="filled,dashed",
+  f1 [label="5600 pF filtered D-sub\n+ 1 kΩ (28 kHz corner)", shape=box, style="filled,dashed",
       fillcolor="#FAFBFB", color="#4A5557"];
   subgraph cluster_c {
     label="CONTROL CHAMBER"; fontname="Noto Sans"; fontsize=9;
