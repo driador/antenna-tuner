@@ -54,7 +54,8 @@
   series link deleted** (no vacuum relays in the RF tank); box **22.00″ H**. See *Changes in Rev 3.7b*.
 - **Rev 3.7c (2026-11-17)** — **input choke rebuilt on #61 ferrite and moved into the RF bay**, under a
   deck raised 2.00″; box **24.00″ H**. Fixes a routing error that grounded the choke's deck side.
-  Control and measurement boards rebuilt to the log (§10.5, §10.4). See *Changes in Rev 3.7c*.
+  Control and measurement boards rebuilt to the log (§10.5, §10.4); firmware begun (§8B.6). See
+  *Changes in Rev 3.7c*.
 
 **Changes in Rev 3.7c**
 1. **Routing error fixed.** Through Rev 3.7b the choke sat in the sampler chamber, and its deck-side
@@ -184,6 +185,11 @@
 18. **RF service-panel interlock chosen and routed** (§9 item 51, §7.4): a Littelfuse 59140 reed sensor
     on the front shelf-ring flange with its magnet on the panel. That keeps the gasketed flange whole.
     Its lead W12c runs from shelf FT4 along the right wall; W12b now serves FT1–FT3 only.
+19. **Firmware begun** (§8B.6, `fw/`): the tuning core and its closed-loop host tests. They settle
+    how the sign of θ is resolved, put the stored profiles on 1 % segments, add coarse moves for
+    far-off readings, and set the 1.2:1 convergence target. The over-SWR trip counts only once
+    matched. Open item 54 is the commissioning bounds the firmware was tested to. The Teensy layer
+    (boot, watchdog, motion, measurement, storage, a USB console) builds and waits for the boards.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -3017,6 +3023,52 @@ normal way to change configuration.** The card is for backup, transfer, and insp
 > slides out. Its USB end faces a strip kept
 > free of parts. It plugs into two 1×24 socket strips, so it can also come out.
 
+### 8B.6 Firmware — milestone 1 *(Rev 3.7c)*
+
+`fw/` holds the portable core: §8B.1–§8B.4b in C++17, with no Arduino, heap, exceptions or RTTI. Its
+host tests run the state machine in closed loop against a model of the tuner (`fw/README.md`). The
+solver matches `nec/cap_demand.py` at all 29 band-edge points. The Teensy layer comes next.
+
+The tests settled what §8B left open:
+
+| Question | Decision |
+|:--|:--|
+| Sign of θ (§6A.7) | A stored prior decides only when one hypothesis is clearly nearer it, and only once per tune. Otherwise a 10 % C2 probe decides. Every VERIFY repeats the test across the move just made, so a wrong prior costs one attempt |
+| Stored profiles (§7.6, §8B.5) | One per 1 % segment of each band, 50 in all. They are seeded from the NEC model and replaced by each good tune. One per band was tried and fails at the edges of 80 m and 10 m |
+| Starting far off | Above 5:1 a fraction of a dB moves the R estimate several-fold, so the tuner drives to the stored setting first. Solves from such readings are coarse moves: at most 3, outside the 3 attempts. A move that more than doubles the best SWR is undone |
+| Converged | 1.2:1. After the 3rd attempt a match under the 1.5:1 retune threshold is kept; above it, TUNE FAILED |
+| Over-SWR trip | A fault only once MATCHED. A tune starts from a mismatch, and the comparator holds the amplifier off meanwhile |
+| PTT and moves | The vote stays down through PROBE and MOVE, and until the motion layer reports stopped. A move goes out 30 ms after the vote drops. A move in progress finishes if the carrier ends; the bypass key stops it |
+| Encoder verify (§8B.3) | Done in the motion layer, in counts, and reported when the move completes. A move still running after 15 s is a position fault |
+
+**Tested envelope, and so the commissioning target** (§9 item 54):
+
+- The elements are within ±3 % of their calibration curves.
+- The AD8302 is within ±0.25 dB and ±2° after the §6A.8 calibration.
+- The feeder can be anywhere in the 39–42 ft, VF 0.93–0.97 spread.
+- On 10 m, the feedpoint can be anywhere in the item 10 uncertainty.
+
+With the factory priors, every band edge tunes from every start: most in one attempt, none in more
+than three. Over 1000 random draws inside those bounds, every seeded draw matches. Cold draws (no
+prior, which in practice means out of band) match 99.4 %, and the rest end in a fault.
+
+**The Teensy layer** (`fw/teensy/`, PlatformIO) builds but has not run: the boards are not built.
+
+- **Boot** follows §8B.4b. RTWDOG is armed before MCU_PERMIT can rise.
+- **Moves:** a 50 kHz timer interrupt steps all three axes along one planned path (§8B.3), held to
+  2 rev/s in the roller's slow zone (§7.2). The encoders are checked after every move, and the drivers
+  are off at idle.
+- **Measurement:** the bridge is averaged over each 200 ms counter gate and read against the AD8302's
+  VREF.
+- **Storage:** the fault record, mode, profiles and last positions go to EEPROM under a CRC.
+- **Local interface:** a USB console gives ack, clear, tune and the mode until the panel exists.
+- **Before power-up,** set what the build fixes, all in `fw/teensy/config.hpp`:
+  - microstepping, DRV_EN polarity and which limit input is which end;
+  - each axis's direction and encoder zero;
+  - the capacitors' turns (§9 item 48) and the element curves (§9 item 54).
+
+  The roller's curve defaults to the NEC model (`nec/out/roller_vna_k*_deck.csv`).
+
 ## Section 8C — Remote Head and Control Link
 
 The tuner is autonomous. The remote head is a **monitor and convenience, never a dependency** —
@@ -3517,6 +3569,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 51 | ~~RF service-panel interlock switch~~ — *Closed Rev 3.7c:* a **Littelfuse 59140-1-S-02-A** reed sensor (SPST-NO) sits on the inner face of the front shelf-ring flange at y = −5.15″, between two of the panel's rivnuts. Its **Littelfuse 57140-000** magnet is bonded to the panel's inner face just above the flange. A reed needs no hole through the gasketed flange, where a plunger switch would. Closed means panel on; a missing panel, a broken lead or an open reed all trip. W12c runs PTFE 22 AWG from FT4 along the right wall at shelf level, more than 4.5″ from every RF conductor (§3.2 asks 1.5″); the switch's other side is the chassis. Prices and stock in §10.11. E-212, E-214, E-215 | **CLOSED** Rev 3.7c |
 | 52 | ~~Sampler cable pair count~~ — *Closed Rev 3.7c:* **Belden 8112**, 12.5 pairs of 24 AWG, overall foil + braid + drain, OD ≈ 0.44″ (fits the J-S plug's metal backshell). It carries the 11 pairs (5 detector lines, the cal-load detector, the SWR permissive and +5 V with grounds; K1, K2 and the thermostat as their own pairs), with one pair and the odd conductor spare. Cut to length at Nassau Electrical, $14.88/ft, in stock 2026-11-19; Digi-Key sells it only on 100 ft spools. About 2 ft for W8 | **CLOSED** Rev 3.7c |
 | 53 | **Coupler box in the model.** *Done Rev 3.7c:* the Hammond 1590A sits on the sampler baseplate between the coax input (floor G) and K1 (`enclosure.py`, E-212/E-213). W13 and W14 run to its SO-239s. W27/W28 are the FWD/REF RG-316 jumpers to the board's J1/J2, cut to one length. W9 is 16 conductors to J4. The board envelope is 100 × 74 mm plus its SMA plugs and the J4 socket. J3 moved to the top of the left edge, so its plug clears FT-P's solder-side envelope. No interference or harness clashes; E-212 to E-215 regenerated | **CLOSED** Rev 3.7c |
+| 54 | **Firmware tested bounds (§8B.6).** At commissioning, confirm: (a) each element's position-to-value curve is within ±3 % across its range (VNA against encoder counts); (b) the AD8302 residual after the §6A.8 calibration is within ±0.25 dB and ±2°, checked against known loads on each band; (c) the capacitors' turns over full range (§8B.3a, ASSUMED), which set move time. If any falls outside, rerun the `fw` tests with the measured values before trusting the 3-attempt budget | **OPEN — commissioning** |
 
 **Closed in this revision:** static drain and lightning protection (existing entry-box bonded
 baseplate and arrestors); capacitor adequacy (C2 position 2.50×; C1 needs a 15 kV-class part,

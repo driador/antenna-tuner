@@ -1,0 +1,12 @@
+{
+  "name": "tuner-core",
+  "version": "0.1.0",
+  "description": "Portable tuning core: T-network solver, bridge math, fault policy and the tuning state machine",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include",
+    "flags": ["-Wall", "-Wextra"]
+  }
+}

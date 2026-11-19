@@ -21,6 +21,7 @@ repo paths.
 | `nec/out/*.csv`, `*.txt` | Analysis summaries the log quotes |
 | `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B) |
 | `kicad/` | Control and measurement boards, generated from Python (schematic → netlist → PCB → freerouting → DRC, `route.sh`); fab zip from `fab.sh` |
+| `fw/` | Firmware: the portable C++17 core (tuning state machine, solver, bridge math, fault policy, motion planning) with its closed-loop host tests, and the Teensy 4.1 layer (PlatformIO); see `fw/README.md` |
 | `archive/` | Early drafts and the Rev 3.3 / 3.4 log snapshots the log cites |
 
 ## Toolchain
@@ -31,6 +32,7 @@ repo paths.
 | CAD | Python 3.12 venv with `cad/requirements.txt` (build123d 0.13); FreeCAD 1.1 plus `xvfb-run` for the sheets |
 | NEC | `nec2++` built statically at `~/src/necpp/build/src/nec2++` (scripts call that path); Python 3 stdlib only |
 | KiCad | KiCad 10 (`kicad-cli`, `pcbnew` Python module), Java 25 and freerouting (`kicad/route.sh`) |
+| Firmware | CMake ≥ 3.16 and a C++17 compiler for the host build and tests; PlatformIO for the Teensy build (it fetches PJRC's ARM toolchain); `python3` to regenerate its tables |
 
 Set up the CAD environment:
 
@@ -76,6 +78,7 @@ FreeCAD hanging under xvfb with an empty log. Re-render a diagram with
   - sheet SVGs and logs in `cad/out/`
   - raw NEC decks and solver output (`nec/out/*.nec`, `*.out`, about 420 MB)
   - the HTML intermediates and `doc/sheets/`
+  - the firmware builds, `fw/build/` and `fw/.pio/`
   - the venv
   - `.*.pre-*` working backups, since git history replaces them
 - The summaries that analyses produce (`nec/out/*.csv`, `*.txt`, `nec/cap_demand_rev37b.out`)
