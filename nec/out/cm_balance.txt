@@ -1,0 +1,46 @@
+Item 50: output imbalance |I1|-|I2| over the mean (spec <= 5 %), and common-mode / differential
+current, at the tuner end of 40 ft of 600 ohm line; trim = vane pF added to leg 2's 3 pF
+
+perfect ground: antenna system common-mode impedance at the chassis (pair tied):
+   1.80 MHz     12 ohm   1.90 MHz     38 ohm   2.00 MHz     65 ohm   3.50 MHz    985 ohm   3.75 MHz   2075 ohm   4.00 MHz  25157 ohm
+  choke 1x5 / 15t (adopted):
+     MHz  |Z choke|    0pF    5pF   10pF   15pF   20pF   25pF   30pF   best
+    1.80      2405    2.8%   3.5%   4.2%   4.9%   5.6%   6.3%   7.0%   0 pF: 2.8% (cm/diff 2.8%)
+    1.90      2570    1.7%   2.3%   2.8%   3.4%   4.0%   4.5%   5.1%   0 pF: 1.7% (cm/diff 1.7%)
+    2.00      2742    0.9%   1.3%   1.7%   2.1%   2.5%   2.9%   3.3%   0 pF: 0.9% (cm/diff 0.9%)
+    3.50      6731   10.7%  11.3%   3.1%  13.9%  11.6%   7.5%   5.0%   10 pF: 3.1% (cm/diff 11.9%)
+    3.75      7915  121.1% 168.9%  47.8%  37.6%  56.9%  64.8%  69.1%   15 pF: 37.6% (cm/diff 42.3%)
+    4.00      9433   23.7%  10.0%   2.8%   1.6%   4.6%   6.8%   8.4%   15 pF: 1.6% (cm/diff 1.7%)
+  choke 1x7 / 15t:
+     MHz  |Z choke|    0pF    5pF   10pF   15pF   20pF   25pF   30pF   best
+    1.80      3520    1.1%   1.8%   2.5%   3.3%   4.0%   4.7%   5.4%   0 pF: 1.1% (cm/diff 1.1%)
+    1.90      3784    0.6%   1.1%   1.7%   2.2%   2.8%   3.4%   4.0%   0 pF: 0.6% (cm/diff 0.6%)
+    2.00      4063    0.2%   0.6%   1.0%   1.4%   1.8%   2.2%   2.6%   0 pF: 0.2% (cm/diff 0.2%)
+    3.50     12349    9.9%  12.1%  13.5%  10.1%  15.6%   8.8%   5.3%   30 pF: 5.3% (cm/diff 4182.9%)
+    3.75     15794  175.1%  42.5%  72.2%   4.7%  31.9%  45.2%  53.1%   15 pF: 4.7% (cm/diff 5.3%)
+    4.00     21276   23.1%  11.3%   4.6%   0.2%   2.9%   5.1%   6.9%   15 pF: 0.2% (cm/diff 0.2%)
+
+real ground: antenna system common-mode impedance at the chassis (pair tied):
+   1.80 MHz    720 ohm   1.90 MHz    712 ohm   2.00 MHz    704 ohm   3.50 MHz   1024 ohm   3.75 MHz   2075 ohm   4.00 MHz   7864 ohm
+  choke 1x5 / 15t (adopted):
+     MHz  |Z choke|    0pF    5pF   10pF   15pF   20pF   25pF   30pF   best
+    1.80      2405    2.8%   3.5%   4.1%   4.8%   5.4%   5.9%   6.4%   0 pF: 2.8% (cm/diff 2.8%)
+    1.90      2570    1.7%   2.2%   2.7%   3.2%   3.7%   4.1%   4.5%   0 pF: 1.7% (cm/diff 1.7%)
+    2.00      2742    0.9%   1.2%   1.6%   1.9%   2.2%   2.5%   2.8%   0 pF: 0.9% (cm/diff 0.9%)
+    3.50      6731   25.7%  19.3%   2.0%  23.4%  52.0%  79.8% 104.9%   10 pF: 2.0% (cm/diff 3.0%)
+    3.75      7915   54.9%  29.5%   6.1%   8.2%  13.2%  12.5%   9.4%   10 pF: 6.1% (cm/diff 8.4%)
+    4.00      9433    6.4%   4.0%   1.4%   0.8%   2.5%   3.9%   5.0%   15 pF: 0.8% (cm/diff 1.6%)
+  choke 1x7 / 15t:
+     MHz  |Z choke|    0pF    5pF   10pF   15pF   20pF   25pF   30pF   best
+    1.80      3520    1.1%   1.8%   2.4%   3.0%   3.6%   4.1%   4.6%   0 pF: 1.1% (cm/diff 1.1%)
+    1.90      3784    0.5%   1.1%   1.6%   2.0%   2.5%   2.9%   3.3%   0 pF: 0.5% (cm/diff 0.5%)
+    2.00      4063    0.2%   0.5%   0.9%   1.2%   1.5%   1.8%   2.1%   0 pF: 0.2% (cm/diff 0.2%)
+    3.50     12349   36.5%  32.9%  17.1%   8.5%  38.5%  68.7%  96.8%   15 pF: 8.5% (cm/diff 12.2%)
+    3.75     15794   65.6%  37.0%  13.1%   1.2%   7.0%   7.5%   5.7%   15 pF: 1.2% (cm/diff 2.3%)
+    4.00     21276    7.8%   5.0%   2.3%   0.1%   1.6%   3.0%   4.2%   15 pF: 0.1% (cm/diff 0.2%)
+
+One vane setting for both bands (worst imbalance over all six frequencies):
+  perfect 1x5 / 15t (adopted)  best 12 pF -> worst 5.4%   (1.80 4.5%  1.90 3.1%  2.00 1.8%  3.50 5.4%  3.75 4.0%  4.00 0.8%)
+  perfect 1x7 / 15t            best 14 pF -> worst 4.4%   (1.80 3.1%  1.90 2.1%  2.00 1.3%  3.50 2.5%  3.75 4.4%  4.00 0.9%)
+  real    1x5 / 15t (adopted)  best 11 pF -> worst 4.3%   (1.80 4.3%  1.90 2.8%  2.00 1.6%  3.50 2.6%  3.75 2.4%  4.00 0.9%)
+  real    1x7 / 15t            best 14 pF -> worst 2.9%   (1.80 2.9%  1.90 1.9%  2.00 1.1%  3.50 2.8%  3.75 0.8%  4.00 0.5%)

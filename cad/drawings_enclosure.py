@@ -490,7 +490,8 @@ def sheet_populated(doc):
     table(doc, page, "PopItems", rows, (10, 66, 46), 349, 168, size=6.2, row_px=13)
     note(doc, page, ["NOTES:",
         "1. " + SV.get("open_layout", ""),
-        "2. ENVELOPES: CONTROL BOARD, DRIVER BOARD, C1 / C2 (REFERENCE), CHOKE + G10 MOUNT (RF BAY), RELAYS. HARNESS: E-213 / E-214, WIRE LIST E-215.",
+        "2. ENVELOPES: CONTROL BOARD, DRIVER BOARD, C1 / C2 (REFERENCE), CHOKE + G10 MOUNT (RF BAY), RELAYS,",
+        "   MEASUREMENT BOARD AND COUPLER BOX (SAMPLER). HARNESS: E-213 / E-214, WIRE LIST E-215.",
         "3. HIDDEN LINES OMITTED. GENERATED FROM enclosure.py + svgviews.py; INTERFERENCE-CHECKED WITH PLUG ENVELOPES AND RUNS.",
         DRAFT], 128, 64, 2.1)
 
@@ -538,7 +539,7 @@ def sheet_wirelist(doc):
     note(doc, page, ["NOTES:",
         f"1. CUT LENGTH = 3-D ROUTE (harness.py) x 1.15, PLUS 6 in SERVICE LOOP ON CASSETTE RUNS. TOTAL {total:.0f} ft.",
         "2. J-A / J-B / J-E PINOUTS: CONTROL BOARD (kicad/board_control.py, LOG 8B.0.4); CONNECTOR GRADES PER 7.3a.",
-        "3. COLOR CODE ON E-213 / E-214. COAX RG-393 PTFE; PRESCALER RG-316.",
+        "3. COLOR CODE ON E-213 / E-214. COAX RG-393 PTFE; PRESCALER AND COUPLER SAMPLES RG-316; W27 = W28 IN LENGTH.",
         DRAFT], 185, 92, 2.1)
     symbol(doc, page, "svg-legend", 62, 72)
 

@@ -190,7 +190,7 @@ ITEMS = [
     (16, "DRIVER BOARD (ASSUMED ENVELOPE)", "3 AXES", (0.0, 4.0, 0.8)),
     (17, "INPUT CHOKE, 5 x FT-240-61, ON G10 MOUNT", "6", (E.CHOKE_X - E.CHOKE_OD / 2, E.CHOKE_Y,
                                                             E.Z_SH1 + E.CHOKE_SO + E.CHOKE_BASE + E.CHOKE_H / 2)),
-    (18, "MEASUREMENT BOARD + COUPLER", "6A, 6B.3a", (3.78, 3.2, 2.0)),
+    (18, "MEASUREMENT BOARD, 100 x 74 mm", "10.4, 6B.3a", (E.MEAS_X + 0.3, 3.2, E.MEAS_Z0 + 1.6)),
     (19, "K1 / K2 COAX RELAYS", "TOHTSU CX600N-24", (6.2, 3.2, 1.6)),
     (20, "CAL LOAD + THERMOSTAT", "G150N50W4E, F20A085", (4.6, 1.0, 0.5)),
     (21, "CAL-LOAD HEATSINK (BELOW FLOOR)", "WAKEFIELD 441K", (4.6, 1.0, -2.5)),
@@ -204,12 +204,15 @@ ITEMS = [
     (29, "SHELF FEEDTHROUGHS FT1-FT4", "TUSONIX 2499", (1.125, -6.5, E.Z_SH1)),
     (30, "BLOWER-LEAD DE-9", "FCE17-E09SM-290", (E.FAN_ENTRY[0], E.F, E.FAN_ENTRY[1])),
     (31, "ENCODER / LIMIT-CAM MODULE (x3)", "7.1, 7.2 - FABRICATE", (-1.72, -3.25, 4.3)),
+    (32, "COUPLER BOX (STOCKTON), HAMMOND 1590A", "6A.3, 10.3", (E.CPL_X0 + E.CPL_W / 2, E.CPL_Y0 + E.CPL_L / 2,
+                                                                E.Z_SAMP_BASE + E.CPL_H)),
+    (33, "RF PANEL INTERLOCK: REED + MAGNET", "59140 / 57140, 7.4", (-E.F + 0.2, E.PANEL_SW_Y, E.Z_SH1 + 1.0)),
 ]
 
 VIEW_ITEMS = {   # which balloons each populated view carries
-    "front": [1, 2, 4, 5, 9, 12, 13, 14, 17, 25, 26, 28],
-    "left": [1, 5, 6, 7, 8, 10, 14, 15, 17, 18, 19, 21, 27, 29, 30, 31],
-    "plan": [10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 22, 23, 24],
+    "front": [1, 2, 4, 5, 9, 12, 13, 14, 17, 25, 26, 28, 33],
+    "left": [1, 5, 6, 7, 8, 10, 14, 15, 17, 18, 19, 21, 27, 29, 30, 31, 32],
+    "plan": [10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 22, 23, 24, 32],
 }
 
 OPEN_LAYOUT = ("NOT SHOWN: IMBALANCE CT ON THE OUTPUT LEADS AT THE TOP FEEDTHROUGHS, TANK THERMAL PROBE. "

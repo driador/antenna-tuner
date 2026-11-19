@@ -167,6 +167,23 @@
     were on no net. DRC cannot see it, because a no-net pad that touches nothing breaks no rule. Fixed in
     the generator. On the routed board each tab is tied to its middle pin, and J11's legs join the
     pours.
+15. **Coupler box in the model** (§9 item 53; E-212 to E-215):
+    - The Hammond 1590A sits on the sampler baseplate between the coax input and K1.
+    - W13/W14 run to its SO-239s, and the new W27/W28 carry FWD/REF to the board on one length of
+      RG-316.
+    - W9 is 16 conductors.
+    - The board envelope is the real 100 × 74 mm. Its ÷1024 SMA moved to the top of the left edge, so
+      the plug clears FT-P.
+16. **Analyses (§9 items 10, 50):**
+    - The 10 m reactance uncertainty is wider than ±10 %, but the network covers it (`nec/conv10.py`).
+    - The NEC common-mode model has the adopted choke meeting the §2.2 balance on 160 and 80 m with
+      one vane setting (`nec/cm_balance.py`).
+17. **Sampler cable** (§9 item 52, §7.3a): Belden 8112, 12.5 pairs, carries all 11 pairs the sampler
+    group needs. W8 is soldered at J-B and has a DB-25 plug at J-S, as §7.3a has the walls; the
+    harness had said plugs at both ends.
+18. **RF service-panel interlock chosen and routed** (§9 item 51, §7.4): a Littelfuse 59140 reed sensor
+    on the front shelf-ring flange with its magnet on the panel. That keeps the gasketed flange whole.
+    Its lead W12c runs from shelf FT4 along the right wall; W12b now serves FT1–FT3 only.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -228,7 +245,9 @@ output are archived in `nec/`.
 > **Segmentation note.** R converges by ~400 segments on every band. X does **not** at the top end:
 > at 28.5 MHz (≈4.9 λ, near a voltage antinode) X was still drifting ≈ −55 Ω per refinement at 1200
 > segments. |Z| is stable to <0.5% but phase moves several degrees, which propagates into the line
-> transform. **Treat 10 m reactance as ±10%; all other bands are converged.**
+> transform. **Treat 10 m reactance as ±10%; all other bands are converged.** *Rev 3.7c (§9 item 10):*
+> the honest band is ±20% on R and ±250 Ω on X, because the feed geometry itself matters near the
+> antinode. The network still covers it (`nec/conv10.py`).
 
 ### 1.1 NEC-2 feedpoint impedance
 
@@ -535,7 +554,10 @@ side-column (Rev 3.6) estimate, 27.0 pF, is superseded — see §11.1.*
 *Rev 3.7c: deck raised 2.00″ for the input choke under it (§3.0, §6); at 3.50″ the plate term was
 7.43 pF and the total ≈ 23 pF. The deck-to-top distance is unchanged — the box grew with the deck.*
 
-The 0–30 pF trimming vane covers it. Balance is set by measurement regardless.
+The 0–30 pF trimming vane covers it. Balance is set by measurement regardless. *Rev 3.7c model (§9
+item 50):* the input choke makes leg 1's shunt parallel-resonant near 1.8 MHz and ~18–19 pF on 80 m.
+One vane setting near 11 pF holds ≤ 4.3 % on both bands. Past ~15 pF the vane approaches an 80 m
+common-mode resonance with the antenna system, so set it on 80 m by the output CT, then check 160 m.
 
 Leg 2 presents ≈ 3.0 pF. A **0 to 30 pF adjustable aluminum trimming vane** between leg 2 and
 chassis provides mechanical calibration to equalize both legs.
@@ -2056,7 +2078,7 @@ analog grade gives ~36 dB from the RC alone, before the D-sub's shell bond to th
 
 | Boundary | Method |
 |:--|:--|
-| Sampler → Control | Filtered DB-25 at the partition → **Alpha Wire M13197** (8 pr, overall foil; ≡ Belden 9508) across the motor chamber → filtered DB-25 at the bulkhead (§7.3a). Prescaler on **RG-316** between two discrete 1000 pF feedthroughs |
+| Sampler → Control | Filtered DB-25 at the partition → **Belden 8112** (12.5 pr 24 AWG, overall foil + braid; Rev 3.7c, §9 item 52) across the motor chamber → filtered DB-25 at the bulkhead (§7.3a). Prescaler on **RG-316** between two discrete 1000 pF feedthroughs |
 | Sampler → RF Tank | RG-393 PTFE coax, PTFE bulkhead (Amphenol 83-798 SO-239A) |
 | Control → Motor | Filtered DB-25, logic grade (§7.3a), shielded harness on the motor side. **No glands** |
 | Control → RF Tank | Filtered DE-9 J-E at the bulkhead, then discrete 0.01 µF feedthroughs FT1–FT4 in the shelf (all four used; item 16) |
@@ -2083,7 +2105,8 @@ in `enclosure.py`.
 | FT-P | Bulkhead + partition | Tusonix **2499-003-X5U0-102PLF** (1000 pF, 500 V, 12-28) | Frequency | ÷1024 prescaler, RG-316 between |
 | FT1–FT4 | Shelf | Tusonix **2499-003-X5W0-103ZLF** (0.01 µF, 500 V, 12-28), 0.55″ pitch | RF tank | FT1 tank thermal, FT2 CT, FT3 common return, FT4 RF service-panel switch (*Rev 3.7c*; was spare) |
 
-**Sampler run (§9 item 38).** Alpha Wire M13197 (Belden 9508 equivalent): pair each signal with a ground or return (relay coil +
+**Sampler run (§9 items 38, 52).** Belden 8112, 12.5 pairs of 24 AWG under an overall foil and braid. The 8-pair M13197 of Rev 3.7a was
+three pairs short of the 11 below. Pair each signal with a ground or return (relay coil +
 with its own return), drain to the backshell at both ends, and keep the cable against the floor
 away from the steppers. Relay coils on that cable carry **suppression diodes at the relay**, so
 their switching edge never reaches the detector pairs. The FCE17 shells give the partition and
@@ -2099,6 +2122,8 @@ Alternate if the C-filter proves insufficient on the bench: **Spectrum Control 5
 - **W9b, W9c:** the relay coils (pins 20–23) and the cal-load thermostat (17–18) go from J-S
   straight to K1/K2 and to the switch.
 - **W10:** the ÷1024 count leaves the board on an edge SMA for the RG-316 run.
+- **W13, W14, W27, W28:** the RG-393 input runs to the coupler box (W13), and the box feeds K1 (W14).
+  The box's FWD/REF SMAs reach the board's J1/J2 on one length of RG-316 each (W27, W28).
 
 ### 7.4 Amplifier interlock — optical permissive, fail-safe on loss of signal
 
@@ -2142,7 +2167,8 @@ contradicts Section 8C.6 — protection must never depend on the link.
   protection.
 - Every input fails toward inhibit. A broken switch lead reads as a trip; an unplugged sampler
   ribbon pulls the SWR term low; an open detector line reads 0 V and trips the window (§6B.3a). The
-  RF service-panel switch uses shelf feedthrough FT4 (§7.3a).
+  RF service-panel switch uses shelf feedthrough FT4 (§7.3a). It is a reed sensor on the front shelf-ring
+  flange, closed by a magnet on the panel (§9 item 51).
 - It drives an LED into a dedicated fiber strand — **not** the data link, no protocol, no software.
 - At the bench a receiver drives an **opto-isolated switch in series with the keying line**, in
   series with the hardwired E-STOP of Section 8C.2.
@@ -3447,7 +3473,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 7 | ~~Bruene bridge design~~ — **CLOSED**, specified in Section 6A as a Stockton coupler with dual magnitude/vector paths | **CLOSED** |
 | 8 | ~~Grounding scheme~~ — **CLOSED**, single-point at the arrestor baseplate (Section 8A.2); the Ethernet ground loop and how it is broken are in 8A.3 | **CLOSED** |
 | 9 | **Antenna end height** assumed 10 ft; envelope covers 6–15 ft so this is confirmation, not a blocker | **OPEN (low risk)** |
-| 10 | **10 m reactance ±10%** — NEC X not fully converged at 1200 segments near the 4.9 λ antinode | **OPEN (low risk)** |
+| 10 | ~~10 m reactance ±10%~~ — *Closed Rev 3.7c* (`nec/conv10.py`, `nec/out/conv10.txt`). X still moves about −25 Ω per 300-segment step at 1200 per leg, about halving each step. The extrapolated limit and a fixed-gap feed model, which only refines the legs, differ from the design values by up to ~20 % in R and ~200 Ω in X: near the antinode the feedpoint depends on the feed geometry itself. Over R × 0.8–1.2, X ± 250 Ω, the 39–42 ft / VF 0.93–0.97 feeder sweep and both C1 parts, the network matches 611 of 648 cases within ratings (V_C1 ≤ 2.2 kV pk, V_C2 ≤ 1.0 kV pk, roller ≤ 8.3 A). Of the misses, 31 are the feeder corners `cap_demand.py` already finds at nominal Z. 6 come from the uncertainty, all at the X ± 250 Ω corner next to those feeder corners. Every miss is C1 asking ~15 pF against its 20–25 pF minimum, which the item 1 feeder trim moves out of. No part changes | **CLOSED** Rev 3.7c |
 | 11 | ~~Network loss / efficiency~~ — **CLOSED**, derived in Section 1.7; 160 m derate table in 1.7.1 | **CLOSED** |
 | 12 | **Measure actual roller Q** once assembled — the 150 vs 250 assumption swings the 160 m derate by 1.7× | **COMMISSIONING TASK** |
 | 13 | ~~Enclosure environmental spec~~ — **CLOSED**, Section 8E revised for a climate-controlled garage interior: IP5X sealed chambers, ventilated RF bay, membrane vents, 30–40 mesh, heater provision only | **CLOSED** |
@@ -3471,7 +3497,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″) and Rev 3.7c (24.00″ — the box grew with the deck, so nothing above it moved):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
 | 33 | **Teensy 4.1 row spacing** — verify 15.24 mm with calipers before ordering control boards (§10.5) | **OPEN — check** |
-| 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2 never carries more than 60 W — no issue. **K1 is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1 | **OPEN — K1 rating** |
+| 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2 never carries more than 60 W — no issue. **K1 is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1. *Searched Rev 3.7c (2026-11-19):* no HF CW figure for the CX600N anywhere. Distributors give 1.5 kW PEP / 1.0 kW CW at 50 MHz and 1.0 kW CW at 150 MHz; an unattributed sheet's 2 kW at 30 MHz is not trusted. Tohtsu's 1.5 kW CW, DC–30 MHz part is the CX-210N, a manual panel switch and not usable as a relay. The CX-520D is 350 W. So the commissioning temperature test stands as the way to close this. | **OPEN — K1 rating (measure)** |
 | 35 | **Boards for §6B.** *Control board — **done Rev 3.7c** (§10.5):* K1/K2 drivers with coil-current sense, the thermal-switch input, and the cal-load window comparator in the hardware permissive. The two drivers are the former RF-tank relay channels; those relays were deleted Rev 3.7b. *Measurement board — **done Rev 3.7c** (§10.4):* the cal-load detector (6B.3a), and the ÷1024 output on an edge SMA for the RG-316 run (W10) | **CLOSED** Rev 3.7c |
 | 36 | **CAL reference plane** — match the K1→choke and K1→load electrical lengths, or measure and store the offset, before trusting vector calibration (§6B.3) | **OPEN — commissioning** |
 | 37 | ~~Roller shaft-to-shelf creepage~~ — was 2.02″ vs the 2″ rule. **Resolved Rev 3.7a:** brass stub below the thrust collar cut from 1.0″ to 0.65″ (Oldham engagement 0.595″) → 2.37″; **4.37″ since the Rev 3.7c deck raise**. A longer Oldham hub would not help: the path is the axial tip-to-bushing distance (TUNER-L-109) | **RESOLVED** |
@@ -3487,10 +3513,10 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 46 | ~~Output DC path re-check~~ — **RESOLVED Rev 3.7b (§8D.5):** leg 1 (deck) is DC-grounded through the input choke's braid (≈ 0.15 Ω; ≈ 0.05 Ω for the Rev 3.7c RG-400 choke); leg 2 floats behind C2 — and always did: the old pad was in parallel with C2, so the "both legs behind series capacitors" claim was never true. Added a **100 MΩ / ≥ 10 kV bleed across C2** (≈ 0.03 W) to drain leg 2's static into the grounded node. Ohmmeter checks listed in §8D.5 for commissioning | **RESOLVED** (ohmmeter check at commissioning) |
 | 48 | **Overtravel settings (§7.2)** — (a) the vacuum capacitors' end-stop torque rating (Jennings data, or a careful spring-scale test on C2) sets the driver current ceiling; (b) count each capacitor's shaft turns stop to stop (sets the ≥ (turns + 2):1 module reduction and §8B.3a times; 30 assumed); (c) measure the roller's stopping distance at the slow-zone speed to place its inner cam | **OPEN — bench measurement** |
 | 49 | **Input choke, verify installed** (§6, Rev 3.7c) — (a) VNA sweep deck end to chassis with the choke and deck installed: expect the impedance peak near 5–7 MHz and \|Z\| ≥ ~1 kΩ across 10 m; a sharp in-band dip means the winding capacitance or a lead resonance differs from the model — re-dress the leads, then take off a turn; (b) 1500 W key-down on 28.0 MHz for 10 min with temperature labels on the bore bundle and cores, < ~100 °C; (c) inspect the jackets at the core edges after winding | **OPEN — build / commissioning** |
-| 50 | **Antenna-system common-mode impedance** — the choke is rated with the whole V_cm across it (Z_a → 0). The real 160 / 80 m balance against the §2.2 ≤ 5% spec depends on Z_a: model the doublet + 40 ft feeder + tuner common-mode path in NEC, and read the output imbalance CT in service. If 160 m falls short, the 7-core stack (0.80× the deck reactance) fits the 5.50″ standoffs (§6) | **OPEN — model, then measure** |
-| 51 | **RF service-panel interlock switch** — now in the hardware permissive (§7.4) on shelf feedthrough FT4 and J-E pin 5, but neither the switch nor its RF-bay run is chosen. Pick an NC microswitch that the front upper panel closes, and route its lead from FT4 along the right wall at shelf level, clear of the §3.2 HV distances (harness W12b) | **OPEN — select and route** |
-| 52 | **Sampler cable pair count** — J-B/J-S now carry 14 lines, and §7.3a pairs each with its own ground or return: 11 pairs (5 detector lines, the cal-load detector, the SWR permissive and +5 V with grounds; K1, K2 and the thermal switch as their own pairs). Alpha Wire M13197 / Belden 9508 has 8. Choose a ≥ 12-pair overall-shielded cable, after checking its stock and price | **OPEN — select** |
-| 53 | **Coupler box in the model.** The coupler is in its own diecast box (§10.3, Rev 3.7c), but `enclosure.py` and `harness.py` still end the RG-393 runs W13/W14 at the measurement board. Remaining work: place the box between the coax input (floor G) and K1, and route W13/W14 to it. Add the two equal-length RG-316 FWD/REF jumpers to the board's right-edge SMAs (J1, J2). Make W9 16 conductors (J-S 1–16 to J4). Resize the board envelope to 100 × 74 mm plus the SMAs. Then regenerate E-212 to E-215 | **OPEN** |
+| 50 | **Antenna-system common-mode impedance** — the choke is rated with the whole V_cm across it (Z_a → 0). The real 160 / 80 m balance against the §2.2 ≤ 5% spec depends on Z_a: model the doublet + 40 ft feeder + tuner common-mode path in NEC, and read the output imbalance CT in service. If 160 m falls short, the 7-core stack (0.80× the deck reactance) fits the 5.50″ standoffs (§6). *Modeled Rev 3.7c* (`nec/cm_balance.py`, `nec/out/cm_balance.txt`). The model is the inverted-V on 40 ft of real 600 Ω line dropping to the tuner 6 ft up. A differential source drives the two feeder ends, each with its own shunt to a chassis node bonded to ground. Results: **160 m meets ≤ 5 % with the adopted 5-core choke** (2.8 % at 1.800 MHz) with the vane at minimum, because leg 1's choke ∥ deck shunt is parallel-resonant near 1.8 MHz. **80 m is set by the vane:** leg 1 looks like ~18–19 pF there, and too much vane walks the tuner's shunt capacitance into a series resonance with the antenna system's inductive common mode. **One vane setting, ~11 pF, holds both bands at ≤ 4.3 % on real ground.** Perfect ground, the bound, gives 5.4 % at 3.5 MHz (7-core: 4.4 %). The 7-core stack is not needed on this model. Set the vane on 80 m by the output CT, then confirm 160 m | **OPEN — measure in service** (model done) |
+| 51 | ~~RF service-panel interlock switch~~ — *Closed Rev 3.7c:* a **Littelfuse 59140-1-S-02-A** reed sensor (SPST-NO) sits on the inner face of the front shelf-ring flange at y = −5.15″, between two of the panel's rivnuts. Its **Littelfuse 57140-000** magnet is bonded to the panel's inner face just above the flange. A reed needs no hole through the gasketed flange, where a plunger switch would. Closed means panel on; a missing panel, a broken lead or an open reed all trip. W12c runs PTFE 22 AWG from FT4 along the right wall at shelf level, more than 4.5″ from every RF conductor (§3.2 asks 1.5″); the switch's other side is the chassis. Prices and stock in §10.11. E-212, E-214, E-215 | **CLOSED** Rev 3.7c |
+| 52 | ~~Sampler cable pair count~~ — *Closed Rev 3.7c:* **Belden 8112**, 12.5 pairs of 24 AWG, overall foil + braid + drain, OD ≈ 0.44″ (fits the J-S plug's metal backshell). It carries the 11 pairs (5 detector lines, the cal-load detector, the SWR permissive and +5 V with grounds; K1, K2 and the thermostat as their own pairs), with one pair and the odd conductor spare. Cut to length at Nassau Electrical, $14.88/ft, in stock 2026-11-19; Digi-Key sells it only on 100 ft spools. About 2 ft for W8 | **CLOSED** Rev 3.7c |
+| 53 | **Coupler box in the model.** *Done Rev 3.7c:* the Hammond 1590A sits on the sampler baseplate between the coax input (floor G) and K1 (`enclosure.py`, E-212/E-213). W13 and W14 run to its SO-239s. W27/W28 are the FWD/REF RG-316 jumpers to the board's J1/J2, cut to one length. W9 is 16 conductors to J4. The board envelope is 100 × 74 mm plus its SMA plugs and the J4 socket. J3 moved to the top of the left edge, so its plug clears FT-P's solder-side envelope. No interference or harness clashes; E-212 to E-215 regenerated | **CLOSED** Rev 3.7c |
 
 **Closed in this revision:** static drain and lightning protection (existing entry-box bonded
 baseplate and arrestors); capacitor adequacy (C2 position 2.50×; C1 needs a 15 kV-class part,
@@ -3592,8 +3618,10 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
 | — | Secondary winding wire | **40 turns each**, #26 AWG enameled, ~6 ft total | Class | §6A.3 |
 | — | Primary conductor | The through-line itself — PTFE-insulated, rated 14 A RMS | Class | §6A.3 |
 | — | Termination resistor | **50 Ω, 2 W, non-inductive** — on the measurement board: 2 × 105 Ω 1 W 2512 per port (§10.4) | Class | §6A.3 |
-| 1 | Coupler enclosure | Small diecast box (1590A class) with the two cores on the through-line; SMA jacks for the FWD and REF ports, RG-393 in and out. Placement open (§9 item 53) | Class | §6A.3b |
-| 2 | Coax jumper, FWD / REF | RG-316, SMA plug both ends, **equal length** (the AD8302 reads their phase difference), coupler box → measurement board J1, J2 | Class | §6A.3b |
+| 1 | Coupler enclosure | **Hammond 1590A**, diecast, 3.64 × 1.52 × 1.22″ ($10.42, 388 in stock, Digi-Key 2026-11-19). The two cores sit on the through-line between the SO-239s. On the sampler baseplate between floor G and K1 (E-212, E-213) | Part | §6A.3b |
+| 2 | Coupler RF in / out | **Amphenol 83-798**, SO-239 PTFE, 4-hole, the same part as the coax input ($14.07, 1,580). W13 in, W14 out to K1 | Part | §6A.3b |
+| 2 | Coupler FWD / REF out | **Molex 73251-3890**, SMA jack, 4-hole flange, solder ($7.09, 596), on the box top | Part | §6A.3b |
+| 2 | Coax jumper, FWD / REF | RG-316, SMA plug both ends, **equal length** (the AD8302 reads their phase difference), coupler box → measurement board J1, J2: W27, W28 on E-215, cut to one length | Class | §6A.3b |
 | 2 | Coax relay, K1 / K2 | **Tohtsu CX600N-24** — SPDT, N, 24 V, no auxiliary contacts; published 1 kW CW at 50 MHz (**K1 rating open, §9 item 34**); ≈ $130, RF Parts. Upgrade path for K1: Dow-Key 402A-280132 / Ducommun 2NH6C31 (factory order) | Part | §6B |
 | — | Cal-load RF detector | 3.3 pF 1 kV NP0 + 100 pF NP0 divider, BAT54S, 100 kΩ / 2.2 nF, 1 MΩ bias, 33 V TVS — on the measurement board (§10.4); window comparator on the control board | Class | §6B.3a |
 | 1 | Calibration load | **TTM/Anaren G150N50W4E** — 150 W, AlN, flange 0.870 × 0.375″, Ø0.161″ holes 0.560″ apart (G100N50W4 is obsolete). Sits through the floor cutout directly on the sink. **Thin stock — buy early** | Part | §6B.3 |
@@ -3617,7 +3645,10 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
   0.4 mm. The cal-load tap has its own net class, with 2.5 mm clearance to everything (IPC-2221 B2,
   301–500 V); its trace runs on In2.
 - **Routing:** freerouting, then DRC shows 0 unconnected and no electrical errors; only silkscreen
-  warnings remain. 578 tracks, 108 vias.
+  warnings remain. 594 tracks, 94 vias.
+- **Mounting:** a folded 1/16″ aluminum L-plate is screwed to the sampler baseplate behind the board.
+  Its upright leg carries the four corner holes on 5/16″ (8 mm) M3 standoffs, which sets the 0.3″
+  gap to the partition. The plate also bonds the board's GND to the chassis.
 - **Assembly:** 68 SMD parts (1206 passives, 2512 terminations, SOIC, TSSOP-14, SOT-223, SOT-23,
   SOD-123) and 13 through-hole (the edge SMAs' legs, header, electrolytic, trimmer, 1 kV disc, wire
   and test pads).
@@ -3625,7 +3656,8 @@ Quantities are per tuner, excluding the bench panel of 10.9, which is one per op
   - **Right edge:** FWD (J1) and REF (J2) come in from the coupler box on two equal-length RG-316
     jumpers. Each port's termination, detector and AD8302 tap sit beside its SMA, with the AD8302
     between the two.
-  - **Left edge:** the ÷1024 out (J3) points toward the partition feedthrough FT-P (W10).
+  - **Left edge, top:** the ÷1024 out (J3). Its plug clears the solder-side envelope of the
+    partition feedthrough FT-P below it, and W10 drops ~1″ to FT-P.
   - **Bottom-left corner:** the cal-load tap pad (J5, 22 AWG from the load's tab), its ground pad
     (J6) and the 1 kV disc, ~70 mm from the REF tap.
   - **Top edge, center:** the J-S header (J4), under J-S on the partition.
@@ -3890,12 +3922,13 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
 | 60 | Captive panel screw | 8-32, RF service panel (38) and cassette face (22) | Class | §8E.6 |
 | 6 | Feedthrough capacitor | **Tusonix 2499-003-X5W0-103ZLF** — 0.01 µF, 500 V, 12-28 nut mount; shelf FT1–FT4 (all four used) + 2 spares | Part | §7.3a |
+| 1 | RF service-panel interlock | **Littelfuse 59140-1-S-02-A** reed sensor, SPST-NO, with leads ($3.76, 18,012 in stock, Digi-Key 2026-11-19), on the front shelf-ring flange; **Littelfuse 57140-000** magnet ($2.11, 5,208) bonded (VHB) to the panel's inner face above it | Part | §7.4, §9 item 51 |
 | 1 | Filtered DB-25 | **Amphenol FCE17-B25SM-250** — 1000 pF, J-A | Part | §7.3a |
 | 2 | Filtered DB-25 | **Amphenol FCE17-B25SM-290** — 5600 pF, J-B and J-S | Part | §7.3a |
 | 2 | Filtered DE-9 | **Amphenol FCE17-E09SM-290** — 5600 pF; J-E (tank thermal + CT, bulkhead) and J-F (blower, left lower panel) — verify stock | Part | §7.3a, §8 |
 | 5 | D-sub plug + metal backshell | Mating DB-25 (3) and DE-9 (2) | Class | §7.3a |
 | 2 | Power feedthrough | **Spectrum Control 9910-381-6002** — 0.30 µF, 15 A, 12-32 | Part | §7.3a |
-| — | Shielded cable | **Alpha Wire M13197** — 8 pr 24 AWG, overall foil + drain, cut to length (Digi-Key); Belden 9508 is equivalent but sold only on 100 ft reels | Part | §7.3a |
+| 2 ft | Shielded cable (W8) | **Belden 8112** — 12.5 pr 24 AWG, overall foil + braid + drain, OD ≈ 0.44″; cut to length, Nassau Electrical $14.88/ft, in stock 2026-11-19 (Digi-Key: 100 ft spools only). Rev 3.7c, §9 item 52; was the 8-pair M13197 | Part | §7.3a |
 | — | Coax | **RG-316** — prescaler, partition → bulkhead | Class | §7.3a |
 | 3 | Feedthrough capacitor | **Tusonix 2499-003-X5U0-102PLF** — 1000 pF, 500 V, 12-28; prescaler at partition and bulkhead + spare | Part | §8B.0.1 |
 | — | Series resistor | *Rev 3.7c:* the 1 kΩ ADC/sensor-input resistors are on the control board as 1206 anti-surge parts (§10.5, Panasonic ERJ-P08J102V); no discrete carbon comp | — | §7.3 |
@@ -5057,7 +5090,7 @@ DRC are described in §10.5 (control) and §10.4 (measurement).
 
 <div class="drawing-sheet"><img src="sheets/pcb-control-F.svg" alt="F.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-In1.svg" alt="In1.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-In2.svg" alt="In2.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><img src="sheets/pcb-control-B.svg" alt="B.Cu" style="width:49%;max-height:84mm;object-fit:contain;margin:0 0.5%"/><p>Control board — copper: F.Cu (top left), In1.Cu GND plane (top right), In2.Cu (bottom left), B.Cu (bottom right), each viewed from the top</p></div>
 
-<div class="drawing-sheet"><img src="sheets/pcb-measurement-top.png" alt="Measurement board — top, 3D render (100 × 74 mm, 4 layers; FWD/REF in on the right edge, ÷1024 out on the left, cal-load tap bottom left)"/><p>Measurement board — top, 3D render (100 × 74 mm, 4 layers; FWD/REF in on the right edge, ÷1024 out on the left, cal-load tap bottom left)</p></div>
+<div class="drawing-sheet"><img src="sheets/pcb-measurement-top.png" alt="Measurement board — top, 3D render (100 × 74 mm, 4 layers; FWD/REF in on the right edge, ÷1024 out top left, cal-load tap bottom left)"/><p>Measurement board — top, 3D render (100 × 74 mm, 4 layers; FWD/REF in on the right edge, ÷1024 out top left, cal-load tap bottom left)</p></div>
 
 <div class="drawing-sheet"><img src="sheets/pcb-measurement-silk.svg" alt="Measurement board — top silkscreen and pad openings, as the fab prints them (values are in the §10.4 BOM by reference)"/><p>Measurement board — top silkscreen and pad openings, as the fab prints them (values are in the §10.4 BOM by reference)</p></div>
 

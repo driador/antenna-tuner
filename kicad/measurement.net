@@ -2,7 +2,7 @@
 	(version "E")
 	(design
 		(source "measurement.kicad_sch")
-		(date "2026-11-19T13:04:53")
+		(date "2026-11-19T13:45:31")
 		(tool "Eeschema 10.0.7")
 		(sheet
 			(number "1")

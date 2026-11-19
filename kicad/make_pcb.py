@@ -47,13 +47,14 @@ NETCLASS_CONTROL = {
 
 # Measurement board floor plan (100 x 74 mm, inside the sampler's 4.0 x 3.0 in
 # envelope). Seen from the component side the left edge faces cabinet -Y: the
-# /1024 SMA points at the partition feedthrough FT-P and the cal-load detector
-# sits in the corner nearest the load (floor J). The FWD/REF inputs take the
+# /1024 SMA is at its top, so its plug clears the solder-side envelope of the
+# partition feedthrough FT-P below it, and the cal-load detector sits in the
+# corner nearest the load (floor J). The FWD/REF inputs take the
 # right edge, so the load node (up to ~390 V peak) is ~70 mm from the REF tap.
 # The J-S ribbon header is top centre, under J-S on the partition.
 COLUMNS_MEAS = [
-    ((8.5, 3, 30, 28), ['power']),
-    ((8, 30, 30, 44),  ['freqout']),
+    ((8.5, 3, 30, 22), ['freqout']),
+    ((3, 22, 30, 44),  ['power']),
     ((3, 44, 30, 55),  ['cal']),
     ((3, 55, 30, 66),  ['hv']),         # the tap pad, its ground pad and the 1 kV disc
     ((30, 3, 64, 19),  ['conn']),
@@ -71,7 +72,7 @@ KEEPOUT_MEAS = []
 # seated 0.35 mm in from the edge so their pads keep the 0.3 mm copper-edge
 # clearance (the Molex 73251-1153's pads end 4.26 mm from its origin), and the
 # four M3 holes in the corners.
-EDGE_MEAS = {'J1': (95.39, 14.6, 180), 'J2': (95.39, 59.4, 180), 'J3': (4.61, 37.0, 0),
+EDGE_MEAS = {'J1': (95.39, 14.6, 180), 'J2': (95.39, 59.4, 180), 'J3': (4.61, 14.6, 0),
              'H1': (4.0, 4.0, 0), 'H2': (96.0, 4.0, 0), 'H3': (4.0, 70.0, 0), 'H4': (96.0, 70.0, 0)}
 NETCLASS_MEAS = {
     'RF':     (0.50, ['FWD_RF', 'REF_RF']),

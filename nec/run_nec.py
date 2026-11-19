@@ -1,5 +1,5 @@
 import subprocess, re, os, sys
-NEC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'necpp/build/src/nec2++')
+NEC = os.path.expanduser('~/src/necpp/build/src/nec2++')   # static build (README)
 FT = 0.3048
 HALF = 170*FT/2.0          # 25.908 m half-length
 HEIGHT = 55*FT             # 16.764 m AGL

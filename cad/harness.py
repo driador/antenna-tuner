@@ -24,6 +24,7 @@ GROUPS = {
     "analog": ("SAMPLER / ANALOG (J-S, J-B)", "#2ca02c", 0.70),
     "rftank": ("RF-TANK SENSORS (J-E, SHELF FT1-4)", "#9467bd", 0.70),
     "prescaler": ("PRESCALER RG-316 (FT-P)", "#17becf", 0.70),
+    "sample": ("COUPLER SAMPLES RG-316 (FWD / REF)", "#e377c2", 0.70),
     "coax": ("RF COAX RG-393", "#111111", 1.10),
     "network": ("ETHERNET / POF", "#7f7f7f", 0.70),
     "fan": ("BLOWER LEAD (DE-9)", "#8c564b", 0.70),
@@ -39,6 +40,7 @@ CH_Z0 = E.Z_SH1 + E.CHOKE_SO + E.CHOKE_BASE + E.CHOKE_PAD          # winding bot
 CH_Z1 = CH_Z0 + E.CHOKE_H                                           # winding top
 CH_XE = E.CHOKE_X - E.CHOKE_OD / 2 + 0.05                           # lead entry / exit at the winding gap
 WOUND = {"W18": E.CHOKE_TURNS * E.CHOKE_TURN_LEN}
+EQUAL = (("W27", "W28"),)                       # runs cut to one length (the longer)
 
 # (id, group, from, to, cable, conductors, cassette?, [waypoints], bundle dia, endpoint parts to ignore)
 RUNS = [
@@ -68,18 +70,20 @@ RUNS = [
      [(-3.75, 5.5, 4.4), (-3.75, 5.5, 1.4), (-3.0, 5.5, 1.4)], 0.25, ("driver board envelope",)),
     ("W7", "analog", "J-B (control side)", "Control board", "26-way ribbon / IDC to DB-25 plug", 25, True,
      [(-6.2, 4.0, 3.15), (-6.45, 2.8, 3.4)], 0.30, ("bulkhead B plug envelope", "control board envelope")),
-    ("W8", "analog", "J-B (motor side)", "J-S (partition, motor side)", "Alpha Wire M13197, DB-25 plugs both ends", 16,
+    ("W8", "analog", "J-B (motor side)", "J-S (partition, motor side)", "Belden 8112 12.5 pr: cups J-B, plug J-S", 25,
      False, [(-4.7, 4.0, 3.15), (-3.6, 6.4, 3.15), (-3.6, 6.4, 1.6), (1.5, 6.4, 1.6), (1.5, 6.4, 4.3),
              (1.65, 3.2, 4.3)], 0.33, ("bulkhead B harness envelope", "partition A plug envelope")),
-    ("W9", "analog", "J-S (sampler side)", "Measurement board", "22 AWG, solder cups", 8, False,
-     [(3.95, 3.2, 4.3), (3.8, 3.2, 3.75)], 0.25, ("partition A harness envelope", "measurement board envelope")),
+    ("W9", "analog", "J-S (sampler side)", "Measurement board J4", "16-way ribbon: J-S cups 1-16 to IDC J4", 16,
+     False, [(3.95, 3.2, 4.3), (4.4, 3.15, 3.9), (4.4, 3.1, 3.5), (4.15, 3.1, 3.22)], 0.25,
+     ("partition A harness envelope", "measurement board J4 plug envelope")),
     ("W9b", "analog", "J-S (sampler side)", "K1 / K2 coils (diodes at relay)", "22 AWG twisted pairs", 4, False,
      [(3.95, 3.2, 4.3), (6.2, 3.2, 3.2), (6.2, 2.0, 2.85)], 0.25, ("partition A harness envelope", "K1 envelope")),
-    ("W9c", "analog", "J-S (sampler side)", "Cal-load thermostat (inside, on the floor at J)", "22 AWG pair", 2,
+    ("W9c", "analog", "J-S (sampler side)", "Cal-load thermostat (floor J)", "22 AWG pair", 2,
      False, [(3.95, 3.2, 4.3), (4.45, 3.2, 4.0), (4.45, 1.45, 1.4), (4.45, 1.45, 0.45)], 0.20,
      ("partition A harness envelope",)),
-    ("W10", "prescaler", "Measurement board", "FT-P (partition)", "RG-316", 1, False,
-     [(3.6, 1.15, 1.9), (3.2, 0.8, 1.9)], 0.20, ("measurement board envelope", "partition P harness envelope")),
+    ("W10", "prescaler", "Measurement board J3", "FT-P (partition)", "RG-316, SMA plug at the board", 1, False,
+     [(E.MEAS_SMA_X, E.MEAS_Y0 - 0.85, E.MEAS_SMA_Z["J3"]), (3.55, 0.15, 2.6), (3.5, 0.5, 2.05), (3.3, 0.8, 1.9)],
+     0.20, ("measurement board J3 plug envelope", "partition P harness envelope")),
     ("W10b", "prescaler", "FT-P (partition, motor side)", "FT-P (bulkhead, motor side)", "RG-316", 1, False,
      [(2.85, 0.8, 1.9), (2.6, 1.0, 2.5), (-4.4, 1.0, 2.5), (-4.6, 1.9, 2.5)], 0.20,
      ("partition P plug envelope", "bulkhead P harness envelope")),
@@ -91,13 +95,32 @@ RUNS = [
     ("W12", "rftank", "J-E (motor side)", "Shelf FT1-FT4 (underside)", "22 AWG, 4 cond, shielded", 4, False,
      [(-4.7, 4.0, 2.1), (-3.8, 4.0, 2.1), (-3.8, 1.6, 2.1), (-3.8, 1.6, 0.8), (-3.8, -6.45, 0.8),
       (1.125, -6.45, 0.8), (1.125, -6.45, 4.95)], 0.25, ("bulkhead E harness envelope",)),
-    ("W12b", "rftank", "Shelf FT1-FT4 (top)", "Tank thermal probe + imbalance CT; FT4 to the RF panel switch (run TBD)", "PTFE 22 AWG", 4,
+    ("W12b", "rftank", "Shelf FT1-FT3 (top)", "Tank thermal probe + imbalance CT", "PTFE 22 AWG", 3,
      False, [(1.125, -6.45, 5.25), (1.125, -6.45, 6.2)], 0.25, ()),
-    ("W13", "coax", "Coax input, SO-239 (floor G)", "Sampler / coupler (measurement board)", "RG-393", 1, False,
-     [(3.55, -5.2, 1.05), (3.33, -5.2, 1.35), (3.33, 1.0, 1.35), (3.6, 1.15, 1.35)], 0.40,
-     ("floor G body", "measurement board envelope")),
-    ("W14", "coax", "Sampler / coupler", "K1 COM", "RG-393", 1, False,
-     [(4.1, 1.6, 2.0), (5.15, 1.6, 1.6)], 0.40, ("measurement board envelope", "K1 envelope")),
+    # RF service-panel interlock (7.4): FT4 along the right wall at shelf level, in before the corner clip,
+    # to the reed sensor between two of the panel's rivnuts; the switch's other side is the chassis
+    ("W12c", "rftank", "Shelf FT4 (top)", "RF panel reed switch", "PTFE 22 AWG; switch returns to chassis", 1,
+     False, [(1.95, -6.5, 5.45), (1.95, -7.0, 5.5), (-6.0, -7.0, 5.5), (-6.0, E.PANEL_SW_Y, 5.5),
+             (-7.6, E.PANEL_SW_Y, E.Z_SH1 + 0.86)], 0.15, ("RF panel switch",)),
+    # Rev 3.7c: the coupler is its own box (6A.3b); its SO-239s take the input and feed K1
+    ("W13", "coax", "Coax input, SO-239 (floor G)", "Coupler box in (SO-239)", "RG-393, PL-259 both ends", 1, False,
+     [(3.55, -5.2, 1.05), (3.55, -5.2, 1.7), (4.6, -6.3, 1.7), (E.CPL_IN[0], -6.3, 1.2),
+      (E.CPL_IN[0], E.CPL_IN[1] - 1.0, E.CPL_IN[2])], 0.40, ("floor G body", "coupler box envelope")),
+    ("W14", "coax", "Coupler box out (SO-239)", "K1 COM", "RG-393, PL-259 / N", 1, False,
+     [(E.CPL_OUT[0], E.CPL_OUT[1] + 0.7, E.CPL_OUT[2]), (E.CPL_OUT[0], 0.6, 1.3), (5.15, 1.6, 1.6)], 0.40,
+     ("coupler box envelope", "K1 envelope")),
+    # the FWD / REF samples to the measurement board; the AD8302 reads their phase difference, so
+    # both are cut to one length (EQUAL below)
+    ("W27", "sample", "Coupler box FWD (SMA)", "Measurement board J1", "RG-316, SMA plugs, cut equal to W28", 1,
+     False, [(E.CPL_SMA["FWD"][0], E.CPL_SMA["FWD"][1], E.CPL_SMA["FWD"][2] + 0.05),
+             (E.CPL_SMA["FWD"][0], E.CPL_SMA["FWD"][1], 2.35), (4.85, -0.9, 2.35), (4.85, 6.45, 2.35),
+             (E.MEAS_SMA_X, 6.45, E.MEAS_SMA_Z["J1"]), (E.MEAS_SMA_X, 6.1, E.MEAS_SMA_Z["J1"])], 0.20,
+     ("coupler box envelope", "measurement board J1 plug envelope")),
+    ("W28", "sample", "Coupler box REF (SMA)", "Measurement board J2", "RG-316, SMA plugs, cut equal to W27", 1,
+     False, [(E.CPL_SMA["REF"][0], E.CPL_SMA["REF"][1], E.CPL_SMA["REF"][2] + 0.05),
+             (E.CPL_SMA["REF"][0], E.CPL_SMA["REF"][1], 2.25), (4.98, -0.8, 2.25), (4.98, 6.6, 2.25),
+             (E.MEAS_SMA_X, 6.6, E.MEAS_SMA_Z["J2"]), (E.MEAS_SMA_X, 6.1, E.MEAS_SMA_Z["J2"])], 0.20,
+     ("coupler box envelope", "measurement board J2 plug envelope")),
     # W16 deleted Rev 3.7c: the choke left the sampler chamber, so K1 NC runs straight to adapter X (all chassis side)
     ("W15", "coax", "K1 NC", "Partition adapter X (sampler side)", "RG-393", 1, False,
      [(6.2, 0.95, 1.6), (5.48, 0.95, 2.75), (5.48, -7.3, 2.75), (3.75, -7.3, 2.75), (3.75, -6.3, 4.4)], 0.40,
@@ -106,7 +129,7 @@ RUNS = [
      [(2.85, -6.3, 4.4), (2.55, -6.3, 4.4), (2.55, -5.9, 0.75), (-4.0, -5.9, 0.75), (-4.0, -0.85, 0.75),
       (-4.0, -0.85, 4.95)], 0.40, ("partition X plug envelope",)),
     ("W18", "coax", "Shelf COAX (top)", "C1 lower terminal",
-     "RG-400, 15 t on the input choke (6); shield floats at the deck after the choke", 1, False,
+     "RG-400, 15 t on choke; shield floats", 1, False,
      [(-4.0, -0.85, 5.3), (-4.0, -0.85, 5.85), (CH_XE, -1.0, CH_Z0 + 0.1), (CH_XE, -1.0, CH_Z1 - 0.1),
       (-3.45, -1.35, R.Z_DECK - 0.55), (-3.6, -1.5, R.Z_DECK - 0.26)], 0.20, ("cap envelope", "choke")),
     ("W19", "coax", "K1 NO", "K2 COM", "RG-393 jumper", 1, False,
@@ -167,6 +190,11 @@ def cut_list():
         L = length(pts) * 1.15 + (SERVICE if cas else 0) + WOUND.get(rid, 0)
         rows.append(dict(id=rid, group=grp, frm=frm, to=to, cable=cable, n=n, cassette=cas,
                          length_in=round(L, 1)))
+    by = {r["id"]: r for r in rows}
+    for ids in EQUAL:
+        L = max(by[i]["length_in"] for i in ids)
+        for i in ids:
+            by[i]["length_in"] = L
     return rows
 
 

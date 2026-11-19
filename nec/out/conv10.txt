@@ -1,0 +1,41 @@
+10 m feedpoint Z vs segments per leg: leg-segment feed (as run) vs fixed 5 cm feed wire
+   MHz seg/leg  leg feed R         X  fixed feed R         X
+ 28.00     300      1869.6   +1062.1       1891.8    +953.4
+ 28.00     600      1932.2   +1026.3       2012.4   +1009.4
+ 28.00     900      1958.9   +1009.9       2067.9   +1035.0
+ 28.00    1200      1974.8   +1000.0       2101.5   +1050.3
+ 28.50     300      2632.2    -442.8       2453.9    -585.7
+ 28.50     600      2604.3    -546.3       2601.9    -627.9
+ 28.50     900      2588.8    -588.5       2669.8    -647.5
+ 28.50    1200      2579.2    -612.7       2710.5    -659.5
+ 29.00     300      1521.1   -1360.3       1336.9   -1309.9
+ 29.00     600      1450.8   -1376.1       1415.4   -1390.5
+ 29.00     900      1424.2   -1379.7       1451.3   -1427.6
+ 29.00    1200      1409.5   -1381.4       1472.8   -1449.8
+ 29.70     300       579.1   -1042.6        516.4    -964.4
+ 29.70     600       557.8   -1030.0        547.1   -1022.8
+ 29.70     900       550.0   -1025.4        561.1   -1049.6
+ 29.70    1200       545.7   -1022.9        569.5   -1065.8
+
+Reachability, 10 m: R x0.8-1.2, X +/-250 ohm, 39-42 ft, VF 0.93-0.97, both C1 parts: 611/648 matched within the part ranges and voltage ratings
+  worst VC1 2.19 kV pk (rating 9), VC2 1.00 kV pk (rating 6), roller 8.3 A, loss 81 W at Q 150
+  MISS 28.000 MHz R x0.8 X -250 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x0.8 X +0 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x0.8 X +250 39 ft VF 0.95 UCSX-700-15S
+  MISS 28.000 MHz R x0.8 X +250 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x0.8 X +250 40 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.0 X -250 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.0 X +0 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.0 X +250 39 ft VF 0.95 UCSX-700-15S
+  MISS 28.000 MHz R x1.0 X +250 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.0 X +250 40 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.2 X -250 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.2 X +0 39 ft VF 0.97 UCSX-700-15S
+  MISS 28.000 MHz R x1.2 X +250 39 ft VF 0.95 UCSX-700-15S
+  MISS 28.000 MHz R x1.2 X +250 39 ft VF 0.97 UCSX-700-15S
+  MISS 29.700 MHz R x0.8 X -250 42 ft VF 0.93 UCSX-700-15S
+  MISS 29.700 MHz R x0.8 X -250 42 ft VF 0.93 CVDD-500-15S
+  MISS 29.700 MHz R x0.8 X -250 42 ft VF 0.95 UCSX-700-15S
+  MISS 29.700 MHz R x0.8 X -250 42 ft VF 0.95 CVDD-500-15S
+  MISS 29.700 MHz R x0.8 X +0 42 ft VF 0.93 UCSX-700-15S
+  MISS 29.700 MHz R x0.8 X +0 42 ft VF 0.93 CVDD-500-15S

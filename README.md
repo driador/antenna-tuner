@@ -16,7 +16,7 @@ repo paths.
 | `doc/diagrams/` | Graphviz sources (`*.dot`) and the rendered SVGs the log embeds |
 | `doc/*.pdf` | Built log and review PDFs, plus a reference worksheet |
 | `cad/` | build123d models (roller, enclosure, harness) and FreeCAD TechDraw sheet generators |
-| `cad/out/*.pdf` | Drawing sheets: `L-100…109` roller, `E-200…215` enclosure, populated cabinet and harness |
+| `cad/out/*.pdf` | Drawing sheets: `L-100…109` roller, `E-200…216` enclosure, populated cabinet and harness |
 | `nec/` | nec2++ and Python analyses: capacitor and inductor demand, roller and choke sweeps, tuning time |
 | `nec/out/*.csv`, `*.txt` | Analysis summaries the log quotes |
 | `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B) |
@@ -59,7 +59,7 @@ cd cad
 .venv/bin/python harness.py         # color-coded wire runs + clearance check
 .venv/bin/python svgviews.py        # hidden-line SVG views used by the sheets
 timeout 900 xvfb-run -a freecad drawings.py             # L-100…109
-timeout 900 xvfb-run -a freecad drawings_enclosure.py   # E-200…215
+timeout 900 xvfb-run -a freecad drawings_enclosure.py   # E-200…216
 cd ../doc && ./build.sh             # → doc/tuner-design-log.pdf
 ```
 

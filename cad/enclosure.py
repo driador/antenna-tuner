@@ -558,7 +558,7 @@ BULKHEAD_IO = [  # (tag, kind, y, z, size, note) on the control/motor bulkhead, 
     ("P", "hole", 1.9, 2.5, 0.221, "PRESCALER FEEDTHROUGH 1000 pF, 12-28 - TUSONIX 2499-003-X5U0-102PLF"),
 ]
 PARTITION_IO = [  # same convention, on the motor / sampler partition; the sampler-cable plug mates from the motor side
-    ("A", "dsub", 3.2, 4.3, DB25, "FILTERED DB-25, 5600 pF: SAMPLER GROUP, ALPHA M13197 TO BULKHEAD B - FCE17-B25SM-290"),
+    ("A", "dsub", 3.2, 4.3, DB25, "FILTERED DB-25, 5600 pF: SAMPLER GROUP, BELDEN 8112 TO BULKHEAD B - FCE17-B25SM-290"),
     ("X", "ddflat", -6.3, 4.4, (0.634, 0.540), "COAX N-N BULKHEAD, AMPHENOL RF 172124, PTFE, 5/8-24 JAM NUT: CHOKE -> SHELF COAX"),
     ("P", "hole", 0.8, 1.9, 0.221, "PRESCALER FEEDTHROUGH 1000 pF, RG-316 TO BULKHEAD P - TUSONIX 2499-003-X5U0-102PLF"),
 ]
@@ -580,6 +580,7 @@ SHELF_EXTRA = [  # (tag, x, y, dia, note) beyond the drive-axis bushings
     ("COAX", -4.0, R.CAP_Y + 2.4, 0.625, "COAX BULKHEAD, SAMPLER -> C1 (3.0); OVER THE MOTOR CHAMBER, NOT CONTROL"),
 ]
 SHELF_FT = [(0.3 + 0.55 * i, -6.5, 0.221) for i in range(4)]   # 12-28 nut + lockwasher needs 0.55
+PANEL_SW_Y = -5.15     # RF service-panel reed sensor (FT4): centered between the panel's rivnuts at y -5.78 / -4.51
 
 
 def shelf_holes():
@@ -645,6 +646,38 @@ def axis_module(name, x, y):
     return out
 
 
+# Measurement board (Rev 3.7c, kicad/measurement.kicad_pcb, log 10.4): 100 x 74 mm on edge, its back
+# 0.3 in off the partition, centered under J-S. Component side toward +X; seen from it the board's
+# left edge is at -Y and its top is up, so KiCad x runs along +Y and KiCad y down -Z.
+Z_SAMP_BASE = Z_FLOOR + 0.25 + T12               # top of the sampler baseplate
+MEAS_W, MEAS_H = 100 / 25.4, 74 / 25.4
+MEAS_X = X_PART + T12 + 0.4                      # board back face
+MEAS_Y0 = 3.2 - MEAS_W / 2                       # left (-Y) edge, centered on J-S
+MEAS_Z0 = Z_SAMP_BASE + 0.2                      # bottom edge
+
+
+def meas_pt(xk, yk):
+    """KiCad board mm (from the top-left corner, y down) -> enclosure (y, z), inches."""
+    return MEAS_Y0 + xk / 25.4, MEAS_Z0 + MEAS_H - yk / 25.4
+
+
+MEAS_SMA_X = MEAS_X + 0.062 + 0.06               # edge-SMA centerline, just above the component face
+MEAS_SMA_Z = {"J1": meas_pt(95.39, 14.6)[1], "J2": meas_pt(95.39, 59.4)[1], "J3": meas_pt(4.61, 14.6)[1]}
+MEAS_PLUG = 0.95                                 # SMA body past the edge + mated plug and cable exit
+MEAS_J4 = (meas_pt(31.0, 0)[0], meas_pt(64.0, 0)[0], meas_pt(0, 12.4)[1], meas_pt(0, 3.0)[1])   # y0, y1, z0, z1
+MEAS_CAL_TAP = meas_pt(11.79, 64.2)              # wire pad for the cal-load tap (6B.3a)
+
+# Coupler box (Rev 3.7c, log 6A.3b / 10.3): Hammond 1590A on the baseplate between the coax input
+# (floor G) and K1. SO-239 in on its -Y end and out on its +Y end; the FWD / REF SMA jacks on its
+# top near the +Y end, for the two equal-length RG-316 jumpers to the board's J1 / J2.
+CPL_L, CPL_W, CPL_H = 3.646, 1.516, 1.22
+CPL_X0, CPL_Y0 = 5.0, -4.6
+CPL_IN = (CPL_X0 + CPL_W / 2, CPL_Y0, Z_SAMP_BASE + CPL_H / 2)            # SO-239 faces, centers
+CPL_OUT = (CPL_X0 + CPL_W / 2, CPL_Y0 + CPL_L, Z_SAMP_BASE + CPL_H / 2)
+CPL_SMA = {"FWD": (CPL_X0 + 0.45, CPL_Y0 + CPL_L - 0.45, Z_SAMP_BASE + CPL_H),
+           "REF": (CPL_X0 + CPL_W - 0.45, CPL_Y0 + CPL_L - 0.45, Z_SAMP_BASE + CPL_H)}
+
+
 def sampler():
     """Fixed sampler baseplate with reference envelopes; serviced in place via the left lower panel."""
     x0, x1 = X_PART + T12 + 0.1, X_IN - 0.15
@@ -654,12 +687,21 @@ def sampler():
         if x > X_PART and t in FLOOR_BODY:
             _kind, wy, dx, _h = FLOOR_BODY[t]
             base -= plate(x - dx / 2 - 0.15, x + dx / 2 + 0.15, y - wy / 2 - 0.15, y + wy / 2 + 0.15, 0, 1)
-    zb = Z_FLOOR + 0.25 + T12
+    zb = Z_SAMP_BASE
     # (the input choke left this chamber in Rev 3.7c: its deck side must not cross grounded bulkheads, see choke())
-    meas = plate(x0 + 0.3, x0 + 0.9, 1.2, 5.2, zb + 0.2, zb + 3.2)
+    # board, tallest part 0.45 in (the 100 uF); the J-S ribbon's IDC socket on J4; each edge SMA's plug
+    out = [("sampler baseplate", base),
+           ("measurement board envelope", plate(MEAS_X, MEAS_X + 0.55, MEAS_Y0, MEAS_Y0 + MEAS_W,
+                                                MEAS_Z0, MEAS_Z0 + MEAS_H)),
+           ("measurement board J4 plug envelope", plate(MEAS_X + 0.55, MEAS_X + 0.8, MEAS_J4[0], MEAS_J4[1],
+                                                        MEAS_J4[2], MEAS_J4[3]))]
+    for ref, z in MEAS_SMA_Z.items():
+        y0 = MEAS_Y0 + MEAS_W if ref != "J3" else MEAS_Y0 - MEAS_PLUG
+        out.append((f"measurement board {ref} plug envelope",
+                    plate(MEAS_SMA_X - 0.25, MEAS_SMA_X + 0.25, y0, y0 + MEAS_PLUG, z - 0.25, z + 0.25)))
+    out.append(("coupler box envelope", plate(CPL_X0, CPL_X0 + CPL_W, CPL_Y0, CPL_Y0 + CPL_L, zb, zb + CPL_H)))
     relays = [plate(x1 - 2.6, x1 - 0.6, y0, y0 + 2.0, zb, zb + 2.3) for y0 in (1.0, 3.4)]
-    return [("sampler baseplate", base), ("measurement board envelope", meas),
-            ("K1 envelope", relays[0]), ("K2 envelope", relays[1])]
+    return out + [("K1 envelope", relays[0]), ("K2 envelope", relays[1])]
 
 
 def choke():
@@ -937,6 +979,11 @@ def fixtures():
     out.append(("fan entry harness envelope", plate(fx - 0.7, fx + 0.7, F - 0.65, F - 0.01, fz - 0.35, fz + 0.35)))
     out.append(("fan entry plug envelope", plate(fx - 0.7, fx + 0.7, yb + 0.01, yb + 1.3, fz - 0.4, fz + 0.4)))
     out.append(("driver board envelope", plate(-3.2, 2.8, 2.0, 6.0, zf + 0.12, zf + 0.92)))   # ASSUMED, 3 axes, under the motors
+    # RF service-panel interlock (7.4, Rev 3.7c): reed sensor on the inner face of the front shelf-ring flange,
+    # between two of the panel's rivnuts; its magnet on the panel's inner face just above the flange
+    sy = PANEL_SW_Y
+    out.append(("RF panel switch", plate(-F + ANG_T, -F + ANG_T + 0.25, sy - 0.475, sy + 0.475, Z_SH1 + 0.74, Z_SH1 + 0.99)))
+    out.append(("RF panel switch magnet", plate(-F, -F + 0.236, sy - 0.453, sy + 0.453, Z_SH1 + 1.06, Z_SH1 + 1.296)))
     # pad doorknob, link coil and their two vacuum relays have no RF-bay position yet (9 item 42): not modeled
     return out
 

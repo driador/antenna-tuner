@@ -1,5 +1,5 @@
 import subprocess, re, os, math
-NEC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'necpp/build/src/nec2++')
+NEC = os.path.expanduser('~/src/necpp/build/src/nec2++')   # static build (README)
 FT=0.3048; RAD=0.0808*0.0254/2.0; EPSR,SIGMA=13.0,0.005; CU=5.8001e7
 LEG=85*FT   # 85 ft of wire per leg (170 ft total)
 
