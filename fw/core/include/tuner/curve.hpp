@@ -11,6 +11,9 @@ struct Curve {
 
     static Curve line(double x0, double y0, double x1, double y1);
     bool add(double px, double py);    // appends a point; false when full
+    // Puts a point in x order. One within 2 % of an existing x replaces it, so a calibration step can
+    // be repeated; false when full.
+    bool insert(double px, double py);
     bool valid() const;                // two or more points, x rising, y strictly monotonic
     double at(double px) const;
     double inverse(double py) const;

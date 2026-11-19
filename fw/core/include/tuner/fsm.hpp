@@ -9,7 +9,8 @@
 //   VERIFY: converged --> MATCHED; attempts left --> SOLVE (or PROBE when the sign is in doubt);
 //           exhausted --> MATCHED if under the retune threshold, else FAULT.
 //   MATCHED: retune (§8B.2) --> MEASURE's decision. Carrier gone --> IDLE from MEASURE, PROBE, VERIFY
-//   or MATCHED, holding position; a move in progress finishes first. The bypass key --> IDLE at once.
+//   or MATCHED, holding position; a move in progress finishes first. The bypass key, or the RF path
+//   leaving TUNE, --> IDLE at once. IDLE --(jog)--> MOVE --> IDLE is the manual override.
 //
 // The bridge cannot tell +theta from -theta (§6A.7). A stored prior for the frequency decides when it
 // clearly favors one hypothesis (option 2), once per tune; otherwise PROBE steps C2 a little and keeps
@@ -71,6 +72,14 @@ struct Inputs {
     bool tune_request = false;     // manual, from either end
     bool ack = false;              // either end
     bool local_clear = false;      // at the box (§8B.4f)
+    // The RF path (§6B.2). Only TUNE, confirmed and not changing, puts the network in circuit; in AUX
+    // and CAL nothing tunes, and an over-SWR trip is a fault as it is once MATCHED.
+    bool tune_path = true;
+    bool relay_mismatch = false;   // K1/K2 failed their coil-current or RF check
+    // Manual override (§7.5): one move to jog_target, taken only in IDLE, under the same PTT rules as a
+    // tune's moves.
+    bool jog = false;
+    Setting jog_target;
 };
 
 // What the Teensy layer carries out. A new move_id starts one coordinated move to target (§8B.3);
@@ -135,6 +144,7 @@ private:
     bool pending_request_ = false;
     bool prior_used_ = false;      // the prior has chosen a sign once this tune; measurements decide after
     bool armed_ = false;           // IDLE has seen the carrier absent since it was entered
+    bool jogging_ = false;         // the move in progress is a manual one
     bool probed_ = false;          // PROBE: the C2 step is done, waiting for its reading
     bool move_pending_ = false;    // a move has been asked for and has not finished
     bool move_issued_ = false;     // ...and has gone out to the motion layer

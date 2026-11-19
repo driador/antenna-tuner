@@ -55,8 +55,21 @@ inline tuner::Curve axis_curve(int axis) {
 // LIM1-LIM6 (§8B.0.4) as low and high end of C1, C2, roller. ASSUMED: the driver board is not drawn.
 inline constexpr uint8_t kLimitAxis[6] = {0, 0, 1, 1, 2, 2};
 
-// ---- measurement (§6A.5, §6A.6) ----
+// ---- measurement (§6A.5, §6A.6, §6A.8) ----
 constexpr double kAdVref = 1.80;            // AD8302 VREF; V_MAG and V_PHS are read against it
+constexpr int kCalGates = 5;                // gates averaged for each calibration standard or power point
+constexpr int kPowerPoints = 8;             // wattmeter points kept per band
+
+// ---- RF path (§5.5, §6B) ----
+constexpr double kCoilOnVolts = 0.03;       // ASSUMED: across the 1 ohm sense, a CX600N-24 coil draws more
+constexpr double kLoadRfVolts = 0.70;       // ASSUMED: CAL_ADC (the detector halved) with ~5 W in the load;
+                                            // it idles near 0.5 V (§6B.3a: 1.03 V bias)
+
+// ---- local panel (§7.5) ----
+constexpr uint32_t kNextionBaud = 115200;   // set the same in the HMI's program.s (fw/README.md)
+constexpr uint32_t kPanelMs = 100;          // screen refresh
+constexpr int kEdgesPerDetent = 4;          // ASSUMED: the 62V15 gives one quadrature cycle per detent
+constexpr double kJogTurns = 0.05;          // element turns per detent on the jog screen
 
 // ---- thermal (§8, §8B.4a) ----
 constexpr double kNtcBeta = 3950;           // ASSUMED: any 10 k NTC; the part is not chosen

@@ -27,15 +27,4 @@ void ad8302_from_gamma(cplx gamma, double& v_mag, double& v_phs, const Ad8302Sca
     v_phs = k.v_phs_zero - deg * k.v_per_deg;
 }
 
-OnePortCal OnePortCal::from_standards(cplx m_open, cplx m_short, cplx m_load) {
-    // Ideal standards: open +1, short -1, load 0.
-    OnePortCal c;
-    c.e00 = m_load;
-    const cplx a = m_open - c.e00;       // = t / (1 - e11)
-    const cplx b = m_short - c.e00;      // = -t / (1 + e11)
-    c.e11 = (a + b) / (a - b);
-    c.t = a * (1.0 - c.e11);
-    return c;
-}
-
 }  // namespace tuner

@@ -84,6 +84,7 @@ void Tuner::start_probe() {
 }
 
 void Tuner::enter(State s) {
+    if (s != State::Move) jogging_ = false;
     state_ = s;
     probed_ = false;
     move_pending_ = false;
@@ -198,14 +199,18 @@ Outputs Tuner::step(const Inputs& in) {
     if (in.local_clear) faults_.clear_local();
     if (in.tune_request) pending_request_ = true;
     // A trip while tuning is expected: the tune starts from a mismatch and the comparator keeps the
-    // amplifier off meanwhile. A trip once MATCHED is §8B.4's over-SWR in transmit.
-    if (state_ == State::Matched && in.swr_trip && permit_up_) fault(Fault::OverSwr);
+    // amplifier off meanwhile. A trip once MATCHED, or on the AUX or CAL path, is §8B.4's over-SWR in
+    // transmit.
+    if ((state_ == State::Matched || !in.tune_path) && in.swr_trip && permit_up_) fault(Fault::OverSwr);
+    if (in.relay_mismatch && state_ != State::SelfTest) fault(Fault::RelayMismatch);
     if (state_ != State::SelfTest && state_ != State::Fault && in.limit_hit && !limit_was_hit_)
         fault(Fault::LimitHit);
     limit_was_hit_ = in.limit_hit;
-    // The bypass key holds the permissive up, so nothing may move: abandon a tune and hold (§8B.4d).
-    if (in.bypass && (state_ == State::Measure || state_ == State::Probe || state_ == State::Move ||
-                      state_ == State::Verify))
+    // The bypass key holds the permissive up, so nothing may move: abandon a tune and hold (§8B.4d). Off
+    // the TUNE path the network is out of circuit, so a tune means nothing there either.
+    const bool tuning = state_ == State::Measure || state_ == State::Probe || state_ == State::Move ||
+                        state_ == State::Verify || state_ == State::Matched;
+    if ((in.bypass && tuning && state_ != State::Matched) || (!in.tune_path && tuning && !jogging_))
         enter(State::Idle);
 
     switch (state_) {
@@ -217,8 +222,16 @@ Outputs Tuner::step(const Inputs& in) {
 
         case State::Idle:
             // Every tune starts on a fresh key-down: after a fault clears, "re-attempt on next carrier".
-            if (!in.carrier) armed_ = true;
-            else if (armed_ && !in.bypass && !in.limit_hit && !faults_.any_blocking()) enter(State::Measure);
+            if (in.jog && !in.bypass && !faults_.any_blocking()) {
+                enter(State::Move);
+                jogging_ = true;
+                move_target_ = in.jog_target;
+                move_pending_ = true;
+            } else if (!in.carrier) {
+                armed_ = true;
+            } else if (armed_ && in.tune_path && !in.bypass && !in.limit_hit && !faults_.any_blocking()) {
+                enter(State::Measure);
+            }
             break;
 
         case State::Measure:
@@ -241,7 +254,7 @@ Outputs Tuner::step(const Inputs& in) {
             break;
 
         case State::Move:
-            if (run_move(in)) enter(State::Verify);
+            if (run_move(in)) enter(jogging_ ? State::Idle : State::Verify);
             break;
 
         case State::Verify:

@@ -51,6 +51,8 @@ struct Plant {
     bool carrier = true, bypass = false, limit = false, over_temp = false;
     bool mismatch = false, stall = false, self_test_ok = true;
     bool ack = false, local_clear = false, tune_request = false;   // one-tick pulses
+    bool tune_path = true, relay_mismatch = false, jog = false;   // the last two one-tick
+    Setting jog_target;
     uint32_t now = 5000;
 
     uint32_t running = 0, done = 0;               // the motion layer
@@ -97,6 +99,10 @@ struct Plant {
         in.tune_request = tune_request;
         in.ack = ack;
         in.local_clear = local_clear;
+        in.tune_path = tune_path;
+        in.relay_mismatch = relay_mismatch;
+        in.jog = jog;
+        in.jog_target = jog_target;
         if (left == 0 && carrier) {
             if (--gate == 0) {
                 in.have_measurement = true;
@@ -109,7 +115,7 @@ struct Plant {
         }
 
         const Outputs o = tu.step(in);
-        tune_request = ack = local_clear = false;
+        tune_request = ack = local_clear = relay_mismatch = jog = false;
         if (visited.empty() || visited.back() != o.state) {
             visited.push_back(o.state);
             if (trace) {
@@ -560,4 +566,57 @@ TEST(bypass_key_stops_everything) {
     o = p.tick(tu);
     CHECK(!o.motion_enable && o.state == State::Idle && p.left == 0);
     CHECK(p.violations == 0);
+}
+
+TEST(aux_and_cal_paths_never_tune) {
+    // §6B.2: off the TUNE path the network is out of circuit; metering and the over-SWR trip stay.
+    Tuner tu(config());
+    Plant p;
+    p.load(vec_at(14.0));
+    p.tune_path = false;
+    p.trip_swr = 99;                                   // whatever is on AUX is fine, for now
+    Outputs o = key(tu, p, 300);
+    CHECK(o.state == State::Idle && p.moves == 0 && o.mcu_permit);
+    p.trip_swr = 1.0;                                  // the external load or antenna is bad
+    o = p.tick(tu);
+    CHECK(o.state == State::Fault && tu.faults().unacked(Fault::OverSwr));
+
+    Tuner t2(config());                                // leaving TUNE drops a match and a tune alike
+    Plant q;
+    q.load(vec_at(14.0));
+    CHECK(key(t2, q).state == State::Matched);
+    q.tune_path = false;
+    CHECK(q.tick(t2).state == State::Idle);
+}
+
+TEST(relay_mismatch_is_class_b) {
+    Tuner tu(config());
+    Plant p;
+    run_for(tu, p, 3);
+    p.relay_mismatch = true;
+    Outputs o = p.tick(tu);
+    CHECK(o.state == State::Fault && tu.faults().unacked(Fault::RelayMismatch) && !o.mcu_permit);
+    p.ack = true;
+    CHECK(run_for(tu, p, 5).state == State::Idle);
+}
+
+TEST(jog_moves_under_the_ptt_rules) {
+    // §7.5 manual override: one move, the vote down 30 ms first, back to IDLE, never under bypass.
+    Tuner tu(config());
+    Plant p;
+    p.carrier = false;
+    run_for(tu, p, 5);
+    const Setting to{200e-12, 3e-6, 400e-12};
+    p.jog = true;
+    p.jog_target = to;
+    Outputs o = p.tick(tu);
+    CHECK(o.state == State::Move && !o.mcu_permit);
+    o = run_until(tu, p, [](const Outputs& x, const Plant& q) { return x.state == State::Idle && q.left == 0; });
+    CHECK(o.state == State::Idle && p.moves == 1 && p.violations == 0);
+    CHECK(p.pos.c1 == to.c1 && p.pos.l == to.l && p.pos.c2 == to.c2);
+    p.bypass = true;
+    p.jog = true;
+    p.jog_target = Setting{100e-12, 2e-6, 300e-12};
+    run_for(tu, p, 50);
+    CHECK(p.moves == 1);
 }

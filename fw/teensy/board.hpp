@@ -14,6 +14,8 @@ bool recovery_held();             // §8B.4f.2: the recessed button, sampled bef
 void set_permit(bool on);         // MCU_PERMIT, pulled down on the board
 bool permit();                    // the permissive as built (read-back)
 void set_drivers(bool on);
+void set_relays(bool k1, bool k2);   // into the hold latch: they move only once the permissive has been
+                                     // down 39-67 ms (§5.5), which tuner::PathSwitch waits out
 void set_blower(double duty);     // 0-1; the gate is pulled up, so a dead MCU leaves it running
 uint32_t tach_pulses();           // since boot; 2 a revolution, meaningful only while the fan is on
 

@@ -14,11 +14,15 @@ endif()
 add_library(tuner_core STATIC
   core/src/as5048.cpp
   core/src/bridge.cpp
+  core/src/cal.cpp
   core/src/curve.cpp
   core/src/faults.cpp
   core/src/freq.cpp
   core/src/fsm.cpp
   core/src/motion.cpp
+  core/src/panel.cpp
+  core/src/panel_io.cpp
+  core/src/path.cpp
   core/src/seed.cpp
   core/src/sense.cpp
   core/src/tnet.cpp)
@@ -27,7 +31,7 @@ target_compile_options(tuner_core PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wer
   -fno-exceptions -fno-rtti)
 
 enable_testing()
-foreach(name tnet bridge freq_faults fsm hw)
+foreach(name tnet bridge freq_faults fsm hw panel)
   add_executable(test_${name} test/test_${name}.cpp test/test_main.cpp)
   target_link_libraries(test_${name} PRIVATE tuner_core)
   target_compile_options(test_${name} PRIVATE -Wall -Wextra)

@@ -31,7 +31,7 @@ pio run -t upload                           # cut the Teensy's VUSB-VIN pad firs
 pio device monitor                          # the USB console
 ```
 
-The Teensy build is about 72 KB of code and 35 KB of RAM1 (of 7.75 MB and 512 KB).
+The Teensy build is about 92 KB of code and 46 KB of RAM1 (of 7.75 MB and 512 KB).
 
 `fw/build/compile_commands.json` is picked up by clangd. `TRACE_MHZ=1.8 fw/build/test_fsm` prints
 every state change for the 1.8 MHz sweep cases, and `TRACE_CASE=n` does the same for one Monte Carlo
@@ -48,7 +48,7 @@ python3 fw/tools/gen_tables.py
 | Module | Does | Log |
 |:--|:--|:--|
 | `tnet` | Closed-form T solution (lowest roller current, or the nearest within 3 %), the network's input impedance, and de-embedding: the load from what the bridge reads at the input | §5.1, §6A.9, §8B.3a |
-| `bridge` | AD8302 voltages ↔ \|Γ\| and \|θ\|, Γ ↔ Z, one-port open/short/load calibration | §6A.5–§6A.8 |
+| `bridge` | AD8302 voltages ↔ \|Γ\| and \|θ\|, Γ ↔ Z | §6A.5–§6A.7 |
 | `freq` | The ÷1024 count → MHz, bands, the ±0.5 % validity window, 1 % profile segments | §6A.10, §8B.0.1, §8B.2 |
 | `faults` | Classes A/B/C, the COMMISSIONING/STRICT/PERMISSIVE policy, what survives a power cycle | §8B.4–§8B.4b |
 | `fsm` | The state machine, the sign of θ, PTT and move sequencing | §8B.1–§8B.3 |
@@ -58,6 +58,10 @@ python3 fw/tools/gen_tables.py
 | `curve` | Element calibration (turns → F or H); the roller's default is the NEC model | §7.1, §9 item 54 |
 | `motion` | The coordinated move: every axis on one straight line in step space, speed and acceleration per axis, the roller's slow zone, a ramp-down when stopped | §7.2, §8B.3, §8B.3a |
 | `sense` | The steady-carrier test, the tank NTC, over-temperature hysteresis | §6A.10, §8B.4a |
+| `cal` | The bridge's calibration per band from open, short and load, with an optional slope standard | §6A.8 |
+| `path` | TUNE / AUX / CAL: the vote held while K1 and K2 change, coil currents and the first key-down checked | §5.5, §6B.2 |
+| `panel` | Every panel screen, drawn as text, with the scroll-to-confirm rule for class C | §7.5, §8B.4f |
+| `panel_io` | The encoders' quadrature and the Nextion's serial protocol | §7.5 |
 
 `test_tnet` matches `nec/cap_demand.py` at all 29 band-edge points to 1e-9. `test_bridge` reproduces
 the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V).
@@ -70,11 +74,51 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `board.*` | The direct pins: MCU_PERMIT and its read-back, DRV_EN, the relay commands (held in TUNE), the blower PWM and tach, LIM1–6, RTWDOG |
 | `motion.*` | Encoders over SPI, the 50 kHz step interrupt running a planned move, drivers on only while moving, the encoder check after every move |
 | `sensors.*` | V_MAG and V_PHS averaged over each 200 ms counter gate and read against the AD8302's VREF, the carrier test, the MCP23017, the tank thermistor |
-| `persist.*` | Fault record, mode, priors and last positions in EEPROM, packed and under a CRC; only changed bytes are rewritten |
+| `persist.*` | Two EEPROM records with their own CRCs, packed so that only changed bytes are rewritten. The authoritative one (faults, mode, calibration) is kept twice and written alternately, so a power loss mid-write leaves the older copy good. The other holds the priors and last positions |
+| `calib.*` | The calibration procedure below |
+| `panel_hw.*` | The Nextion on Serial8 (only changed rows are sent), the knobs and their pushes from the MCP23017 |
 
-**USB console** (the box's local interface until the panel exists, §8B.4f): `status`, `ack`, `clear`
-(local clear of class B and C), `tune`, and `mode commissioning|strict`. PERMISSIVE is refused until
-the §8B.4a-1 qualification counters exist. A status line prints every second.
+**USB console:** the box's local interface, with the panel (§8B.4f):
+
+| Command | Does |
+|:--|:--|
+| `status` | One status line. One also prints every second |
+| `ack` | Acknowledge class B faults |
+| `clear` | Local clear of class B and C faults |
+| `tune` | Start a tune |
+| `mode commissioning\|strict` | Set the fault policy. PERMISSIVE is refused until the §8B.4a-1 qualification counters exist |
+| `path tune\|aux\|cal` | Change the RF path |
+| `cal load\|open\|short\|save` | The calibration steps (below) |
+| `cal watts <W>` | Add a forward-power point at the wattmeter reading W |
+| `jog c1\|c2\|l <turns>` | Move one element |
+
+**Calibrating a band** (§6A.8), from the console or the panel's Calibrate screen. Key a steady
+carrier of about 10 W on the band for each step; each averages five gates.
+
+1. `path cal`, then `cal load`. This is the internal 50 Ω load, and it sets the floor.
+2. `path aux`, an open on the rear N jack, then `cal open`.
+3. A short there, then `cal short`.
+4. `cal save` computes the band and stores it. It refuses standards that disagree and says why.
+5. For the power readout: in AUX into a dummy load, or in CAL up to 50 W, run `cal watts <W>` at each
+   drive level, giving what a wattmeter reads. Up to eight points a band.
+
+The AD8302 reports only |θ| (§6A.7), so a complex one-port correction cannot be fitted. The
+calibration is the part's scalar transfer: the 0 dB point and the 0°/180° phase ends from the open
+and short, and the floor from the load. Keep the K1-to-network and K1-to-AUX runs the same electrical
+length (§6B.3), or the phase is off by the difference.
+
+**The panel's HMI.** The Nextion is a terminal, and every screen is drawn by `tuner::Panel`. Build the
+HMI once in the Nextion Editor for the NX4832K035:
+
+- **Page and rows:** page 0 (`page0`), landscape 480 × 320, with ten text components `t0` to `t9`.
+  Each is 480 × 32 at y = 0, 32, … 288.
+- **Font:** generate a monospace font (for example DejaVu Sans Mono) at 24 px height, ASCII.
+- **Each row:** `txt_maxl` 40, left-aligned and vertically centered, white text (`pco` 65535) on
+  black (`bco` 0), no word wrap.
+- **Startup:** in `program.s`, put `baud=115200` before `page 0`.
+
+The left knob moves and opens; its push confirms. The right knob jogs on the Jog screen; its push goes
+back. A class C clear needs the fault list scrolled to the end before Confirm appears.
 
 **Before first power-up, set `teensy/config.hpp`.** Each ASSUMED there is a fact about the build:
 
@@ -85,6 +129,10 @@ the §8B.4a-1 qualification counters exist. A status line prints every second.
 - **Travel and limits:** the capacitors' turns (§9 item 48), and which LIM input is which end.
 - **Elements and thermal:** the element curves (§9 item 54); C1's part; the NTC's beta, the trip
   points and the blower PWM (§9 item 30).
+- **Relays:** the K1/K2 coil-current threshold. Measure an energized coil across its 1 Ω sense.
+- **Cal-load detector:** its RF threshold, from the detector with ~5 W in the load.
+- **Panel knobs:** which knob is left and the 62V15's edges per detent. If a knob runs backward, swap
+  its A and B.
 
 **On the bench, check:**
 
@@ -151,12 +199,11 @@ about 3 %.
 
 ## Next
 
-- **Bring-up** on the built boards, per the list above. The open-short-load bridge calibration (§6A.8)
-  is still to add.
-- **Storage** per §8B.5: the calibration curves in flash beside the fault record, and the SD mirror of
-  profiles and the fault log.
-- **Interfaces:** the Nextion panel (§8B.4f), Ethernet and the web UI, the remote head, recovery mode.
-- **K1/K2 modes** (§5.5, §6B), manual override, pre-positioning on band select (§8B.3a), the 160 m
-  power derate (§1.7.1).
+- **Bring-up** on the built boards, per the list above, then a calibration of every band.
+- **Storage** per §8B.5: the SD mirror of profiles, calibration and the fault log, and versioned
+  backups.
+- **Remote:** Ethernet, the web UI and the remote head (§8C); recovery mode (§8B.4f.3).
+- **Policy and operation:** the PERMISSIVE qualification counters (§8B.4a-1), pre-positioning on band
+  select (§8B.3a), and the 160 m power derate (§1.7.1).
 - **Cold-start search:** when there is no prior and the reading stays pinned at the top of the
   range, step through a few reference settings to find a readable neighborhood.

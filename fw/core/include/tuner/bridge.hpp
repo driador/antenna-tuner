@@ -30,13 +30,4 @@ inline cplx z_from_gamma(cplx gamma, double z0 = 50) { return z0 * (1.0 + gamma)
 inline cplx gamma_from_z(cplx z, double z0 = 50) { return (z - z0) / (z + z0); }
 inline double swr_from_mag(double m) { return m >= 0.999 ? 999.0 : (1 + m) / (1 - m); }
 
-// One-port error correction from open, short and load standards at the AUX port (§6A.8):
-// measured = e00 + t * G / (1 - e11 * G). Built per band from the three raw readings.
-struct OnePortCal {
-    cplx e00{0, 0}, e11{0, 0}, t{1, 0};
-    static OnePortCal from_standards(cplx m_open, cplx m_short, cplx m_load);
-    cplx correct(cplx measured) const { return (measured - e00) / (t + e11 * (measured - e00)); }
-    cplx distort(cplx actual) const { return e00 + t * actual / (1.0 - e11 * actual); }
-};
-
 }  // namespace tuner

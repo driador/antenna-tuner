@@ -16,6 +16,7 @@ const char* fault_name(Fault f) {
         case Fault::LimitHit: return "limit switch hit";
         case Fault::EncoderMismatch: return "encoder / position mismatch";
         case Fault::SelfTestFail: return "self-test failure";
+        case Fault::RelayMismatch: return "K1/K2 relay mismatch";
         default: return "?";
     }
 }
@@ -29,6 +30,7 @@ FaultClass FaultPolicy::raise(Fault f) {
         case Fault::NoSolution:
         case Fault::TuneFailed:
         case Fault::OverSwr:
+        case Fault::RelayMismatch:
             unacked_b_ |= mask(f);
             return FaultClass::B;
         case Fault::SelfTestFail:

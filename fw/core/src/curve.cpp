@@ -1,5 +1,7 @@
 #include "tuner/curve.hpp"
 
+#include <cmath>
+
 namespace tuner {
 
 namespace {
@@ -27,6 +29,26 @@ bool Curve::add(double px, double py) {
     if (n >= kMax) return false;
     x[n] = px;
     y[n] = py;
+    ++n;
+    return true;
+}
+
+bool Curve::insert(double px, double py) {
+    for (int i = 0; i < n; ++i)
+        if (std::fabs(px - x[i]) <= 0.02 * std::fabs(x[i])) {
+            x[i] = px;
+            y[i] = py;
+            return true;
+        }
+    if (n >= kMax) return false;
+    int i = n;
+    while (i > 0 && x[i - 1] > px) {
+        x[i] = x[i - 1];
+        y[i] = y[i - 1];
+        --i;
+    }
+    x[i] = px;
+    y[i] = py;
     ++n;
     return true;
 }

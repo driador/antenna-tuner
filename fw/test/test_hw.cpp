@@ -6,8 +6,10 @@
 
 #include "harness.hpp"
 #include "tuner/as5048.hpp"
+#include "tuner/cal.hpp"
 #include "tuner/curve.hpp"
 #include "tuner/motion.hpp"
+#include "tuner/path.hpp"
 #include "tuner/sense.hpp"
 
 using namespace tuner;
@@ -183,4 +185,97 @@ TEST(tank_thermistor) {
     CHECK(h.update(66));
     CHECK(h.update(60));
     CHECK(!h.update(54));
+}
+
+TEST(rf_path_switch_follows_the_relay_sequence) {
+    PathSwitch ps;
+    PathSwitch::In in;
+    in.now_ms = 1000;
+    CHECK(ps.request(Path::Cal, in.now_ms));
+    PathSwitch::Out o = ps.step(in);
+    CHECK(o.hold_vote && !o.k1 && !o.k2);               // the vote first, the relays later
+    in.now_ms += 99;
+    CHECK(!ps.step(in).k1);
+    CHECK(!ps.request(Path::Aux, in.now_ms));           // one change at a time
+    in.now_ms += 1;
+    o = ps.step(in);
+    CHECK(o.hold_vote && o.k1 && o.k2);                 // 100 ms: RF decayed, the latch open
+    in.k1_current = in.k2_current = true;
+    in.now_ms += 25;
+    o = ps.step(in);
+    CHECK(!o.mismatch && ps.path() == Path::Cal && !ps.busy());
+    in.now_ms += 10;
+    CHECK(!ps.step(in).hold_vote);                      // confirmed: the vote is given back
+    in.carrier = true;
+    in.load_rf = true;                                  // CAL: the load sees the first key-down
+    CHECK(!ps.step(in).mismatch);
+
+    PathSwitch weld;                                    // AUX, but RF still reaches the load: K2 welded
+    PathSwitch::In w;
+    w.now_ms = 0;
+    weld.request(Path::Aux, 0);
+    for (w.now_ms = 0; weld.busy(); w.now_ms += 10) {
+        w.k1_current = true;
+        weld.step(w);
+    }
+    w.carrier = true;
+    w.load_rf = true;
+    CHECK(weld.step(w).mismatch);
+
+    PathSwitch dead;                                    // a coil that never draws
+    PathSwitch::In d;
+    dead.request(Path::Aux, 0);
+    bool flagged = false;
+    for (d.now_ms = 0; d.now_ms < 300; d.now_ms += 10) flagged = dead.step(d).mismatch || flagged;
+    CHECK(flagged && dead.path() == Path::Tune);
+}
+
+TEST(bridge_calibration_from_open_short_load) {
+    // A part 0.8 dB high and 4 deg off, with a coupler whose directivity floor is -28 dB.
+    Ad8302Scale truth;
+    truth.v_center = 0.924;
+    truth.v_phs_zero = 1.76;
+    truth.v_per_deg = 0.0098;
+    auto read = [&](cplx g) {
+        double vm, vp;
+        ad8302_from_gamma(g, vm, vp, truth);
+        return Standard{vm, vp};
+    };
+    BridgeCal cal;
+    CHECK(bridge_cal(read(cplx(1, 0)), read(cplx(-1, 0)), read(cplx(0.0398, 0)), cal) == CalError::None);
+    CHECK(cal.valid);
+    CHECK_NEAR(cal.scale.v_center, truth.v_center, 1e-9);
+    CHECK_NEAR(cal.scale.v_phs_zero, truth.v_phs_zero, 1e-9);
+    CHECK_NEAR(cal.scale.v_per_deg, truth.v_per_deg, 1e-9);
+    CHECK_NEAR(cal.floor_db, -28.0, 0.01);
+    for (cplx g : {cplx(0.5, 0.3), cplx(-0.2, 0.6), cplx(0.1, -0.05)}) {
+        const Standard s = read(g);
+        const GammaReading r = calibrated(cal, s.v_mag, s.v_phs);
+        CHECK_NEAR(r.mag, std::max(std::abs(g), std::pow(10.0, -28.0 / 20)), 1e-6);
+        CHECK_NEAR(r.theta_deg, std::fabs(std::arg(g)) * 180 / 3.14159265358979323846, 1e-6);
+    }
+    // 150 ohm reads |Γ| = 0.5: a measured slope replaces the datasheet's.
+    truth.v_per_db = 0.032;
+    BridgeCal c2;
+    CHECK(bridge_cal(read(cplx(1, 0)), read(cplx(-1, 0)), read(cplx(0.0398, 0)), c2) == CalError::None);
+    CHECK(bridge_cal_slope(read(cplx(0.5, 0)), 0.5, read(cplx(0.0398, 0)), c2) == CalError::None);
+    CHECK_NEAR(c2.scale.v_per_db, 0.032, 1e-9);
+    CHECK_NEAR(c2.floor_db, -28.0, 0.01);
+
+    BridgeCal bad;                                      // the mistakes the procedure can make
+    CHECK(bridge_cal(read(cplx(1, 0)), read(cplx(0.5, 0)), read(cplx(0.04, 0)), bad) == CalError::OpenShortDisagree);
+    CHECK(bridge_cal(read(cplx(1, 0)), read(cplx(1, 0)), read(cplx(0.04, 0)), bad) == CalError::PhaseSpanSmall);
+    CHECK(bridge_cal(read(cplx(1, 0)), read(cplx(-1, 0)), read(cplx(0.3, 0)), bad) == CalError::LoadNotLow);
+    CHECK(!bad.valid);
+}
+
+TEST(power_curve_points) {
+    Curve c;                                            // wattmeter readings in any order, one repeated
+    CHECK(c.insert(1.20, 100));
+    CHECK(c.insert(0.40, 10));
+    CHECK(c.insert(2.60, 500));
+    CHECK(c.insert(1.21, 102));                         // within 2 %: replaces the 100 W point
+    CHECK(c.n == 3 && c.valid());
+    CHECK_NEAR(c.at(1.21), 102, 1e-9);
+    CHECK_NEAR(c.at(0.805), 56, 1e-9);
 }

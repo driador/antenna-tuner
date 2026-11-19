@@ -1,4 +1,4 @@
-// The AD8302 extraction (§6A.6), its sign ambiguity (§6A.7) and the one-port calibration (§6A.8).
+// The AD8302 extraction (§6A.6) and its sign ambiguity (§6A.7). Its calibration is in test_hw.cpp.
 #include <cmath>
 
 #include "harness.hpp"
@@ -40,19 +40,4 @@ TEST(floor_and_ceiling) {
     CHECK_NEAR(gamma_from_ad8302(0.95, 1.8).mag, 1.0, 1e-12);
     CHECK(swr_from_mag(0.999) == 999.0);
     CHECK_NEAR(gamma_from_ad8302(0.9, -0.2).theta_deg, 180.0, 1e-12);
-}
-
-TEST(one_port_calibration_recovers_the_error_terms) {
-    // A plausible fixture: some directivity leak, a port match error, a gain/phase tracking error.
-    OnePortCal truth;
-    truth.e00 = {0.05, 0.02};
-    truth.e11 = {0.10, -0.05};
-    truth.t = {0.90, 0.10};
-    const OnePortCal cal =
-        OnePortCal::from_standards(truth.distort(1.0), truth.distort(-1.0), truth.distort(0.0));
-    CHECK_NEAR(std::abs(cal.e00 - truth.e00), 0.0, 1e-12);
-    CHECK_NEAR(std::abs(cal.e11 - truth.e11), 0.0, 1e-12);
-    CHECK_NEAR(std::abs(cal.t - truth.t), 0.0, 1e-12);
-    const cplx gs[] = {{0, 0}, {0.3, 0.4}, {-0.7, 0.1}, {0.05, -0.9}};
-    for (const cplx& g : gs) CHECK_NEAR(std::abs(cal.correct(truth.distort(g)) - g), 0.0, 1e-12);
 }

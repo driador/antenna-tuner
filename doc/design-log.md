@@ -190,6 +190,8 @@
     far-off readings, and set the 1.2:1 convergence target. The over-SWR trip counts only once
     matched. Open item 54 is the commissioning bounds the firmware was tested to. The Teensy layer
     (boot, watchdog, motion, measurement, storage, a USB console) builds and waits for the boards.
+    It also has per-band calibration, which is scalar because the AD8302 loses the phase sign
+    (§6A.8), TUNE/AUX/CAL switching with coil and RF checks, the local panel and manual jog.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -1695,6 +1697,12 @@ calibrating against known loads, stored in EEPROM:
   Do not attempt calibration at 1500 W — establish the curve at safe power and verify at full
   power with a known dummy load, once.
 
+*Rev 3.7c (firmware, §8B.6):* because the AD8302 gives |θ| only (§6A.7), the vector path cannot be
+fitted as a complex one-port. It is calibrated per band as the part's scalar transfer: the open and
+short give the 0 dB point and the 0° and 180° ends, the internal load (CAL) gives the directivity
+floor, and a resistive standard of known |Γ| can replace the datasheet's 30 mV/dB. Known reactive
+standards then check it. The forward detector's curve is taken in watts against a wattmeter.
+
 ### 6A.9 Integration with the solver
 
 With R and X in hand, the firmware solves the T-network in closed form rather than searching. The
@@ -3068,6 +3076,23 @@ prior, which in practice means out of band) match 99.4 %, and the rest end in a 
   - the capacitors' turns (§9 item 48) and the element curves (§9 item 54).
 
   The roller's curve defaults to the NEC model (`nec/out/roller_vna_k*_deck.csv`).
+
+**Calibration, the RF path and the local panel:**
+
+- **RF path:** a change follows §5.5. The vote is held 100 ms, the relays switch, and the coil
+  currents are read after 25 ms; only then is the vote given back. The first key-down is checked at
+  the cal-load detector (§6B.3a). Any disagreement is a class B fault and returns the relays to TUNE.
+- **Off TUNE:** nothing tunes in AUX or CAL, and an over-SWR trip there is a fault.
+- **Calibration** runs one band at a time from the console or the panel, as §6A.8 above describes.
+  It is stored with the fault record in an authoritative EEPROM record. That record is kept twice and
+  written alternately, so a profile write or a power cut can never take the calibration with it.
+- **Panel:** the Nextion is a text terminal (one page, ten rows, specified in `fw/README.md`), and
+  every screen is drawn and tested in the core. A class C clear unlocks only once the fault list has
+  been scrolled to its end (§8B.4f.1).
+- **Manual override** (§7.5) jogs one element through the state machine, under the same PTT rules as a
+  tune's moves.
+- **Before power-up,** also set the K1/K2 coil-current threshold, the cal-load detector's RF
+  threshold and the knob wiring.
 
 ## Section 8C — Remote Head and Control Link
 

@@ -46,6 +46,7 @@ void safe_outputs() {
     pinMode(pins::PERMIT, INPUT);
     for (uint8_t p : pins::LIM) pinMode(p, INPUT);     // 10 k pull-ups on the board
     pinMode(pins::BTN_RECOVERY, INPUT);                // 10 k pull-up on the board
+    pinMode(pins::IOX_INT, INPUT);                     // open drain, 10 k pull-up on the board
     pinMode(pins::TACH, INPUT);
     attachInterrupt(digitalPinToInterrupt(pins::TACH), tach_isr, FALLING);
 }
@@ -56,6 +57,11 @@ void set_permit(bool on) { digitalWriteFast(pins::MCU_PERMIT, on ? HIGH : LOW); 
 bool permit() { return digitalReadFast(pins::PERMIT); }
 
 void set_drivers(bool on) { digitalWriteFast(pins::DRV_EN, on == kDriverEnableHigh ? HIGH : LOW); }
+
+void set_relays(bool k1, bool k2) {
+    digitalWriteFast(pins::RLY_CMD[0], k1 ? HIGH : LOW);
+    digitalWriteFast(pins::RLY_CMD[1], k2 ? HIGH : LOW);
+}
 
 void set_blower(double duty) {
     static bool configured = false;
