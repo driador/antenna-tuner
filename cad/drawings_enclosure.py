@@ -226,9 +226,47 @@ def sheet_shelf(doc):
     panel_sheet(doc, "E207", "GROUNDED SHELF", "TUNER-E-207", 8, [("shelf", 88, 150, 0.30)])
 
 
+WEND = ((0, -1, 0), (1, 0, 0))      # wall clip along its length: the L, heel at lower left
+WBOX = ((0, 0, 1), (0, 1, 0))       # its floor / shelf leg face-on, length across the page
+WPLT = ((-1, 0, 0), (0, -1, 0))     # its plate leg face-on
+WDET = ((0, -1, 0), (1, 0, 0))      # typical mounting seen along Y: control side left, motor side right
+
+
 def sheet_bulkhead(doc):
-    panel_sheet(doc, "E208", "BULKHEAD AND PARTITION", "TUNER-E-208", 9,
-                [("bulkhead", 92, 180, 0.3), ("motor/sampler partition", 92, 86, 0.3)])
+    page, _views = panel_sheet(doc, "E208", "BULKHEAD AND PARTITION", "TUNER-E-208", 9,
+                               [("bulkhead", 92, 180, 0.3), ("motor/sampler partition", 92, 86, 0.3)])
+    wc = load(doc, "enc-wall-clip.step")
+    we = vw(doc, page, wc, WEND, 1.5, 182, 192, "WClipEnd")
+    wb = vw(doc, page, wc, WBOX, 1.5, 218, 192, "WClipBox")
+    wp = vw(doc, page, wc, WPLT, 1.5, 264, 192, "WClipPlate")
+    wf = vw(doc, page, load(doc, "enc-wall-clip-floor.step"), WDET, 1.0, 181, 146, "WClipFloor")
+    ws = vw(doc, page, load(doc, "enc-wall-clip-shelf.step"), WDET, 1.0, 226, 146, "WClipShelf")
+    doc.recompute()
+    settle([we, wb, wp, wf, ws])
+    for v in (wb, wp):
+        overall(doc, page, v, gap=3)
+    label(doc, page, "BULKHEAD / PARTITION CLIP (16)  1.5:1", 226, 168)
+    label(doc, page, "AT FLOOR  1:1", 181, 125)
+    label(doc, page, "AT SHELF  1:1", 228, 125)
+    side = {("bulkhead", 1): "MOTOR SIDE", ("bulkhead", -1): "CONTROL SIDE",
+            ("partition", 1): "SAMPLER SIDE", ("partition", -1): "MOTOR SIDE"}
+    rows = [("PLATE", "EDGE", "CLIPS ON", "CLIP CENTERS, Y (+ = LEFT)")]
+    for plate in ("bulkhead", "partition"):
+        for edge in ("floor", "shelf"):
+            cl = [(s, y) for e, s, y in ENC["p"]["WALL_CLIPS"][plate] if e == edge]
+            rows.append((plate.upper(), edge.upper(), side[(plate, cl[0][0])], ", ".join(f"{y:+.2f}" for _s, y in cl)))
+    table(doc, page, "WClips", rows, (22, 12, 24, 46), 356, 190, size=6.5, row_px=14)
+    note(doc, page, [
+        "CLIPS (16): 1/2 x 1/2 x 1/8 6061-T6 x 1.00. ONE HOLE PER LEG, MID-LENGTH,",
+        "ON THE LEG FLAT. FLOOR / SHELF LEG ⌀0.177. PLATE LEG: BULKHEAD CLIPS ⌀0.136",
+        "TAPPED 8-32 (PEM CLS-832-1 IF IT COMES OFF OFTEN); PARTITION CLIPS ⌀0.177.",
+        "FLOOR LEG: 8-32 x 1/2 BUTTON HEAD UP THROUGH THE FLOOR, NYLOC ON THE CLIP.",
+        "SHELF LEG: 8-32 x 1/2 DOWN FROM THE RF BAY, NYLOC UNDER THE CLIP.",
+        "BULKHEAD: 8-32 x 1/4 FROM THE CONTROL SIDE INTO THE TAPPED LEG - IT COMES OUT",
+        "WITHOUT TOUCHING THE CLIPS. PARTITION: 8-32 x 3/8 + NYLOC.",
+        "FIX THE CLIPS AT THE TABLE POSITIONS, THEN MATCH-DRILL THROUGH THEM.",
+        "AT FLOOR / AT SHELF: BULKHEAD, SECTION ON THE SCREW PLANE, HOLES IN LINE.",
+    ], 337, 153, 2.0)
 
 
 JISO = ((-1, -1, 0.9), (1, -1, 0))  # into a rear-left corner from inside the box, above (Z up on the page)
@@ -388,6 +426,8 @@ def sheet_exploded(doc):
         ("23", "3", "MEMBRANE VENT M12", "ONE PER SEALED CHAMBER", "-"),
         ("24", str(ENC["report"]["junction screws"]), "#6-32 x 1/2 FLAT HEAD 82°, SS", "FRAME JUNCTIONS, FLUSH", "E-201"),
         ("25", str(ENC["report"]["junction screws"]), "#6-32 NYLOC NUT, SS", "FRAME JUNCTIONS, INSIDE", "E-201"),
+        ("26", "32", "8-32 SS BUTTON HEAD: 16 x 1/2, 8 x 3/8, 8 x 1/4", "BULKHEAD / PARTITION CLIPS", "E-208"),
+        ("27", "24", "8-32 NYLOC NUT, SS", "BULKHEAD / PARTITION CLIPS", "E-208"),
     ]
     rows += items
     table(doc, page, "EncParts", rows, (10, 14, 66, 50, 18), 308, 170, size=6.5, row_px=14)

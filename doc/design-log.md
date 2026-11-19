@@ -97,7 +97,13 @@
      and top corner holes had no frame metal behind them; now every hole lands, and no rivnut sits behind
      a clip.
    - **Counts:** 344 panel holes (was 381); E-202 to E-210 regenerated.
-7. **§9:**
+7. **Bulkhead and partition mounting defined** (TUNER-E-208; §4):
+   - 16 clip angles: four floor and four shelf clips per plate, at interference-checked positions,
+     drawn with sections at the floor and the shelf.
+   - The removable bulkhead's clips are on its motor side, with tapped legs, so it unscrews from the
+     control side.
+   - The old note's side clips are dropped.
+8. **§9:**
    - Items 3, 28–31, 37, 45 and 46 updated.
    - New item **49:** verify the choke installed (VNA sweep, 10 m key-down thermal).
    - New item **50:** the antenna system's common-mode impedance, which sets how balanced 160 / 80 m
@@ -687,6 +693,19 @@ thermal warping and oil-canning, and seal the RF bay behind a permanent wall.
   - **Faces:** outer faces stay flush for the panels and gasket.
   - **Cassette corners:** at the cassette rings' four front corners the clip's front leg stops at the
     post, because the tray slides past. Their 1/2″ front members ride on the floor and shelf screws.
+- **Bulkhead and partition mounting (TUNER-E-208, Rev 3.7c).**
+  - **Clips:** each 12 ga plate is held by eight 1/2 × 1/2 × 1/8 × 1.0″ clip angles, four at the floor
+    and four at the shelf. Floor legs take 8-32 up through the floor and shelf legs 8-32 down from the
+    RF bay, each with a nyloc on the clip.
+  - **Bulkhead (removable):** its clips sit on its motor side, with tapped plate legs. It unscrews from
+    the control side and comes out the front without touching them.
+  - **Partition (fixed):** floor clips on its motor side, shelf clips on its sampler side, through holes
+    with nylocs.
+  - **Positions:** in E-208's table. They clear the axis modules, the connector plugs and harnesses,
+    the sampler baseplate and the driver board (interference-checked). Match-drill the plates, floor
+    and shelf through the clips.
+  - **No side clips:** the earlier "to floor, shelf and sides" dropped the sides. The lower side panels
+    are removable, and between the rings there is no frame member to land on.
 - 8-32 stainless button-head screws into rivnuts in the frame flanges, pattern per **TUNER-E-210**
   (344 holes, Rev 3.7c).
   - **Corners:** every row starts 2.00″ from a corner and skips the clip bands. Every hole lands on frame
@@ -3573,6 +3592,9 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | 16 | Corner clip | 1-1/2 × 1-1/2 × 1/8 6061-T6 × 7/8″, two Ø0.144″ holes per leg (4 with the front leg cut to 7/8″, one hole) — fabricate on a drill jig | Fabricate | E-201 |
 | 60 | Flat-head screw | **#6-32 × 1/2″, 82°, stainless** — frame junctions, countersunk flush in the frame legs | Part | E-201 |
 | 60 | Nyloc nut | #6-32 stainless — frame junctions, inside | Part | E-201 |
+| 16 | Bulkhead / partition clip | 1/2 × 1/2 × 1/8 6061-T6 × 1.0″, one hole per leg; bulkhead clips' plate legs tapped 8-32 (PEM CLS-832-1 alternative) | Fabricate | E-208 |
+| 32 | Machine screw | **8-32 stainless button head** — 16 × 1/2″ (floor / shelf legs), 8 × 3/8″ (partition), 8 × 1/4″ (bulkhead, into the tapped legs) | Part | E-208 |
+| 24 | Nyloc nut | 8-32 stainless — floor / shelf legs and the partition | Part | E-208 |
 | 384 | Machine screw | **8-32 stainless button head**, 1/2″ — 344 panel holes (TUNER-E-210) + spares | Part | E-210 |
 | 384 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
 | ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |

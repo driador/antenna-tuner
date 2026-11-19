@@ -208,6 +208,44 @@ def clips(drilled=True):
     return out
 
 
+def wall_clips():
+    """[(name, shape)]: the bulkhead and partition clip angles (TUNER-E-208), one hole per leg."""
+    leg, t, L = WCLIP
+    mid = t + (leg - t) / 2                          # hole on each leg's flat
+    out = []
+    for plate, x0 in (("bulkhead", X_BULK), ("partition", X_PART)):
+        for edge, s, y in WALL_CLIPS[plate]:
+            xf = x0 + T12 if s > 0 else x0
+            z, vz = (Z_FLOOR, 1) if edge == "floor" else (Z_SH0, -1)
+            c = angle((xf, y - L / 2, z), (s, 0, 0), (0, 0, vz), L, (0, 1, 0), a=leg, b=leg, t=t)
+            c -= Pos(xf + s * mid, y, z + vz * t / 2) * Cylinder(WCLIP_HOLE / 2, 1)                 # floor / shelf leg
+            dp = WCLIP_TAP if plate == "bulkhead" else WCLIP_HOLE
+            c -= Pos(xf + s * t / 2, y, z + vz * mid) * Rot(0, 90, 0) * Cylinder(dp / 2, 1)          # plate leg
+            out.append((f"{plate} clip", c))
+    return out
+
+
+def wall_clip_detail():
+    """Typical bulkhead mounting for TUNER-E-208, seen along Y: floor and shelf stubs, the bulkhead, a floor clip
+    and a shelf clip on its motor side, all drilled; cut on the screw plane it reads as a section with the holes
+    lined up (the screws are in the sheet's note). Control face at x = 0, floor top at z = 0."""
+    leg, t, L = WCLIP
+    mid = t + (leg - t) / 2
+    xb, xf, w = X_BULK, X_BULK + T12, 0.6
+    floor = plate(xb - 1.2, xb + 1.6, -w, w, Z_FLOOR - R.FLOOR_T, Z_FLOOR)
+    shelf = plate(xb - 1.2, xb + 1.6, -w, w, Z_SH0, Z_SH1)
+    bulk = plate(xb, xf, -w, w, Z_FLOOR, Z_SH0)
+    out = []
+    for z, vz in ((Z_FLOOR, 1), (Z_SH0, -1)):
+        c = angle((xf, -L / 2, z), (1, 0, 0), (0, 0, vz), L, (0, 1, 0), a=leg, b=leg, t=t)
+        vert = Pos(xf + mid, 0, z) * Cylinder(WCLIP_HOLE / 2, 2)                          # floor / shelf screw
+        horiz = Pos(xb, 0, z + vz * mid) * Rot(0, 90, 0) * Cylinder(WCLIP_HOLE / 2, 2)    # bulkhead screw
+        out.append(c - vert - Pos(xf + t / 2, 0, z + vz * mid) * Rot(0, 90, 0) * Cylinder(WCLIP_TAP / 2, 1))
+        floor, shelf, bulk = floor - vert, shelf - vert, bulk - horiz
+    out += [floor, shelf, bulk]
+    return [Pos(-xb, 0, -Z_FLOOR) * s for s in out]
+
+
 def junction_detail(explode=False):
     """Typical junction for TUNER-E-201 — bottom ring, rear-left corner (+X rear, +Y left) — cut to stubs,
     with its #6 flat heads and nylocs, the corner moved to the origin. explode pulls clip, screws and nuts apart."""
@@ -499,10 +537,12 @@ def panels():
     pio = [(t, k, yh - y, z - Z_FLOOR, sz, nt) for t, k, y, z, sz, nt in PARTITION_IO]
     P.append(Panel("bulkhead", (X_BULK, yh, Z_FLOOR), (0, -1, 0), (0, 0, 1), (-1, 0, 0), 2 * yh, Z_SH0 - Z_FLOOR,
                    T12, {}, bio + notch, gauge="12 GA",
-                   notes=["REMOVABLE: 1/2 CLIP ANGLES TO FLOOR, SHELF AND SIDES, MATCH-DRILLED; GASKETED"]))
+                   notes=["REMOVABLE: 8 CLIP ANGLES ON ITS MOTOR SIDE (4 FLOOR, 4 SHELF); 8-32 FROM THE CONTROL SIDE",
+                          "INTO THE TAPPED CLIP LEGS. HOLES MATCH-DRILLED FROM THE CLIPS (CLIP TABLE). GASKETED"]))
     P.append(Panel("motor/sampler partition", (X_PART, yh, Z_FLOOR), (0, -1, 0), (0, 0, 1), (-1, 0, 0), 2 * yh,
                    Z_SH0 - Z_FLOOR, T12, {}, pio + notch, gauge="12 GA",
-                   notes=["FIXED: 1/2 CLIP ANGLES, MATCH-DRILLED. SAMPLER LINES PER 7.3 / 9 ITEM 38"]))
+                   notes=["FIXED: 8 CLIP ANGLES (4 FLOOR ON THE MOTOR SIDE, 4 SHELF ON THE SAMPLER SIDE), 8-32 + NYLOC,",
+                          "MATCH-DRILLED FROM THE CLIPS (CLIP TABLE). SAMPLER LINES PER 7.3 / 9 ITEM 38"]))
     return P
 
 
@@ -522,6 +562,19 @@ PARTITION_IO = [  # same convention, on the motor / sampler partition; the sampl
     ("X", "ddflat", -6.3, 4.4, (0.634, 0.540), "COAX N-N BULKHEAD, AMPHENOL RF 172124, PTFE, 5/8-24 JAM NUT: CHOKE -> SHELF COAX"),
     ("P", "hole", 0.8, 1.9, 0.221, "PRESCALER FEEDTHROUGH 1000 pF, RG-316 TO BULKHEAD P - TUSONIX 2499-003-X5U0-102PLF"),
 ]
+
+# bulkhead / partition mounting (TUNER-E-208): 1/2 x 1/2 x 1/8 x 1.0 clip angles, four at the floor and four at
+# the shelf per plate. The removable bulkhead's clips sit on its motor side, so it unscrews from the control side
+# (8-32 into tapped clip legs) and comes out without touching them. The fixed partition's floor clips are on its
+# motor side (the sampler baseplate fills the other) and its shelf clips on the sampler side (the C2 bracket and
+# the plugs own the motor side's top edge). Every position clears the axis modules, connector envelopes, the
+# baseplate and the assumed driver board (interference-checked).
+WALL_CLIPS = {  # plate: [(edge, side, y)]; side +1 = toward +X (bulkhead's motor side, partition's sampler side)
+    "bulkhead": [("floor", 1, y) for y in (-5.75, -1.75, 1.75, 5.75)] + [("shelf", 1, y) for y in (-6.2, -0.9, 1.9, 6.2)],
+    "partition": [("floor", -1, y) for y in (-6.2, -3.4, -0.6, 1.2)] + [("shelf", 1, y) for y in (-5.0, -2.6, -0.2, 5.8)],
+}
+WCLIP = (SANG, ANG_T, 1.00)                      # leg, thickness, length
+WCLIP_HOLE, WCLIP_TAP = 0.177, 0.136             # 8-32 clearance; 8-32 tap drill (bulkhead plate legs)
 
 SHELF_EXTRA = [  # (tag, x, y, dia, note) beyond the drive-axis bushings
     ("COAX", -4.0, R.CAP_Y + 2.4, 0.625, "COAX BULKHEAD, SAMPLER -> C1 (3.0); OVER THE MOTOR CHAMBER, NOT CONTROL"),
@@ -786,6 +839,7 @@ def assembly():
         parts += axis_module(tag, x, y)
     parts += sampler()
     parts += wall_flanges()
+    parts += wall_clips()
     return parts
 
 
@@ -916,6 +970,18 @@ def main():
     cl = clips()
     std = next(s for s in cl if s[1].bounding_box().min.X > 0 and s[1].bounding_box().min.Y > 0)[1]
     short = next(s for s in cl if s[1].bounding_box().max.X < 0 and s[1].bounding_box().max.Y < 0)[1]
+    leg, t, L = WCLIP                                # bulkhead clip (E-208), heel at the origin, length along Y
+    mid = t + (leg - t) / 2
+    wc = angle((0, 0, 0), (1, 0, 0), (0, 0, 1), L, (0, 1, 0), a=leg, b=leg, t=t)
+    wc -= Pos(mid, L / 2, t / 2) * Cylinder(WCLIP_HOLE / 2, 1)
+    wc -= Pos(t / 2, L / 2, mid) * Rot(0, 90, 0) * Cylinder(WCLIP_TAP / 2, 1)
+    export_step(mm(wc), str(OUT / "enc-wall-clip.step"))
+    det = wall_clip_detail()                         # control face x = 0, floor top z = 0, shelf underside z = h
+    h = Z_SH0 - Z_FLOOR
+    for name, box in (("floor", plate(-0.7, 1.0, 0, 1, -0.3, 0.9)),               # y >= 0: cut on the screw plane,
+                      ("shelf", plate(-0.7, 1.0, 0, 1, h - 0.9, h + R.SHELF_T + 0.3))):   # seen from -Y it reads as a section
+        cut = [s & box for s in det]
+        export_step(mm(Compound([s for s in cut if s.volume > 1e-9])), str(OUT / f"enc-wall-clip-{name}.step"))
     for name, s in (("enc-corner-clip", std), ("enc-corner-clip-short", short)):
         bb = s.bounding_box()
         export_step(mm(Pos(-bb.min.X, -bb.min.Y, -bb.min.Z) * s), str(OUT / f"{name}.step"))
