@@ -56,6 +56,8 @@ struct Plant {
     bool ack = false, local_clear = false, tune_request = false;   // one-tick pulses
     bool tune_path = true, relay_mismatch = false, jog = false;   // the last two one-tick
     Setting jog_target;
+    bool preset = false;                          // one-tick
+    double preset_mhz = 0;
     uint32_t now = 5000;
 
     uint32_t running = 0, done = 0;               // the motion layer
@@ -67,6 +69,7 @@ struct Plant {
     bool permit = false, ever_permit = false;     // what the checks saw
     uint32_t permit_down = 0;
     int violations = 0, moves = 0;
+    double travel = 0;                            // each move's slowest axis, as a fraction of its range, summed
     std::vector<State> visited;
 
     void load(const Vec& v) {
@@ -106,6 +109,8 @@ struct Plant {
         in.relay_mismatch = relay_mismatch;
         in.jog = jog;
         in.jog_target = jog_target;
+        in.preset = preset;
+        in.preset_mhz = preset_mhz;
         if (left == 0 && carrier) {
             if (--gate == 0) {
                 in.have_measurement = true;
@@ -118,7 +123,7 @@ struct Plant {
         }
 
         const Outputs o = tu.step(in);
-        tune_request = ack = local_clear = relay_mismatch = jog = false;
+        tune_request = ack = local_clear = relay_mismatch = jog = preset = false;
         if (visited.empty() || visited.back() != o.state) {
             visited.push_back(o.state);
             if (trace) {
@@ -138,6 +143,7 @@ struct Plant {
             to = o.target;
             left = kMoveTicks;
             ++moves;
+            travel += setting_distance(pos, to, kParts);
             if (o.mcu_permit || now - permit_down < 30 || bypass) ++violations;
         }
         if (left > 0) {
@@ -622,4 +628,109 @@ TEST(jog_moves_under_the_ptt_rules) {
     p.jog_target = Setting{100e-12, 2e-6, 300e-12};
     run_for(tu, p, 50);
     CHECK(p.moves == 1);
+}
+
+namespace {
+
+const Vec& first_on(const char* band) {
+    for (const Vec& v : kVecs)
+        if (std::string_view(v.band) == band) return v;
+    return kVecs[0];
+}
+
+void tune_to(Plant& p, const Vec& v) {               // the rig on this frequency, the NEC model's load
+    p.mhz = v.mhz;
+    p.z_load = vec::at_tuner(v.mhz, cplx(v.zl_r, v.zl_x));
+}
+
+bool idle_and_still(const Outputs& o, const Plant& p) { return o.state == State::Idle && p.left == 0; }
+
+// Matched on one band, the rig receiving, then another band selected: with or without the preset, how
+// many moves the key-down on the new band takes and how far they go. The plant gives every move the same
+// time, so travel is the measure: a coordinated move lasts as long as its slowest axis (§8B.3a).
+void band_change(const Vec& from, const Vec& v20, bool preset, double& key_travel, int& key_moves) {
+    Tuner tu(config());
+    seed_priors(tu);
+    Plant p;
+    tune_to(p, from);
+    CHECK(key(tu, p).state == State::Matched);
+    p.carrier = false;
+    run_for(tu, p, 5);
+    tune_to(p, v20);
+    if (preset) {
+        const int before = p.moves;
+        p.preset = true;
+        p.preset_mhz = v20.mhz;
+        const Outputs o = p.tick(tu);
+        CHECK(o.state == State::Move && !o.mcu_permit);
+        CHECK(run_until(tu, p, idle_and_still).state == State::Idle && p.moves == before + 1);
+        Prior pr;
+        CHECK(tu.prior(segment_of(v20.mhz), pr) && p.pos.c1 == pr.at.c1 && p.pos.l == pr.at.l && p.pos.c2 == pr.at.c2);
+    }
+    const int m0 = p.moves;
+    const double d0 = p.travel;
+    const Outputs o = key(tu, p);
+    CHECK(o.state == State::Matched && p.swr() <= 1.25 && p.violations == 0);
+    key_travel = p.travel - d0;
+    key_moves = p.moves - m0;
+}
+
+}  // namespace
+
+TEST(preset_on_band_select_leaves_only_the_refine) {
+    // §8B.3a: drive to the stored setting while the rig still receives, so the key-down that follows has
+    // only the refine to do. Every change between the low edges of two bands, with and without it.
+    const char* const bands[] = {"160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m"};
+    double with_travel = 0, without_travel = 0, worst = 0;
+    int pairs = 0, with_moves = 0, without_moves = 0;
+    for (const char* a : bands)
+        for (const char* b : bands) {
+            if (a == b) continue;
+            double t1 = 0, t0 = 0;
+            int m1 = 0, m0 = 0;
+            band_change(first_on(a), first_on(b), true, t1, m1);
+            band_change(first_on(a), first_on(b), false, t0, m0);
+            with_travel += t1;
+            without_travel += t0;
+            with_moves += m1;
+            without_moves += m0;
+            worst = std::fmax(worst, t1);
+            ++pairs;
+        }
+    std::printf("    %d band changes, at key-down: %.1f moves over %.0f %% of range on average after the preset "
+                "(worst %.0f %%), %.1f moves over %.0f %% without\n",
+                pairs, double(with_moves) / pairs, 100 * with_travel / pairs, 100 * worst,
+                double(without_moves) / pairs, 100 * without_travel / pairs);
+    CHECK(with_travel < 0.5 * without_travel && with_moves <= without_moves);
+}
+
+TEST(preset_only_while_receiving_in_idle) {
+    Tuner tu(config());
+    seed_priors(tu);
+    Plant p;
+    tune_to(p, first_on("40m"));
+    CHECK(key(tu, p).state == State::Matched);
+    const int m = p.moves;
+    const auto ask = [&](double mhz) {
+        p.preset = true;
+        p.preset_mhz = mhz;
+        run_for(tu, p, 20);
+    };
+    ask(14.175);                                      // transmitting: never
+    CHECK(p.moves == m && tu.state() == State::Matched);
+    p.carrier = false;
+    run_for(tu, p, 5);
+    ask(12.0);                                        // not an amateur band
+    p.bypass = true;
+    ask(14.175);                                      // the bypass holds everything
+    p.bypass = false;
+    p.tune_path = false;
+    ask(14.175);                                      // AUX or CAL: the network is out of circuit
+    p.tune_path = true;
+    CHECK(p.moves == m);
+    ask(14.175);
+    run_until(tu, p, idle_and_still);
+    CHECK(p.moves == m + 1 && tu.state() == State::Idle && p.violations == 0);
+    ask(14.175);                                      // already there: nothing to do
+    CHECK(p.moves == m + 1);
 }

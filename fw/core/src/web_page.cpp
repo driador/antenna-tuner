@@ -39,6 +39,10 @@ input[type=radio]{width:auto}.addr{width:9em}label{white-space:nowrap}
 <div class="card"><div class="row"><b>Faults</b><span id="faults" class="v">none</span></div></div>
 <div class="card row"><button data-c="TUNE">Tune</button><button data-c="ACK">Acknowledge</button>
 <span class="mut">path</span><button data-c="PATH TUNE">TUNE</button><button data-c="PATH AUX">AUX</button><button data-c="PATH CAL">CAL</button></div>
+<div class="card row"><b>Preset</b><span class="mut">while receiving, after a band change</span>
+<button data-c="PRESET 1.900">160</button><button data-c="PRESET 3.750">80</button><button data-c="PRESET 5.368">60</button><button data-c="PRESET 7.150">40</button><button data-c="PRESET 10.125">30</button>
+<button data-c="PRESET 14.175">20</button><button data-c="PRESET 18.118">17</button><button data-c="PRESET 21.225">15</button><button data-c="PRESET 24.940">12</button><button data-c="PRESET 28.850">10</button>
+<span><input id="pmhz" type="number" step="0.001" placeholder="MHz"><button id="preset">preset</button></span></div>
 <div class="card row"><b>Calibrate this band</b><button data-c="CAL LOAD">load</button><button data-c="CAL OPEN">open</button>
 <button data-c="CAL SHORT">short</button><button data-c="CAL SAVE">save</button>
 <span><input id="watts" type="number" min="1" step="1" placeholder="W"><button id="addw">add wattmeter reading</button></span>
@@ -83,6 +87,7 @@ function connect(){ws=new WebSocket("ws://"+location.host+"/ws");
  ws.onclose=()=>{$("link").textContent="link lost: the tuner carries on, protection is at the box";$("link").className="bad";setTimeout(connect,2000)}}
 document.querySelectorAll("button[data-c]").forEach(b=>b.onclick=()=>send(b.dataset.c));
 $("addw").onclick=()=>{const w=parseFloat($("watts").value);if(w>0)send("CAL WATTS "+w)};
+$("preset").onclick=()=>{const f=parseFloat($("pmhz").value);if(f>0)send("PRESET "+f)};
 $("dhcp").onchange=$("static").onchange=netmode;
 $("netsave").onclick=()=>{const v=k=>$(k).value.trim(),st=$("static").checked;
  let c="NET mode="+(st?"static":"dhcp")+" hostname="+v("host");

@@ -43,6 +43,9 @@ TEST(protocol_commands_and_refusals) {
     r = proto::parse("CAL WATTS 100");
     CHECK(r.cmd == Cmd::CalWatts && r.value == 100);
     CHECK(proto::parse("cal save").cmd == Cmd::CalSave);
+    r = proto::parse("preset 14.2");
+    CHECK(r.cmd == Cmd::Preset && r.value == 14.2);
+    for (const char* bad : {"PRESET", "PRESET X", "PRESET NAN"}) CHECK(proto::parse(bad).cmd == Cmd::Invalid);
     // A number must be the whole word and finite, or the command is refused with its usage.
     for (const char* bad : {"SUBSCRIBE NAN", "SUBSCRIBE 5X", "GET_LOG INF", "GET_LOG X", "CAL WATTS NAN",
                             "CAL WATTS INF", "CAL WATTS 1E999", "CAL WATTS", "cal watts 100w"}) {
@@ -131,6 +134,7 @@ TEST(page_speaks_only_what_the_link_may_carry) {
     for (const char* never : {"\"MODE", "\"CLEAR", "\"BYPASS", "\"JOG"}) CHECK(page.find(never) == std::string::npos);
     CHECK(page.find("href=\"https://github.com/driador/antenna-tuner\"") != std::string::npos);   // AGPL s13
     CHECK(page.find("send(\"NET\")") != std::string::npos && page.find("\"NET mode=\"") != std::string::npos);
+    CHECK(page.find("data-c=\"PRESET 14.175\"") != std::string::npos && page.find("send(\"PRESET \"") != std::string::npos);
 }
 
 TEST(network_settings) {

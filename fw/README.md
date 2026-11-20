@@ -100,6 +100,7 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `cal load\|open\|short\|save` | The calibration steps (below) |
 | `cal watts <W>` | Add a forward-power point at the wattmeter reading W |
 | `jog c1\|c2\|l <turns>` | Move one element |
+| `preset <MHz>` | Pre-position for a band while receiving (below) |
 | `inspected` | Record the roller inspection (§8B.4a-1) |
 | `qual` | Show the PERMISSIVE qualification |
 | `backups`, `restore <n>`, `adopt` | List the card's versions, restore one, claim another tuner's card (§8B.5.4b) |
@@ -149,7 +150,7 @@ holds transmit off until the next reboot. Latched faults stay latched.
 **The link protocol** (§8C.5), the same on a TCP port and inside the web page's WebSocket:
 
 - **Commands:** `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE [hz]` (0.1–20 Hz; 0 stops it), `GET_LOG [from]`,
-  `PATH TUNE|AUX|CAL`, `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W), and
+  `PATH TUNE|AUX|CAL`, `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W), `PRESET <MHz>`, and
   `NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]`. A malformed number
   (`NAN`, `5X`) is refused with the usage, never read as 0.
 - **Refused by name:** mode changes, class C clears, the bypass and jogging, which are local only.
@@ -160,6 +161,14 @@ holds transmit off until the next reboot. Latched faults stay latched.
     `GET_LOG` for them, so a dropped link loses nothing that is still in the 128-event ring (§8C.6).
   - `NET` answers `NET` with the saved settings, the address in use and `pending=1` while saved
     settings wait for a restart.
+
+**Pre-positioning** (§8B.3a). After a band change on the rig, the page's Preset buttons (the band's
+center) or `PRESET <MHz>` drive the elements to the stored setting for that frequency while the rig
+still receives. It is taken only in IDLE with no carrier, on the TUNE path, with the bypass off and no
+blocking fault, and the move drops the permit like any other. The key-down that follows measures the
+real frequency as always, so a wrong preset costs a longer move and nothing else. In the simulation,
+over all 90 changes between band edges, it cuts the key-down travel from 54 % of range to 10 % on
+average (2.2 moves to 1.5), which leaves the refine.
 
 **On the network** (§8C):
 
@@ -277,7 +286,7 @@ about 3 %.
 
 - **Bring-up** on the built boards, per the list above, then a calibration of every band.
 - **Recovery mode stage 2** (§8B.4f.3): the panel's backup browser and network editor.
-- **Operation:** pre-positioning on band select (§8B.3a) and the 160 m power derate (§1.7.1).
+- **Operation:** the 160 m power derate (§1.7.1).
 - **Cold-start search:** when there is no prior and the reading stays pinned at the top of the
   range, step through a few reference settings to find a readable neighborhood.
 

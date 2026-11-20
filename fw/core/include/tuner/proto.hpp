@@ -7,10 +7,11 @@
 //
 //   to the tuner     TUNE | ACK | QUERY | SUBSCRIBE [hz] | GET_LOG [from] | PATH TUNE|AUX|CAL
 //                    | CAL LOAD|OPEN|SHORT|SAVE | CAL WATTS <w>
-//                    | NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]
+//                    | PRESET <MHz> | NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]
 //   from the tuner   OK <command> | ERR <reason> | TLM <fields> | EVT <event> | NET <settings>
 //
-// NET alone asks for the network settings; with keys it changes the ones named. A change is checked,
+// PRESET moves the elements to the stored setting for a frequency while the rig still receives
+// (§8B.3a). NET alone asks for the network settings; with keys it changes the ones named. A change is checked,
 // saved as an administrative change (§8B.5.4) and used from the next restart.
 //
 // A command may omit its checksum (typed by hand); one that has a checksum must match it. Deliberately
@@ -29,12 +30,12 @@
 namespace tuner::proto {
 
 enum class Cmd : uint8_t {
-    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Net, LocalOnly
+    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Preset, Net, LocalOnly
 };
 
 struct Request {
     Cmd cmd = Cmd::Invalid;
-    double value = 0;              // SUBSCRIBE rate, GET_LOG start, CAL WATTS
+    double value = 0;              // SUBSCRIBE rate, GET_LOG start, CAL WATTS, PRESET MHz
     Path path = Path::Tune;
     const char* why = nullptr;     // for Invalid and LocalOnly: the reason to send back
     NetConfig net;                 // NET: the values given, and which fields they are (net::Field bits)

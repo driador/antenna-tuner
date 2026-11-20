@@ -112,6 +112,9 @@ Request parse(const char* line) {
     } else if (is(0, "GET_LOG")) {
         r.cmd = Cmd::GetLog;
         if (k > 1 && !number(w[1], r.value)) r = refuse("GET_LOG [from]");
+    } else if (is(0, "PRESET")) {
+        r.cmd = Cmd::Preset;
+        if (k < 2 || !number(w[1], r.value)) r = refuse("PRESET <MHz>");
     } else if (is(0, "PATH")) {
         r.cmd = Cmd::Path;
         if (is(1, "TUNE")) r.path = Path::Tune;

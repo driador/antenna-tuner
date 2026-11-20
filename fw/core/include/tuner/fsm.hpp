@@ -83,6 +83,12 @@ struct Inputs {
     // tune's moves.
     bool jog = false;
     Setting jog_target;
+    // Pre-positioning (§8B.3a): the band the remote head selected while the rig still receives. Taken
+    // only in IDLE with no carrier, on the TUNE path: one move to the stored setting for preset_mhz's
+    // segment, so the wait at the next key-down is the refine alone. That tune measures the real
+    // frequency as always, so a wrong preset costs a longer move and nothing else.
+    bool preset = false;
+    double preset_mhz = 0;
 };
 
 // What the Teensy layer carries out. A new move_id starts one coordinated move to target (§8B.3);
@@ -147,7 +153,7 @@ private:
     bool pending_request_ = false;
     bool prior_used_ = false;      // the prior has chosen a sign once this tune; measurements decide after
     bool armed_ = false;           // IDLE has seen the carrier absent since it was entered
-    bool jogging_ = false;         // the move in progress is a manual one
+    bool jogging_ = false;         // the move in progress is a jog or a preset: it ends in IDLE
     bool probed_ = false;          // PROBE: the C2 step is done, waiting for its reading
     bool move_pending_ = false;    // a move has been asked for and has not finished
     bool move_issued_ = false;     // ...and has gone out to the motion layer

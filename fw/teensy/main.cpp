@@ -50,8 +50,9 @@ tuner::Outputs g_out;
 tuner::PathSwitch::Out g_path_out;
 uint32_t g_issued = 0, g_finished = 0, g_last_tick = 0, g_last_second = 0, g_last_panel = 0;
 bool g_self_test = false;
-bool g_ack = false, g_clear = false, g_tune = false, g_jog = false;   // taken on the next tick
+bool g_ack = false, g_clear = false, g_tune = false, g_jog = false, g_preset = false;   // taken on the next tick
 tuner::Setting g_jog_target;
+double g_preset_mhz = 0;
 const char* g_note = nullptr;          // the last result, on the console and the panel for a while
 uint32_t g_note_ms = 0;
 hw::Storage g_store;
@@ -293,6 +294,20 @@ void panel_request() {
     }
 }
 
+// Pre-positioning (§8B.3a): the remote head's band select, while the rig still receives. The state
+// machine checks the same conditions again on the next tick, and the tune at key-down measures the
+// real frequency, so a wrong preset only costs a longer move.
+const char* preset(double mhz) {
+    if (!(mhz > 0) || tuner::segment_of(mhz) < 0) return "preset: not on an amateur band";
+    if (g_sensors.carrier()) return "preset: only while receiving";
+    if (g_path.path() != tuner::Path::Tune) return "preset: on the TUNE path only";
+    if (g_sensors.iox(iox::BYPASS_KEY)) return "preset: the bypass is engaged";
+    if (g_out.state != tuner::State::Idle || g_motion.busy()) return "preset: only in IDLE";
+    g_preset = true;
+    g_preset_mhz = mhz;
+    return nullptr;
+}
+
 // Network settings (§8B.5.4): checked, saved to flash and the card as one administrative change, and
 // used from the next restart, so the connection that made the change never drops under it.
 const char* set_net(const tuner::proto::Request& r) {
@@ -320,6 +335,7 @@ const char* link_command(const tuner::proto::Request& r) {
         case Cmd::CalShort: return cal_step(hw::Calibration::Step::Short);
         case Cmd::CalSave: return cal_save();
         case Cmd::CalWatts: return cal_step(hw::Calibration::Step::Power, r.value);
+        case Cmd::Preset: return preset(r.value);
         case Cmd::Net: return set_net(r);
         default: return "not on the link";
     }
@@ -406,6 +422,10 @@ void command(const char* s) {
     } else if (!std::strncmp(s, "restore ", 8)) restore(uint32_t(std::atol(s + 8)));
     else if (!std::strcmp(s, "adopt")) note(g_store.adopt(g_auth.tuner_id) ? "card adopted" : "adopt: no card");
     else if (!std::strncmp(s, "net", 3) && (s[3] == 0 || s[3] == ' ')) net_console(s);
+    else if (!std::strncmp(s, "preset ", 7)) {
+        const char* why = preset(std::atof(s + 7));
+        note(why ? why : "preset: moving to the stored setting");
+    }
     else if (!std::strncmp(s, "jog ", 4)) {
         const char* a = s + 4;
         const int axis = !std::strncmp(a, "c1 ", 3) ? 0 : !std::strncmp(a, "c2 ", 3) ? 1 : !std::strncmp(a, "l ", 2) ? 2 : -1;
@@ -413,7 +433,7 @@ void command(const char* s) {
         else jog(axis, std::atof(a + (axis == 2 ? 2 : 3)));
     } else {
         Serial.println("commands: status, ack, clear, tune, mode commissioning|strict, path tune|aux|cal,");
-        Serial.println("          cal load|open|short|save, cal watts <W>, jog c1|c2|l <turns>, inspected, qual,");
+        Serial.println("          cal load|open|short|save, cal watts <W>, jog c1|c2|l <turns>, preset <MHz>, inspected, qual,");
         Serial.println("          backups, restore <n>, adopt, net [mode=dhcp|static hostname= ip= netmask= gateway= dns=]");
     }
 }
@@ -474,7 +494,9 @@ void tick(uint32_t now) {
     in.relay_mismatch = g_path_out.mismatch;
     in.jog = g_jog;
     in.jog_target = g_jog_target;
-    g_tune = g_ack = g_clear = g_jog = false;
+    in.preset = g_preset;
+    in.preset_mhz = g_preset_mhz;
+    g_tune = g_ack = g_clear = g_jog = g_preset = false;
 
     g_out = g_tuner->step(in);
 

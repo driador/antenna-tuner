@@ -223,12 +223,20 @@ Outputs Tuner::step(const Inputs& in) {
             else enter(State::Idle);
             break;
 
-        case State::Idle:
+        case State::Idle: {
             // Every tune starts on a fresh key-down: after a fault clears, "re-attempt on next carrier".
+            Prior p;
             if (in.jog && !in.bypass && !faults_.any_blocking()) {
                 enter(State::Move);
                 jogging_ = true;
                 move_target_ = in.jog_target;
+                move_pending_ = true;
+            } else if (in.preset && !in.carrier && in.tune_path && !in.bypass && !in.limit_hit && !faults_.any_blocking() &&
+                       prior_near(in.preset_mhz, p) && setting_distance(in.position, p.at, cfg_.parts) > kAtSetting) {
+                enter(State::Move);                 // §8B.3a: to the stored setting while still receiving
+                jogging_ = true;
+                solved_ = false;                    // the elements leave the solution they held
+                move_target_ = p.at;
                 move_pending_ = true;
             } else if (!in.carrier) {
                 armed_ = true;
@@ -236,6 +244,7 @@ Outputs Tuner::step(const Inputs& in) {
                 enter(State::Measure);
             }
             break;
+        }
 
         case State::Measure:
             if (!in.carrier) enter(State::Idle);                    // carrier lost: hold position

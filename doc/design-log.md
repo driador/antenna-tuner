@@ -2626,7 +2626,7 @@ measurement (200 ms frequency gate + bridge), 3-step bounded refine.
 rotor needs ~1 s to reach 10 rev/s on the available torque — which adds ~0.7 s to roller moves but
 still leaves the capacitors as the slower axes. With **pre-positioning on band select** from the
 remote head (drive to the stored profile while still receiving), the wait at key-down is the refine
-alone, ~1–2 s.
+alone, ~1–2 s (implemented as PRESET, §8B.6).
 
 **The capacitors, not the roller, set band-change time.** C2 sits near full mesh on 160 / 80 / 60 / 12 m
 and near minimum on 40 m and up, so most band changes swing it end to end. Part of that is the solver: the
@@ -3131,6 +3131,12 @@ prior, which in practice means out of band) match 99.4 %, and the rest end in a 
 - **Link protocol:** the commands of §8C.5 plus PATH, CAL and NET, with mode changes, class C clears,
   the bypass and jogging refused as local only. A number that is not a plain finite one (`NAN`, `5X`)
   is refused rather than read as 0, and a calibration point above 2000 W is taken as a typo.
+- **Pre-positioning (§8B.3a):** PRESET on the link, a band button on the page, or the console drives the
+  elements to the stored setting for a frequency while the rig still receives. It runs only in IDLE
+  with no carrier, on the TUNE path, with the bypass off and no blocking fault, and the move drops the
+  permit like any other. The key-down that follows measures the real frequency, so a wrong preset costs
+  only a longer move. Simulated over all 90 changes between band edges, key-down travel falls from 54 %
+  of range to 10 % on average (worst 32 %), 2.2 moves to 1.5.
 - **Network settings:** the page's Network card, NET on the link, or the console sets DHCP or a static
   address, and the hostname. A change must pass a check (a host address on a /8 to /30 subnet, a
   gateway on that subnet, a hostname a resolver takes). It is then saved as an administrative change
