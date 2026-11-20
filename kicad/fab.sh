@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 # Fabrication outputs for a routed board: Gerbers (copper, mask, paste, silk,
 # outline), Excellon drill files, and one zip ready for a fab's upload form.
 # Usage: ./fab.sh control   ->  fab/control/ and fab/control-fab.zip

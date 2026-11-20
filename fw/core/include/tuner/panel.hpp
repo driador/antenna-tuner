@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The local panel (§7.5, §8B.4f): a text screen on the Nextion, driven by the two panel encoders. The
 // display is only a terminal; every screen is drawn here, so the panel's behavior is tested on the host.
 //
@@ -32,10 +35,16 @@ struct PanelView {                         // what the panel shows; the Teensy l
     bool cal_valid = false;                // this band's bridge calibration
     uint8_t cal_have = 0;                  // standards taken this session: 1 load, 2 open, 4 short
     const char* note = nullptr;            // a result to show in place of the hint for a while
+    int card = 0;                          // the SD card: 1 present, 0 none, -1 another tuner's (§8B.5.3)
+    // The PERMISSIVE qualification (§8B.4a-1), shown on the policy screen.
+    uint32_t q_tunes = 0;
+    int q_bands = 0;
+    double q_hours = 0;
+    bool q_inspected = false, q_met = false;
 };
 
 enum class PanelAction : uint8_t {
-    None, Ack, ClearLocal, Tune, SetMode, SetPath, CalLoad, CalOpen, CalShort, CalSave, Jog
+    None, Ack, ClearLocal, Tune, SetMode, SetPath, CalLoad, CalOpen, CalShort, CalSave, Jog, Inspected
 };
 
 struct PanelRequest {

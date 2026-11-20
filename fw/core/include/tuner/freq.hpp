@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Operating frequency from the /1024 prescaler (§6A.10, §8B.0.1) and the tune-initiation window (§8B.2).
 #pragma once
 #include <cstdint>

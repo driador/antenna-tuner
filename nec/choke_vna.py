@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Simulated common-mode sweep of the Guanella input choke (design log §6, §9 item 3) with nec2++.
 
 The choke's common-mode conductor is the outside of the RG-142B shield: a 30-turn helix, 4.0" G10

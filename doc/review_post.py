@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Post-process the review log HTML.
 
 Two jobs the stylesheet cannot do alone, because WeasyPrint has no :has():

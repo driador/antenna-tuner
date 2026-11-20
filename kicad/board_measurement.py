@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Measurement board, Sampler chamber -- 1500W Doublet Tuner Rev 3.7c.
 
 NO MICROCONTROLLER (Section 8B.0). Everything leaves as filtered DC on the J-S

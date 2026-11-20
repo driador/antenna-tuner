@@ -41821,6 +41821,18 @@
 		(layer "Edge.Cuts")
 		(uuid "8dca4ae1-4a28-4586-8d89-f2c847a07a61")
 	)
+	(gr_text "R. A. Popp, KF0OWR\nCERN-OHL-W-2.0\ngithub.com/driador/antenna-tuner"
+		(at 124 86.6 0)
+		(layer "B.SilkS")
+		(uuid "a12c4a43-2889-48b2-a34e-b5570dbe7781")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify mirror)
+		)
+	)
 	(segment
 		(start 97.5103 32.3555)
 		(end 95.5414 32.3555)

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 import run_vee as V, json, math, cmath, sys
 Z0=600.0; P=1500.0; VF=0.95
 PTS=[('160m',1.800),('160m',1.900),('160m',2.000),

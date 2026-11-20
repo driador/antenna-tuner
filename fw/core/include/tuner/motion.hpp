@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // One coordinated move (§8B.3): every axis travels the straight line from start to target in step
 // space, so all three start and stop together. The plan is a speed profile along the path parameter s
 // (0 to 1), sampled at kN points: within each axis's speed and acceleration, and within the roller's

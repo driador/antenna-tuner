@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "persist.hpp"
 
 #include <EEPROM.h>
@@ -9,10 +12,10 @@
 namespace hw {
 
 namespace {
-constexpr uint32_t kMagic = 0x544E5232;   // "TNR2"
-constexpr uint16_t kVersion = 2;
+constexpr uint32_t kMagic = 0x544E5233;   // "TNR3"
+constexpr uint16_t kVersion = 3;
 constexpr int kHeader = 16;               // magic, version, body length, CRC, sequence
-constexpr int kAuthBody = 5 + tuner::kBandCount * (1 + 5 * 4 + 1 + kPowerPoints * 2 * 4);
+constexpr int kAuthBody = 8 + 5 + 11 + 49 + tuner::kBandCount * (1 + 5 * 4 + 1 + kPowerPoints * 2 * 4);
 constexpr int kConvBody = 3 * 4 + tuner::kSegments * (1 + 5 * 4);
 constexpr int kAuthSlot = kHeader + kAuthBody;
 constexpr int kConvAt = 2 * kAuthSlot;    // after the two authoritative copies
@@ -58,6 +61,11 @@ struct Record {
     uint8_t image[kHeader + (kAuthBody > kConvBody ? kAuthBody : kConvBody)];
     uint32_t seq;
 
+    bool blank() const {                  // nothing ever written here: the magic is absent
+        uint32_t magic;
+        std::memcpy(&magic, image, 4);
+        return magic != kMagic;
+    }
     bool read() {
         for (int i = 0; i < kHeader + body; ++i) image[i] = EEPROM.read(at + i);
         Reader h{image};
@@ -93,9 +101,18 @@ bool g_conv_valid = false;
 
 void encode(const Authoritative& a, uint8_t* out) {
     Writer w{out};
+    w.put(a.tuner_id);
     w.put(a.faults.latched_c);
     w.put(a.faults.unacked_b);
     w.put(uint8_t(a.faults.mode));
+    w.put(a.qual.tunes);
+    w.put(a.qual.bands);
+    w.put(a.qual.powered_s);
+    w.put(uint8_t(a.qual.inspected));
+    w.put(uint8_t(a.net.dhcp));
+    for (char c : a.net.hostname) w.put(c);
+    for (const uint8_t* ip : {a.net.ip, a.net.netmask, a.net.gateway, a.net.dns})
+        for (int i = 0; i < 4; ++i) w.put(ip[i]);
     for (int b = 0; b < tuner::kBandCount; ++b) {
         const tuner::BridgeCal& c = a.bridge[b];
         w.put(uint8_t(c.valid));
@@ -112,11 +129,23 @@ void encode(const Authoritative& a, uint8_t* out) {
 
 void decode(const uint8_t* in, Authoritative& a) {
     Reader r{in};
-    uint8_t mode, valid, n;
+    uint8_t mode, valid, n, flag;
+    r.get(a.tuner_id);
     r.get(a.faults.latched_c);
     r.get(a.faults.unacked_b);
     r.get(mode);
     a.faults.mode = tuner::Mode(mode);
+    r.get(a.qual.tunes);
+    r.get(a.qual.bands);
+    r.get(a.qual.powered_s);
+    r.get(flag);
+    a.qual.inspected = flag;
+    r.get(flag);
+    a.net.dhcp = flag;
+    for (char& c : a.net.hostname) r.get(c);
+    a.net.hostname[sizeof a.net.hostname - 1] = 0;
+    for (uint8_t* ip : {a.net.ip, a.net.netmask, a.net.gateway, a.net.dns})
+        for (int i = 0; i < 4; ++i) r.get(ip[i]);
     for (int b = 0; b < tuner::kBandCount; ++b) {
         tuner::BridgeCal& c = a.bridge[b];
         r.get(valid);
@@ -159,13 +188,13 @@ void decode(const uint8_t* in, Convenience& c) {
 }
 }  // namespace
 
-bool load(Authoritative& a) {
+Loaded load(Authoritative& a) {
     const bool ok0 = g_auth[0].read(), ok1 = g_auth[1].read();
     if (ok0 && ok1) g_auth_current = int32_t(g_auth[1].seq - g_auth[0].seq) > 0 ? 1 : 0;
     else g_auth_current = ok0 ? 0 : ok1 ? 1 : -1;
-    if (g_auth_current < 0) return false;
+    if (g_auth_current < 0) return g_auth[0].blank() && g_auth[1].blank() ? Loaded::Blank : Loaded::Corrupt;
     decode(g_auth[g_auth_current].image + kHeader, a);
-    return true;
+    return Loaded::Ok;
 }
 
 bool load(Convenience& c) {
@@ -184,12 +213,13 @@ void save(const Authoritative& a) {
     g_auth_current = next;
 }
 
-void save(const Convenience& c) {
+bool save(const Convenience& c) {
     uint8_t body[kConvBody];
     encode(c, body);
-    if (g_conv_valid && std::memcmp(body, g_conv.image + kHeader, kConvBody) == 0) return;
+    if (g_conv_valid && std::memcmp(body, g_conv.image + kHeader, kConvBody) == 0) return false;
     g_conv.write(body, g_conv.seq + 1);
     g_conv_valid = true;
+    return true;
 }
 
 }  // namespace hw

@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 set -e
 B=${1:-measurement}
 J=/usr/lib/jvm/java-25-temurin/bin/java

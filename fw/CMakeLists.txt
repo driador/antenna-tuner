@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Host build of the portable core and its tests. The Teensy build (PlatformIO) compiles the same core/
 # sources; nothing in core/ may depend on Arduino, the heap after start-up, exceptions or RTTI.
 cmake_minimum_required(VERSION 3.16)
@@ -16,22 +19,30 @@ add_library(tuner_core STATIC
   core/src/bridge.cpp
   core/src/cal.cpp
   core/src/curve.cpp
+  core/src/events.cpp
   core/src/faults.cpp
   core/src/freq.cpp
   core/src/fsm.cpp
+  core/src/json.cpp
+  core/src/mirror.cpp
   core/src/motion.cpp
   core/src/panel.cpp
   core/src/panel_io.cpp
   core/src/path.cpp
+  core/src/proto.cpp
+  core/src/qualify.cpp
   core/src/seed.cpp
   core/src/sense.cpp
-  core/src/tnet.cpp)
+  core/src/sntp.cpp
+  core/src/tnet.cpp
+  core/src/web.cpp
+  core/src/web_page.cpp)
 target_include_directories(tuner_core PUBLIC core/include)
 target_compile_options(tuner_core PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Werror
   -fno-exceptions -fno-rtti)
 
 enable_testing()
-foreach(name tnet bridge freq_faults fsm hw panel)
+foreach(name tnet bridge freq_faults fsm hw panel store link)
   add_executable(test_${name} test/test_${name}.cpp test/test_main.cpp)
   target_link_libraries(test_${name} PRIVATE tuner_core)
   target_compile_options(test_${name} PRIVATE -Wall -Wextra)

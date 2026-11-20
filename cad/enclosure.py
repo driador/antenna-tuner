@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Parametric model of the tuner enclosure: vertical stack, modular utility layer, wall mount.
 
 Inches throughout. Enclosure frame (shared with roller.py's installation sheet):
@@ -74,7 +77,9 @@ UI = [  # (tag, kind, x_from_left, z_from_bottom, size, note)
     ("C", "hole", 11.40, 2.55, 0.380, "ENCODER 2, GRAYHILL 62V15-02-080CH, 3/8-32 (NO TAB, KEYWAY)"),
     ("D", "dflat", 13.40, 3.30, (0.748, 0.669), "KEYED BYPASS SWITCH, E-SWITCH KO128A2007, KEY OUT IN OFF (8B.4d)"),
     ("E", "hole", 13.40, 1.60, 0.630, "RECOVERY BUTTON, E-SWITCH PV6F240SS, FLUSH + GUARD RING (8B.4f)"),
+    ("F", "hole", 10.60, 1.20, 1.000, "MICRO SD, ADAFRUIT 6070 PANEL-MOUNT EXTENDER (8B.5.6); CONFIRM HOLE IN HAND"),
 ]
+SD_EXT = (1.18, 0.55)   # Adafruit 6070 behind the face: 30 mm nut (worst case), depth ASSUMED until in hand
 
 # ---- floor I/O (all low-voltage I/O enters through the floor) ----
 FLOOR_IO = [  # (tag, kind, x, y, size, note); x, y in enclosure coords
@@ -616,6 +621,9 @@ def cassette():
     yd, zd = D / 2 - (UI[0][2] - DISPLAY_OFF), Z_FLOOR + UI[0][3]
     out.append(("display envelope", plate(-F + 0.02, -F + 0.02 + DISPLAY[2], yd - DISPLAY[0] / 2,
                                           yd + DISPLAY[0] / 2, zd - DISPLAY[1] / 2, zd + DISPLAY[1] / 2)))
+    t, _k, xs, zs, _sz, _nt = UI[-1]                     # the SD extender's body and nut behind the face
+    out.append(("SD extender envelope", Pos(-F + 0.02, D / 2 - xs, Z_FLOOR + zs)
+                * Rot(0, 90, 0) * Cylinder(SD_EXT[0] / 2, SD_EXT[1], align=(Align.CENTER, Align.CENTER, Align.MIN))))
     return out
 
 

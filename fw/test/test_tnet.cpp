@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // tnet.cpp against the validated Python solver: every band edge, the same choice, the same numbers.
 #include <cmath>
 

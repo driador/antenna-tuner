@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Fault classes, the mechanical-fault policy and what survives a power cycle (§8B.4 to §8B.4b).
 //   A self-clearing   resolves on hysteresis
 //   B acknowledge     operator ACK from either end
@@ -51,6 +54,10 @@ public:
     void set_mode(Mode m) { mode_ = m; }
     Mode mode() const { return mode_; }
 
+    // Every raise() counts, including the ones COMMISSIONING only logs; the counts are for the fault
+    // log and the PERMISSIVE qualification, and start at zero each boot.
+    uint16_t raised(Fault f) const { return raised_[unsigned(f)]; }
+
     bool latched(Fault f) const { return latched_c_ & mask(f); }
     bool unacked(Fault f) const { return unacked_b_ & mask(f); }
     bool active(Fault f) const { return active_a_ & mask(f); }
@@ -67,6 +74,7 @@ private:
     Mode mode_;
     uint16_t latched_c_ = 0, unacked_b_ = 0, active_a_ = 0;
     uint8_t mechanical_this_session_ = 0;
+    uint16_t raised_[unsigned(Fault::Count)] = {};
 };
 
 }  // namespace tuner

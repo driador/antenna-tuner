@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // AS5048A magnetic encoder frames (§7.1): SPI mode 1, 16 bits, MSB first. Bit 15 is even parity over
 // the frame and bit 14 is the read bit (command) or the error flag (reply); bits 13-0 carry the
 // register or the data. Each transfer returns the reply to the previous command.

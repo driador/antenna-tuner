@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The local panel's hardware (§7.5): the Nextion NX4832K035 on Serial8 and the two Grayhill 62V15
 // encoders through the MCP23017. The display is a terminal; its HMI is one page of ten text rows,
 // t0-t9 (fw/README.md, "The panel's HMI"), and every screen is drawn by tuner::Panel.

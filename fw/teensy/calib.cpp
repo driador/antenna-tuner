@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "calib.hpp"
 
 #include <cstdio>
@@ -24,7 +27,7 @@ const char* Calibration::start(Step s, tuner::Path path, bool carrier, double mh
     if (s == Step::Load && path != tuner::Path::Cal) return "select the CAL path for the load";
     if ((s == Step::Open || s == Step::Short) && path != tuner::Path::Aux) return "select AUX, standard on the N jack";
     if (s == Step::Power && path == tuner::Path::Tune) return "power points need AUX or CAL";
-    if (s == Step::Power && !(watts > 0)) return "give the wattmeter reading";
+    if (s == Step::Power && !(watts > 0 && watts <= kMaxCalWatts)) return "wattmeter reading, up to 2000 W";
     if (b != band_) {                  // a new band: its own session
         band_ = b;
         have_ = 0;
@@ -68,6 +71,7 @@ const char* Calibration::gate(const tuner::Standard& raw, double v_fwd, double m
             if (!trial.insert(sum_fwd_ / kCalGates, watts_) || trial.n > kPowerPoints) return "power curve full";
             if (trial.n >= 2 && !trial.valid()) return "point out of order: watts must rise with volts";
             c = trial;
+            ++changes_;
             std::snprintf(msg_, sizeof msg_, "%s: %.0f W at %.3f V (%d points)", name, watts_, sum_fwd_ / kCalGates,
                           c.n);
             return msg_;
@@ -85,6 +89,7 @@ const char* Calibration::save() {
     const tuner::CalError e = tuner::bridge_cal(open_, short_, load_, c);
     if (e != tuner::CalError::None) return tuner::cal_error_text(e);
     auth_->bridge[band_] = c;
+    ++changes_;
     std::snprintf(msg_, sizeof msg_, "%s saved: floor %.1f dB", tuner::kBands[band_].name, c.floor_db);
     return msg_;
 }

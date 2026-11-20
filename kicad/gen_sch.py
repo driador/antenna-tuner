@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Generate a KiCad 10 .kicad_sch programmatically.
 
 Connections are made with pin stubs + net labels rather than routed wires.
@@ -121,7 +124,9 @@ class Sch:
             ['paper', sexpr.q(self.paper)],
             ['title_block',
                 ['title', sexpr.q(self.title)],
-                ['company', sexpr.q(f'1500W Doublet Tuner  {self.rev}')]]]
+                ['company', sexpr.q(f'1500W Doublet Tuner  {self.rev}')],
+                ['comment', '1', sexpr.q('R. A. Popp, KF0OWR')],
+                ['comment', '2', sexpr.q('CERN-OHL-W-2.0  github.com/driador/antenna-tuner')]]]
         lib = ['lib_symbols']
         for lib_id, sd in sorted(self.used.items()):
             libname = lib_id.split(':')[0]

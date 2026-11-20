@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The vector bridge: AD8302 on the coupler's FWD (INPB, reference) and REF (INPA) ports (§6A.5).
 // It reports |Gamma| and |theta| at the network's 50 ohm input; the sign of theta is lost (§6A.7).
 #pragma once

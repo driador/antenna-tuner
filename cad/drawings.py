@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """FreeCAD TechDraw sheets for the homebuilt roller (design log §5.3a, Rev 3.7 target).
 
 Run headless after roller.py:  xvfb-run -a freecad cad/drawings.py
@@ -168,6 +171,8 @@ def new_page(doc, name, title, dwg, sheet_no):
     texts = dict(t.EditableTexts)
     texts.update({k: v for k, v in fields.items() if k in texts})
     t.EditableTexts = texts
+    # the license and Source Location (CERN-OHL-W v2 §4.1), centered in the title block's empty top-left cell
+    note(doc, page, ["LICENSE: CERN-OHL-W-2.0", "GITHUB.COM/DRIADOR/ANTENNA-TUNER"], 288.5, 59.6, 2.0)
     return page
 
 

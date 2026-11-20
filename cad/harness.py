@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Harness routing for the 1500 W tuner enclosure (TUNER-E-212 to E-214).
 
 Every run is a 3-D centerline through waypoints (inches, enclosure frame: X depth with the front

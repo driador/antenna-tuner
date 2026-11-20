@@ -7,6 +7,8 @@
 	(title_block
 		(title "Measurement Board -- Sampler Chamber")
 		(company "1500W Doublet Tuner  Rev 3.7c")
+		(comment 1 "R. A. Popp, KF0OWR")
+		(comment 2 "CERN-OHL-W-2.0  github.com/driador/antenna-tuner")
 	)
 	(lib_symbols
 		(symbol "4xxx:4040"

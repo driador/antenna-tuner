@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 SRC=$(realpath "${1:-$HERE/design-review-rev3.2.md}")

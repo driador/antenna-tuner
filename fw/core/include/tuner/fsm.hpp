@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The tuning state machine (§8B.1 to §8B.3), as a pure function of its inputs: the Teensy layer reads
 // the hardware into Inputs once per tick and carries out Outputs. Nothing here touches a pin.
 //

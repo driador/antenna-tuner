@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The factory priors (§6A.7 option 2, §7.6): for each profile segment, the NEC model's load at the
 // tuner and the setting that matches it. The storage layer loads them at first boot; a good tune
 // replaces its segment's entry (Tuner::set_prior), and the stored copy follows it.

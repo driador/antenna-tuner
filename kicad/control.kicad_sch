@@ -7,6 +7,8 @@
 	(title_block
 		(title "Control Board -- Control Chamber")
 		(company "1500W Doublet Tuner  Rev 3.7c")
+		(comment 1 "R. A. Popp, KF0OWR")
+		(comment 2 "CERN-OHL-W-2.0  github.com/driador/antenna-tuner")
 	)
 	(lib_symbols
 		(symbol "74xx:74HC14"

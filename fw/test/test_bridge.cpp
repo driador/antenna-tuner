@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The AD8302 extraction (§6A.6) and its sign ambiguity (§6A.7). Its calibration is in test_hw.cpp.
 #include <cmath>
 

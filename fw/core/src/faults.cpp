@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "tuner/faults.hpp"
 
 namespace tuner {
@@ -22,6 +25,7 @@ const char* fault_name(Fault f) {
 }
 
 FaultClass FaultPolicy::raise(Fault f) {
+    if (f < Fault::Count) ++raised_[unsigned(f)];
     switch (f) {
         case Fault::OverTemp:
         case Fault::CarrierLost:

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // High-pass T network: series C1 at the 50 ohm input, shunt roller L, series C2 to the load (§5, §6A.9).
 // The closed-form solution is the one validated in nec/tnet.py and nec/cap_demand.py.
 #pragma once

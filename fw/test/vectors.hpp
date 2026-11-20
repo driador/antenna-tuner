@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The band-edge vectors from nec/cap_demand.py (fw/tools/gen_tables.py), shared by the tests.
 #pragma once
 #include <cmath>

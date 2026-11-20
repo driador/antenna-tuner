@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Minimal S-expression reader/writer for KiCad 10 files.
 Format learned by inspection of /usr/share/kicad/symbols/*.kicad_sym (version 20251024),
 not from memory. Atoms are str; lists are python lists.

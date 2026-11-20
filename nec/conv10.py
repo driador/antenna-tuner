@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """10 m reactance convergence (log §9 item 10).
 
 The band-edge model (run_vee.py, 600 segments per leg) feeds the inverted-V with a delta gap on

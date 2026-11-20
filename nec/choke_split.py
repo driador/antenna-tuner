@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Option B screening (design log §6, choke loss): a #61 ferrite section for the low bands.
 
 For each band edge: the deck's common-mode voltage (≈ half the differential output voltage for a

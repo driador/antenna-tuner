@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Parametric model of the homebuilt roller inductor (design log §5.3a, Rev 3.7 target).
 
 Inches throughout. Coil axis is +Z (the roller stands upright in the vertical stack);

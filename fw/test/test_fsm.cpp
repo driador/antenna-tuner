@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The state machine in closed loop against a modeled tuner: elements whose true values are off their
 // encoder calibration, a bridge with residual errors, a motion layer and a 300 ms measurement. Every
 // tick also checks the PTT rules of §8B.3: no move with the vote up, none within 30 ms of it dropping,

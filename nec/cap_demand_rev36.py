@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Capacitance demand and pad necessity for the T-network (design log §5.1, §10.15 item 4).
 
 Archived so the §5.1 figures can be regenerated. Run:  python3 cap_demand.py

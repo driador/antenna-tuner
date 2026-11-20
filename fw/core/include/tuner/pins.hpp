@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Teensy 4.1 pin allocation, Rev 3.7c: log §8B.0.4, transcribed from kicad/board_control.py PINMAP.
 // Change the board first; this file follows it.
 #pragma once

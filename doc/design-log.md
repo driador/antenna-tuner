@@ -1,6 +1,10 @@
 # 1500W Automated Antenna Tuner — Design Log
 ### Revision 3.7c — Vertical-Stack Architecture · Measured Parts · All-Band Band-Edge Basis
 
+**License.** © 2026 Reuben A. Popp, KF0OWR. This design is open hardware under the CERN-OHL-W v2
+and comes with no warranty; the firmware in `fw/` is GPL-3.0-or-later. `LICENSE` has the terms
+and the third-party exceptions. Source location: <https://github.com/driador/antenna-tuner>.
+
 **Revision history**
 - **Rev 1** — initial spec. Correct on materials/welding, chamber-crossing discipline, relay sequencing.
 - **Rev 3.2** — *replacement, not revision*. Fixed several items; dropped four correct sections from
@@ -191,7 +195,12 @@
     matched. Open item 54 is the commissioning bounds the firmware was tested to. The Teensy layer
     (boot, watchdog, motion, measurement, storage, a USB console) builds and waits for the boards.
     It also has per-band calibration, which is scalar because the AD8302 loses the phase sign
-    (§6A.8), TUNE/AUX/CAL switching with coil and RF checks, the local panel and manual jog.
+    (§6A.8), TUNE/AUX/CAL switching with coil and RF checks, the local panel and manual jog. It also
+    has the PERMISSIVE qualification, the SD mirror with versioned backups and restore by identity,
+    a numbered event log, and the link protocol and web page.
+20. **microSD extender** (§8B.5.6): an Adafruit 6070 brings the Teensy's card to the cassette face, below
+    the encoders (E-202, F; §10.7). Its plug stays in the Teensy's socket, so the firmware treats the
+    card as present only while it answers.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -3023,6 +3032,20 @@ The Control chamber is sealed (Section 8E). Reaching the card means sliding out 
 deliberate occasional operation rather than routine — acceptable, because **the web UI is the
 normal way to change configuration.** The card is for backup, transfer, and inspection.
 
+*Rev 3.7c:* a **panel-mount microSD extender (Adafruit 6070)** now brings the slot to the cassette face,
+below the encoders (TUNER-E-202, F). The card is reached from outside without touching the cassette.
+Three consequences:
+
+- **No card detect.** The extender's plug stays in the Teensy's socket, so that socket's card-detect always
+  reads "inserted". The firmware learns whether a card is there by using it. A failed operation marks it
+  gone, and while it is gone it is re-mounted every 5 s (§8B.6).
+- **Sealing.** The slot is an opening in the IP5X chamber (§8E). Seat the extender's flange on the panel
+  gasket and keep a card in the slot, which closes most of it.
+- **A longer SDIO path.** The card's lines now run through ~18 cm of ribbon. At commissioning, check that
+  the card mounts and writes reliably; if it does not, bring the SDIO clock down.
+
+Removal is still not hot-swap safe (§8B.5.5).
+
 > **Placement constraint:** the Teensy's SD socket needs insertion and ejection clearance. Orient
 > the module so the socket faces the cassette front or an edge, and keep that approach clear when
 > laying out the Control board. *Met Rev 3.7c:* the Teensy lies flat on its sockets, parallel to the
@@ -3093,6 +3116,25 @@ prior, which in practice means out of band) match 99.4 %, and the rest end in a 
   tune's moves.
 - **Before power-up,** also set the K1/K2 coil-current threshold, the cal-load detector's RF
   threshold and the knob wiring.
+
+**Records, storage and the link** (§8B.4a-1, §8B.5, §8C):
+
+- **Qualification:** the PERMISSIVE counters are kept with the fault record. A mechanical fault starts
+  them over, and promotion is refused until they are met.
+- **Event log:** every fault, acknowledgement, clear, mode and path change, finished tune, calibration,
+  boot and card event is numbered. The SD log and each link client read what they have not seen, so a
+  dropped link loses nothing still in the log (§8C.6).
+- **SD card:** it mirrors the flash as §8B.5.4 sets out. It keeps versioned backups and a tuner
+  identity, writes atomically, applies `/recovery.cfg` once, and refuses a restore that would promote
+  the policy.
+- **Link protocol:** the commands of §8C.5 plus PATH and CAL, with mode changes, class C clears, the
+  bypass and jogging refused as local only. A number that is not a plain finite one (`NAN`, `5X`) is
+  refused rather than read as 0, and a calibration point above 2000 W is taken as a typo.
+- **Transport:** on QNEthernet (§8C.3.3), with no call that waits.
+  - The line protocol is on TCP 4600, and the page and its WebSocket are on port 80.
+  - Only the tuner's own subnet is served (§8C.7), which also refuses anything port-forwarded in.
+  - mDNS answers `tuner.local`, and SNTP from `pool.ntp.org` sets the RTC for the logs. It believes only
+    the server it asked, and it handles the NTP rollover in 2036.
 
 ## Section 8C — Remote Head and Control Link
 
@@ -3168,7 +3210,11 @@ are separated at all.
 so Ethernet consumes **zero control IO**. External parts: an Ethernet magjack (Link-PP LPJ4012AHNL
 or equivalent), a 0.1 µF capacitor, and a short ribbon. PJRC's Ethernet kit supplies these on a
 small carrier board, which can mount on the chamber wall — **the Control board needs nothing for
-Ethernet at all.** Libraries: QNEthernet (lwIP-based) or NativeEthernet.
+Ethernet at all.** Libraries: QNEthernet (lwIP-based) or NativeEthernet. *Rev 3.7c:* **QNEthernet**
+(§8B.6). NativeEthernet's static-address `begin()` waits for the link with no timeout, so an unplugged
+cable would hang the boot. QNEthernet's DHCP and static starts both return at once. It is
+AGPL-3.0-or-later, so a built image carries the AGPL's network clause, and the page the tuner serves
+links to the source (`LICENSE`).
 
 **Fiber.** One POF strand, HFBR-15xx/25xx class transceivers, carrying the modulated permissive.
 Terminates with a razor blade and a crimp connector — no polishing, no fusion splicing.
@@ -3581,7 +3627,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 38 | ~~Sampler → control signal path~~ — **Resolved Rev 3.7a (§7.3a):** filtered DB-25 J-S at the partition, Alpha Wire M13197 (≡ Belden 9508) across the motor chamber to J-B at the bulkhead; prescaler on RG-316 between discrete 1000 pF feedthroughs at both walls; relay-coil diodes at the relay | **RESOLVED** |
 | 39 | ~~24 V supply height~~ — **Resolved Rev 3.7a: Mean Well UHP-200-24**, 2.17″ tall on edge, fanless, Class B (§8A.1) | **RESOLVED** |
 | 40 | ~~Filtered bulkhead connectors~~ — **Resolved Rev 3.7a (§7.3a):** Amphenol FCE17 DB-25 1000 pF (J-A), DB-25 5600 pF (J-B, J-S), DE-9 5600 pF (J-E, Rev 3.7b; was DA-15); Spectrum Control 9910-381-6002 power feedthroughs; Tusonix 2499 discrete feedthroughs. Connectors moved to the +Y half, clear of the C1 axis module and the PSU; plug envelopes checked | **RESOLVED** |
-| 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout | **OPEN — check in hand** |
+| 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout. *Rev 3.7c:* the Adafruit 6070 microSD extender's hole (1.00″) is likewise from its ~30 mm body. Also check its depth behind the face: the control board is 0.68″ back, and the model assumes 0.55″ | **OPEN — check in hand** |
 | 42 | ~~Link coil has no RF-bay position~~ — **RESOLVED Rev 3.7b:** series link and pad deleted (§5.2, §5.4); the deck holds only C1, C2 and the roller. The imbalance CT rides the output conductors at the top feedthroughs and the tank thermal is a small probe — neither needs deck area. Original entry in §11.6 | **RESOLVED** |
 | 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-208, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
 | 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly: the 28–31 MHz resonance must sit above ~30.5 MHz.** If it lands in-band: slimmer rib contact at the notches, or fewer idle turns | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
@@ -3923,6 +3969,7 @@ De-energized at idle (§8A.1), otherwise ~42 W of standing heat in a sealed box.
 | 2 | Encoder shaft extension | **Delrin**, short, unloaded — RF isolation, not stiffness | Fabricate | §7.1a |
 | 1 | Recovery button | **E-Switch PV6F240SS** — flush, sealed, Ø16 mm, with a 1/4″ guard ring | Part | §8B.4f.2 |
 | 1 | microSD card | 8–32 GB, industrial or high-endurance grade | Class | §8B.5.5 |
+| 1 | microSD extender | **Adafruit 6070**, round panel mount, ~30 mm body, ~18 cm ribbon to the Teensy's socket; $9.50 at Adafruit, in stock (2026-11-20); also Digi-Key 1528-6070-ND | Part | §8B.5.6 |
 | 1 | Panel gasket | Closed-cell elastomer behind display and control cutouts | Class | §8E.4 |
 
 > §8B.5.6 constrains Control-board placement: the Teensy's SD socket needs insertion and ejection

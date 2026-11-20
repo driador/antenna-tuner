@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Map each band edge onto the simulated roller (roller_vna.py output) — design log §9 item 44.
 
 For every band edge, take the required L and roller current from tune_time.settings() (smallest-L

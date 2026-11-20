@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Insert a title page ahead of the TOC and suppress the duplicated body H1."""
 import io, re, sys, datetime, os
 
@@ -22,12 +25,15 @@ cover = f"""<div class="coverpage">
   <div class="cover-sub">170&nbsp;ft doublet &middot; 600&nbsp;&#937; ladder line &middot; inverted-V, NVIS</div>
   <div class="cover-rule"></div>
   <table class="cover-meta">
+    <tr><td>Author</td><td>R. A. Popp, KF0OWR</td></tr>
     <tr><td>Revision</td><td>{rev}</td></tr>
     <tr><td>Generated</td><td>{stamp}</td></tr>
     <tr><td>Sections</td><td>{secs}</td></tr>
     <tr><td>Open items</td><td>{open_items}</td></tr>
     <tr><td>Stress basis</td><td>Real NEC-2 simulation, 1200 segments, 27 band-edge points</td></tr>
     <tr><td>Design envelope</td><td>4,191&nbsp;V peak &middot; ~14&nbsp;A RMS &middot; both limits on 160&nbsp;m</td></tr>
+    <tr><td>License</td><td>CERN-OHL-W v2 (hardware and this log) &middot; GPL-3.0-or-later (firmware)</td></tr>
+    <tr><td>Source</td><td>github.com/driador/antenna-tuner</td></tr>
   </table>
 </div>
 """

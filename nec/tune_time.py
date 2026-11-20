@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Tuning-time estimate (design log §8B, §10.14 M-2) from the Rev 3.7b network solutions.
 
 Element settings at every band edge come from cap_demand.py (bare network, CVDD-500-15S C1,

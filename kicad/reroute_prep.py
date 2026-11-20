@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Prepare a routed board for another freerouting pass.
 
 Called by route.sh as `python3 reroute_prep.py <board>` when DRC still finds

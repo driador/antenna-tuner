@@ -31,7 +31,7 @@ pio run -t upload                           # cut the Teensy's VUSB-VIN pad firs
 pio device monitor                          # the USB console
 ```
 
-The Teensy build is about 92 KB of code and 46 KB of RAM1 (of 7.75 MB and 512 KB).
+The Teensy build is about 262 KB of code and 120 KB of RAM1 variables (of 7.75 MB and 512 KB; code also runs from RAM1, leaving about 140 KB free). QNEthernet 0.37.0 is fetched by PlatformIO on the first build.
 
 `fw/build/compile_commands.json` is picked up by clangd. `TRACE_MHZ=1.8 fw/build/test_fsm` prints
 every state change for the 1.8 MHz sweep cases, and `TRACE_CASE=n` does the same for one Monte Carlo
@@ -62,6 +62,12 @@ python3 fw/tools/gen_tables.py
 | `path` | TUNE / AUX / CAL: the vote held while K1 and K2 change, coil currents and the first key-down checked | §5.5, §6B.2 |
 | `panel` | Every panel screen, drawn as text, with the scroll-to-confirm rule for class C | §7.5, §8B.4f |
 | `panel_io` | The encoders' quadrature and the Nextion's serial protocol | §7.5 |
+| `qualify` | The PERMISSIVE qualification: tunes, bands, powered hours, no mechanical fault, the inspection | §8B.4a-1 |
+| `events` | The numbered event log that the SD log and each link client read from, so nothing is lost | §8B.5.3, §8C.6 |
+| `json`, `mirror` | The mirrored settings document, `/recovery.cfg` (network keys only), backup numbering and pruning | §8B.5.4 |
+| `proto` | The line protocol: commands, refusals of local-only actions, telemetry and event lines with checksums | §8C.5 |
+| `web` | HTTP heads, the WebSocket handshake and frames, and the page | §8C.4 |
+| `sntp` | One network-time request and its reply, to set the RTC | §8C |
 
 `test_tnet` matches `nec/cap_demand.py` at all 29 band-edge points to 1e-9. `test_bridge` reproduces
 the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V).
@@ -77,6 +83,8 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `persist.*` | Two EEPROM records with their own CRCs, packed so that only changed bytes are rewritten. The authoritative one (faults, mode, calibration) is kept twice and written alternately, so a power loss mid-write leaves the older copy good. The other holds the priors and last positions |
 | `calib.*` | The calibration procedure below |
 | `panel_hw.*` | The Nextion on Serial8 (only changed rows are sent), the knobs and their pushes from the MCP23017 |
+| `storage.*` | The SD mirror: atomic writes, 20 versions, the event log, `/recovery.cfg`, tuner identity |
+| `net.*` | Ethernet through QNEthernet: the line port, the page and WebSocket, the subnet rule, mDNS, SNTP |
 
 **USB console:** the box's local interface, with the panel (§8B.4f):
 
@@ -91,6 +99,9 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `cal load\|open\|short\|save` | The calibration steps (below) |
 | `cal watts <W>` | Add a forward-power point at the wattmeter reading W |
 | `jog c1\|c2\|l <turns>` | Move one element |
+| `inspected` | Record the roller inspection (§8B.4a-1) |
+| `qual` | Show the PERMISSIVE qualification |
+| `backups`, `restore <n>`, `adopt` | List the card's versions, restore one, claim another tuner's card (§8B.5.4b) |
 
 **Calibrating a band** (§6A.8), from the console or the panel's Calibrate screen. Key a steady
 carrier of about 10 W on the band for each step; each averages five gates.
@@ -106,6 +117,57 @@ The AD8302 reports only |θ| (§6A.7), so a complex one-port correction cannot b
 calibration is the part's scalar transfer: the 0 dB point and the 0°/180° phase ends from the open
 and short, and the floor from the load. Keep the K1-to-network and K1-to-AUX runs the same electrical
 length (§6B.3), or the phase is off by the difference.
+
+**PERMISSIVE** (§8B.4a-1) is offered only once the tuner has done 100 tunes on four bands and run 50
+powered hours with no mechanical fault, and the roller inspection is recorded. A limit hit or an
+encoder mismatch starts the count over. The panel's policy screen shows where it stands.
+
+**The SD card** (§8B.5) mirrors the flash and never configures it.
+
+- **When it writes:**
+  - every administrative change (mode, calibration, inspection, restore) writes a new version under
+    `/backup`, keeping 20;
+  - `current.json` follows the profiles every 10 minutes;
+  - `/log/events.log` collects the event log.
+- **Every write is atomic:** a temporary file, then a rename.
+- **No card is a condition, not a fault.** The events wait in RAM until one appears.
+- **Presence through the extender:** the panel-mount extender keeps the Teensy's socket permanently
+  "occupied", so presence is learned by using the card. A failed write marks it gone, and it is
+  re-mounted every 5 s.
+- **Identity:** a card from another tuner is never written to.
+- **Restore:** a restore from this tuner's own card is a rollback and can be done any time. A board
+  that came up blank or corrupt may restore from any card. Otherwise another tuner's card needs `adopt`
+  first. A restore never promotes the policy to PERMISSIVE.
+- **`/recovery.cfg`** is applied once at boot, network keys only, then renamed.
+
+**The recovery button** held at power-up (§8B.4f.3) forces DHCP as `tuner` and the STRICT policy, and
+holds transmit off until the next reboot. Latched faults stay latched.
+
+**The link protocol** (§8C.5), the same on a TCP port and inside the web page's WebSocket:
+
+- **Commands:** `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE [hz]` (0.1–20 Hz; 0 stops it), `GET_LOG [from]`,
+  `PATH TUNE|AUX|CAL`, and `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W). A malformed number
+  (`NAN`, `5X`) is refused with the usage, never read as 0.
+- **Refused by name:** mode changes, class C clears, the bypass and jogging, which are local only.
+- **Checksums:** every line ends in an NMEA-style `*HH`. A command typed by hand may leave it off.
+- **What the tuner sends:**
+  - `TLM` carries the state at the subscribed rate.
+  - `EVT` lines are numbered, and `TLM` says how far the log has got. A client that missed events asks
+    `GET_LOG` for them, so a dropped link loses nothing that is still in the 128-event ring (§8C.6).
+
+**On the network** (§8C):
+
+- **Addresses:** DHCP with the hostname `tuner` unless a static address is set (§8B.5.3). mDNS also
+  answers `tuner.local`.
+- **Page:** `http://tuner.local/` serves it, and it talks over a WebSocket at `/ws`.
+- **Scripts:** `nc tuner.local 4600` speaks the line protocol directly. Type `SUBSCRIBE 5`, `QUERY` or
+  `GET_LOG 1`.
+- **Access:** only hosts on the tuner's own subnet are served (§8C.7). Never port-forward it.
+- **Clock:** SNTP from `pool.ntp.org` sets the RTC, so log entries and backups carry real times once
+  it has answered. It asks every minute until then and every six hours after, believes only the server
+  it asked, and handles the NTP rollover in 2036.
+- **Never blocking:** writes go out only when they fit and connections close without waiting, so the
+  link can't hold up the tick. A cable unplugged at power-up just means no link.
 
 **The panel's HMI.** The Nextion is a terminal, and every screen is drawn by `tuner::Panel`. Build the
 HMI once in the Nextion Editor for the NX4832K035:
@@ -138,6 +200,9 @@ back. A class C clear needs the fault list scrolled to the end before Confirm ap
 
 - A deliberate hang in `loop()` resets the Teensy within 0.5 s and drops MCU_PERMIT. The RTWDOG
   registers come from the reference manual, not from the Teensy core.
+- The microSD card works through the panel-mount extender (§8B.5.6): it mounts, writes a backup, and
+  is noticed when pulled (within 10 s) and when put back (within 5 s). If it is unreliable over the
+  ribbon, the SDIO clock comes down.
 - Self-test failures latch as class C, as §8B.4b requires, so a missing encoder at power-up needs a
   `clear` once it is fixed.
 
@@ -200,10 +265,16 @@ about 3 %.
 ## Next
 
 - **Bring-up** on the built boards, per the list above, then a calibration of every band.
-- **Storage** per §8B.5: the SD mirror of profiles, calibration and the fault log, and versioned
-  backups.
-- **Remote:** Ethernet, the web UI and the remote head (§8C); recovery mode (§8B.4f.3).
-- **Policy and operation:** the PERMISSIVE qualification counters (§8B.4a-1), pre-positioning on band
-  select (§8B.3a), and the 160 m power derate (§1.7.1).
+- **Network settings from the web UI:** a page to edit the address, mask, gateway and hostname, saved
+  to flash and backed up. `/recovery.cfg` and the recovery button already cover getting it wrong.
+- **Recovery mode stage 2** (§8B.4f.3): the panel's backup browser and network editor.
+- **Operation:** pre-positioning on band select (§8B.3a) and the 160 m power derate (§1.7.1).
 - **Cold-start search:** when there is no prior and the reading stays pinned at the top of the
   range, step through a few reference settings to find a readable neighborhood.
+
+## License
+
+GPL-3.0-or-later ([`../LICENSES/GPL-3.0-or-later.txt`](../LICENSES/GPL-3.0-or-later.txt)). The
+firmware is a separate work from the hardware, which is CERN-OHL-W v2; see [`../LICENSE`](../LICENSE).
+The Teensy build links QNEthernet (AGPL-3.0-or-later), so the AGPL's network clause applies to a
+built image, and the page the tuner serves links to this source.

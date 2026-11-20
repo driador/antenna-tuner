@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The panel's two low-level pieces (§7.5): the Grayhill 62V15 encoders' quadrature, sampled through
 // the MCP23017, and the Nextion NX4832K035's serial protocol on Serial8.
 #pragma once

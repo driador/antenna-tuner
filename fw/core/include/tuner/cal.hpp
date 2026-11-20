@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Calibration of the measurement chain, per band (§6A.8).
 //
 // The vector path: an open and a short at the AUX port give the AD8302's 0 dB point and its phase

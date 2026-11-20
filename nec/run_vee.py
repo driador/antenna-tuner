@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 import subprocess, re, os, math
 NEC = os.path.expanduser('~/src/necpp/build/src/nec2++')   # static build (README)
 FT=0.3048; RAD=0.0808*0.0254/2.0; EPSR,SIGMA=13.0,0.005; CU=5.8001e7

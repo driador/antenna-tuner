@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """After freerouting: import the SES, tidy the result, pour, fill, save.
 
 Called by route.sh as `python3 post_route.py <board>`.
 """
 import collections, sys
 import pcbnew
+import notice
 
 B = sys.argv[1]
 MM, TOMM = pcbnew.FromMM, pcbnew.ToMM
@@ -91,6 +95,7 @@ if b.GetCopperLayerCount() == 4:
     for fp in b.GetFootprints():
         ref = fp.Reference()
         ref.SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8))); ref.SetTextThickness(MM(0.12))
+notice.add(b, B)                        # license and Source Location on the back silkscreen
 pcbnew.ZONE_FILLER(b).Fill(b.Zones())
 pcbnew.SaveBoard(f'{B}.kicad_pcb', b)
 tr = [t for t in b.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T]

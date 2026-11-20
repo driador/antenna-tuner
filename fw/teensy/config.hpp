@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Hardware constants for the Teensy layer. ASSUMED marks a value the log has not fixed yet: a part
 // still to choose, a count to make, or a curve to measure at commissioning (§9 items 30, 44, 48, 54).
 // Everything else cites where it comes from.
@@ -59,11 +62,16 @@ inline constexpr uint8_t kLimitAxis[6] = {0, 0, 1, 1, 2, 2};
 constexpr double kAdVref = 1.80;            // AD8302 VREF; V_MAG and V_PHS are read against it
 constexpr int kCalGates = 5;                // gates averaged for each calibration standard or power point
 constexpr int kPowerPoints = 8;             // wattmeter points kept per band
+constexpr double kMaxCalWatts = 2000;       // a reading above this is a typo: the tuner is rated 1500 W
 
 // ---- RF path (§5.5, §6B) ----
 constexpr double kCoilOnVolts = 0.03;       // ASSUMED: across the 1 ohm sense, a CX600N-24 coil draws more
 constexpr double kLoadRfVolts = 0.70;       // ASSUMED: CAL_ADC (the detector halved) with ~5 W in the load;
                                             // it idles near 0.5 V (§6B.3a: 1.03 V bias)
+
+// ---- data link (§8C.5) ----
+constexpr uint16_t kLinePort = 4600;        // the line protocol for nc and scripts; the page is on 80
+constexpr uint16_t kNtpLocalPort = 4123;
 
 // ---- local panel (§7.5) ----
 constexpr uint32_t kNextionBaud = 115200;   // set the same in the HMI's program.s (fw/README.md)

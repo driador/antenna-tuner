@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The three axes (§7.1, §7.2, §8B.3): AS5048A encoders on SPI, step and direction pulses from a 50 kHz
 // timer interrupt following a tuner::MovePlan, one enable line for the drivers. The encoders are the
 // truth: every move starts from them and ends with them checked against the steps sent.

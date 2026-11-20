@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Build a board's PCB from its verified netlist: `python3 make_pcb.py <board>`.
 
 Both boards are 4-layer with a solid GND plane on In1. The generator

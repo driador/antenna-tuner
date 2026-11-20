@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Capacitance, voltage and roller-loss demand for the T-network — design log Rev 3.7b (§5.1, §1.7,
 §9 item 45). The Rev 3.6 version (pad + link, Jennings C1) is kept as cap_demand_rev36.py.
 

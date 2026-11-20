@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The measured inputs (§6A.4-§6A.10, §6B, §8): the AD8302 bridge and the forward detector averaged over
 // each frequency-counter gate, the frequency and the steady-carrier test, the MCP23017 (panel encoders,
 // bypass key, every term of the permissive), the relay coil currents, the cal-load detector and the

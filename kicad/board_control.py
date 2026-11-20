@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Control board, Control chamber -- 1500W Doublet Tuner Rev 3.7c.
 
 Scope (Sections 5.5, 6B, 7.1-7.5, 8, 8A, 8B, 8C):

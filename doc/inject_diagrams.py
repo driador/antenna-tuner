@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Replace specific ASCII-art <pre> blocks with rendered SVG diagrams.
 
 Matching is by a signature string unique to each block, so the markdown source

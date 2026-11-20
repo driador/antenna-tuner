@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The core's hardware-facing pieces: AS5048A frames, calibration curves, the coordinated-move planner,
 // the steady-carrier test and the tank thermistor.
 #include <algorithm>

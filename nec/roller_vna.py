@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Simulated VNA sweep of the homebuilt roller (design log §5.3a, §9 item 44) with nec2++.
 
 Model: the 22-turn #4 copper helix (5.2" to wire center, 3 TPI) as straight wire segments,

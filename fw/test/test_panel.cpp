@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The local panel (§7.5, §8B.4f): the encoders' quadrature, the Nextion protocol and the screens.
 #include <cstring>
 #include <string>
@@ -155,4 +158,26 @@ TEST(panel_path_policy_cal_and_jog) {
     p.turn(1, -4);
     r = p.take();
     CHECK(r.action == PanelAction::Jog && r.arg == 0 && r.detents == -4);
+}
+
+TEST(panel_policy_shows_the_qualification) {
+    Panel p;
+    PanelView v;
+    v.q_tunes = 42;
+    v.q_bands = 3;
+    v.q_hours = 12.5;
+    p.show(v);
+    p.push(0);
+    p.turn(0, 3);                                       // Fault policy
+    p.push(0);
+    CHECK(row(p, 3) == "  PERMISSIVE (not qualified)");
+    CHECK(row(p, 4) == "  tunes 42/100, bands 3/4");
+    CHECK(row(p, 5) == "  hours 12.5/50, inspected no");
+    p.turn(0, 5);
+    p.push(0);                                          // Record roller inspection
+    CHECK(p.take().action == PanelAction::Inspected);
+    p.turn(0, -3);                                      // PERMISSIVE: the caller refuses it unless met
+    p.push(0);
+    const PanelRequest r = p.take();
+    CHECK(r.action == PanelAction::SetMode && r.arg == int(Mode::Permissive));
 }

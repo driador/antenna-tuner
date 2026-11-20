@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """FreeCAD TechDraw sheets for the tuner enclosure (TUNER-E-200 and up).
 
 Run headless after enclosure.py:  xvfb-run -a freecad cad/drawings_enclosure.py

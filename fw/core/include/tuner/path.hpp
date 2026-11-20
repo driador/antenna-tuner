@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The RF path (§6B.2): TUNE (no relay), AUX (K1) or CAL (K1 + K2). A change follows §5.5: the vote is
 // held down, the relays change once the RF has decayed and the hold latch has opened, the coil
 // currents confirm them, and only then is the vote given back. The first key-down after a change is

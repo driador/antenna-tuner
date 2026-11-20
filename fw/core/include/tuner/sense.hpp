@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Small conditioning steps between the Teensy's inputs and the state machine: the steady-carrier test on
 // the frequency counter (§6A.10), the tank thermistor (§8B.0.4) and the hysteresis the over-temperature
 // fault clears on (§8B.4a).

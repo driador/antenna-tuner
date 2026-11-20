@@ -19,9 +19,10 @@ repo paths.
 | `cad/out/*.pdf` | Drawing sheets: `L-100…109` roller, `E-200…216` enclosure, populated cabinet and harness |
 | `nec/` | nec2++ and Python analyses: capacitor and inductor demand, roller and choke sweeps, tuning time |
 | `nec/out/*.csv`, `*.txt` | Analysis summaries the log quotes |
-| `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B) |
+| `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B); Fair-Rite's, not under the project licenses |
 | `kicad/` | Control and measurement boards, generated from Python (schematic → netlist → PCB → freerouting → DRC, `route.sh`); fab zip from `fab.sh` |
 | `fw/` | Firmware: the portable C++17 core (tuning state machine, solver, bridge math, fault policy, motion planning) with its closed-loop host tests, and the Teensy 4.1 layer (PlatformIO); see `fw/README.md` |
+| `LICENSE`, `LICENSES/` | Licensing: CERN-OHL-W v2 for the hardware and design, GPL-3.0-or-later for the firmware |
 | `archive/` | Early drafts and the Rev 3.3 / 3.4 log snapshots the log cites |
 
 ## Toolchain
@@ -32,7 +33,7 @@ repo paths.
 | CAD | Python 3.12 venv with `cad/requirements.txt` (build123d 0.13); FreeCAD 1.1 plus `xvfb-run` for the sheets |
 | NEC | `nec2++` built statically at `~/src/necpp/build/src/nec2++` (scripts call that path); Python 3 stdlib only |
 | KiCad | KiCad 10 (`kicad-cli`, `pcbnew` Python module), Java 25 and freerouting (`kicad/route.sh`) |
-| Firmware | CMake ≥ 3.16 and a C++17 compiler for the host build and tests; PlatformIO for the Teensy build (it fetches PJRC's ARM toolchain); `python3` to regenerate its tables |
+| Firmware | CMake ≥ 3.16 and a C++17 compiler for the host build and tests; PlatformIO for the Teensy build (it fetches PJRC's ARM toolchain and the QNEthernet library); `python3` to regenerate its tables |
 
 Set up the CAD environment:
 
@@ -83,3 +84,10 @@ FreeCAD hanging under xvfb with an empty log. Re-render a diagram with
   - `.*.pre-*` working backups, since git history replaces them
 - The summaries that analyses produce (`nec/out/*.csv`, `*.txt`, `nec/cap_demand_rev37b.out`)
   **are** tracked, because the log quotes them.
+
+## License
+
+This is open hardware. The boards, CAD, drawings, NEC models and the design log are licensed under
+the [CERN-OHL-W v2](LICENSES/CERN-OHL-W-2.0.txt), and the firmware in `fw/` under the
+[GPL v3 or later](LICENSES/GPL-3.0-or-later.txt). [`LICENSE`](LICENSE) has the details, including
+the third-party files. Source location: <https://github.com/driador/antenna-tuner>.

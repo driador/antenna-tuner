@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 import math, cmath
 # Closed-form T-network solver.
 # Topology: 50ohm -- series C1 -- node -- shunt L to gnd -- series C2 -- Zload

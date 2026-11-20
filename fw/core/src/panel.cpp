@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "tuner/panel.hpp"
 
 #include <cstdarg>
@@ -10,11 +13,11 @@ namespace tuner {
 namespace {
 const char* const kMenu[] = {"Faults", "Tune now", "RF path", "Fault policy", "Calibrate this band",
                              "Jog elements", "< back"};
-const char* const kModes[] = {"COMMISSIONING", "STRICT", "PERMISSIVE (qualified only)"};
+const char* const kModes[] = {"COMMISSIONING", "STRICT", "PERMISSIVE"};
 const char* const kPaths[] = {"TUNE", "AUX", "CAL"};
 const char* const kCalSteps[] = {"1 load: CAL, key ~10 W", "2 open at AUX, key", "3 short at AUX, key",
                                  "4 save this band"};
-constexpr int kMenuItems = 7, kChoices = 4, kCalItems = 5, kJogItems = 4;
+constexpr int kMenuItems = 7, kChoices = 4, kPolicyItems = 7, kCalItems = 5, kJogItems = 4;
 constexpr int kMaxEntries = 2 * int(Fault::Count) + 1;   // every fault as C or B, and the over-temperature
 
 const char* explain(Fault f) {
@@ -65,8 +68,8 @@ int Panel::items() const {
             const int n = entries(view_, e);
             return 2 * n + (n > 0 && (view_.latched_c || view_.unacked_b) ? 1 : 0);
         }
-        case Screen::Path:
-        case Screen::Policy: return kChoices;
+        case Screen::Path: return kChoices;
+        case Screen::Policy: return kPolicyItems;
         case Screen::Cal: return kCalItems;
         case Screen::Jog: return kJogItems;
     }
@@ -132,9 +135,18 @@ void Panel::push(int knob) {
             }
             break;
         case Screen::Path:
-        case Screen::Policy:
-            if (cursor_ < 3) request(screen_ == Screen::Path ? PanelAction::SetPath : PanelAction::SetMode, cursor_);
+            if (cursor_ < 3) request(PanelAction::SetPath, cursor_);
             open(cursor_ < 3 ? Screen::Monitor : Screen::Menu);
+            break;
+        case Screen::Policy:                           // 3 and 4 are the qualification, read only
+            if (cursor_ < 3) {
+                request(PanelAction::SetMode, cursor_);
+                open(Screen::Monitor);
+            } else if (cursor_ == 5) {
+                request(PanelAction::Inspected);
+            } else if (cursor_ == 6) {
+                open(Screen::Menu);
+            }
             break;
         case Screen::Cal: {
             static const PanelAction kStep[] = {PanelAction::CalLoad, PanelAction::CalOpen, PanelAction::CalShort,
@@ -181,7 +193,8 @@ void Panel::render(char rows[kRows][kCols + 1], int& highlight) const {
             const int nf = entries(v, e);
             if (nf == 0) put(rows[6], "faults: none");
             else put(rows[6], "faults: %d (Menu > Faults)", nf);
-            put(rows[7], "%s", v.cal_valid ? "bridge cal: ok" : "bridge cal: not done");
+            put(rows[7], "bridge cal %s  card %s", v.cal_valid ? "ok" : "not done",
+                v.card > 0 ? "ok" : v.card < 0 ? "FOREIGN" : "NONE");
             put(rows[kRows - 1], "%s", v.note ? v.note : "left push: menu");
             highlight = -1;
             return;
@@ -211,9 +224,13 @@ void Panel::render(char rows[kRows][kCols + 1], int& highlight) const {
             for (; n < 3; ++n) put(lines[n], "%c %s", int(v.path) == n ? '*' : ' ', kPaths[n]);
             put(lines[n++], "< back");
             break;
-        case Screen::Policy:
-            title = "FAULT POLICY";
-            for (; n < 3; ++n) put(lines[n], "%c %s", int(v.mode) == n ? '*' : ' ', kModes[n]);
+        case Screen::Policy:                           // §8B.4f.1: the criteria, and whether they are met
+            title = "FAULT POLICY (at the box only)";
+            for (; n < 3; ++n) put(lines[n], "%c %s%s", int(v.mode) == n ? '*' : ' ', kModes[n],
+                                   n == 2 && !v.q_met ? " (not qualified)" : "");
+            put(lines[n++], "  tunes %lu/100, bands %d/4", static_cast<unsigned long>(v.q_tunes), v.q_bands);
+            put(lines[n++], "  hours %.1f/50, inspected %s", v.q_hours, v.q_inspected ? "yes" : "no");
+            put(lines[n++], "Record roller inspection");
             put(lines[n++], "< back");
             break;
         case Screen::Cal:

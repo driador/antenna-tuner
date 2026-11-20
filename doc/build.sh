@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 # Build the design log into a presentable PDF.
 #   pandoc (gfm -> html5) -> post-process -> WeasyPrint -> PDF
 # LaTeX was rejected: the document has ~370 table rows and several wide tables

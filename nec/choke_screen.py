@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Physically constrained re-screen of a #61 ferrite input choke (design log §6, option B).
 
 Candidates are RG-400 (0.195", PTFE, stranded center; RG-142B is electrically the same) wound on

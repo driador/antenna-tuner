@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The control board's direct I/O (§8B.0.4, §10.5): the safe state, the MCU's vote in the permissive, the
 // relay commands, the blower, the limit senses, the recovery button and the watchdog.
 #pragma once

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 import json, math, cmath, tnet
 Z0 = 600.0
 d = json.load(open('zant_edges.json'))

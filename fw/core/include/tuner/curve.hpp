@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // A monotonic piecewise-linear map. Each element's calibration is one: shaft turns from its low end to
 // farads or henries (§9 item 54). Outside the points it extends the end segments.
 #pragma once

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // A minimal test harness. The build host has no test framework, and the core must build with nothing
 // but a C++17 compiler, so this is all there is: TEST registers a case, CHECK and CHECK_NEAR count
 // failures, and test_main.cpp runs every case and returns non-zero if any failed.

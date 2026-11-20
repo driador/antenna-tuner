@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Output balance on 160 / 80 m with the real antenna system's common mode (log §9 item 50, §2.2).
 
 The input choke was rated with the whole common-mode voltage across it (Z_a -> 0). Here the

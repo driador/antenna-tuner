@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Reuben A. Popp
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // The frequency counter, the tune window (§6A.10, §8B.2) and the fault policy (§8B.4a to §8B.4b).
 #include <string_view>
 

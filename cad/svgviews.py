@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
 """Hidden-line SVG views of the populated cabinet for TUNER-E-212 / E-213.
 
 TechDraw cannot color a view's lines, so these sheets are drawn here: build123d's hidden-line
