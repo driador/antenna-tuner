@@ -22,7 +22,7 @@ repo paths.
 | `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B); Fair-Rite's, not under the project licenses |
 | `kicad/` | Control and measurement boards, generated from Python (schematic → netlist → PCB → freerouting → DRC, `route.sh`); fab zip from `fab.sh` |
 | `fw/` | Firmware: the portable C++17 core (tuning state machine, solver, bridge math, fault policy, motion planning) with its closed-loop host tests, and the Teensy 4.1 layer (PlatformIO); see `fw/README.md` |
-| `LICENSE`, `LICENSES/` | Licensing: CERN-OHL-W v2 for the hardware and design, GPL-3.0-or-later for the firmware |
+| `LICENSE`, `NOTICE` | The CERN-OHL-W v2 text for the hardware and design; what each license covers, the notices and the third-party files (the firmware's GPL text is `fw/LICENSE`) |
 | `archive/` | Early drafts and the Rev 3.3 / 3.4 log snapshots the log cites |
 
 ## Toolchain
@@ -88,6 +88,6 @@ FreeCAD hanging under xvfb with an empty log. Re-render a diagram with
 ## License
 
 This is open hardware. The boards, CAD, drawings, NEC models and the design log are licensed under
-the [CERN-OHL-W v2](LICENSES/CERN-OHL-W-2.0.txt), and the firmware in `fw/` under the
-[GPL v3 or later](LICENSES/GPL-3.0-or-later.txt). [`LICENSE`](LICENSE) has the details, including
+the [CERN-OHL-W v2](LICENSE), and the firmware in `fw/` under the
+[GPL v3 or later](fw/LICENSE). [`NOTICE`](NOTICE) has the details, including
 the third-party files. Source location: <https://github.com/driador/antenna-tuner>.

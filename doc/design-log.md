@@ -2,8 +2,9 @@
 ### Revision 3.7c — Vertical-Stack Architecture · Measured Parts · All-Band Band-Edge Basis
 
 **License.** © 2026 Reuben A. Popp, KF0OWR. This design is open hardware under the CERN-OHL-W v2
-and comes with no warranty; the firmware in `fw/` is GPL-3.0-or-later. `LICENSE` has the terms
-and the third-party exceptions. Source location: <https://github.com/driador/antenna-tuner>.
+and comes with no warranty; the firmware in `fw/` is GPL-3.0-or-later. `NOTICE` says what each
+license covers and lists the third-party exceptions.
+Source location: <https://github.com/driador/antenna-tuner>.
 
 **Revision history**
 - **Rev 1** — initial spec. Correct on materials/welding, chamber-crossing discipline, relay sequencing.
@@ -3214,7 +3215,7 @@ Ethernet at all.** Libraries: QNEthernet (lwIP-based) or NativeEthernet. *Rev 3.
 (§8B.6). NativeEthernet's static-address `begin()` waits for the link with no timeout, so an unplugged
 cable would hang the boot. QNEthernet's DHCP and static starts both return at once. It is
 AGPL-3.0-or-later, so a built image carries the AGPL's network clause, and the page the tuner serves
-links to the source (`LICENSE`).
+links to the source (`NOTICE`).
 
 **Fiber.** One POF strand, HFBR-15xx/25xx class transceivers, carrying the modulated permissive.
 Terminates with a razor blade and a crimp connector — no polishing, no fusion splicing.

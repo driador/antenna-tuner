@@ -274,7 +274,7 @@ about 3 %.
 
 ## License
 
-GPL-3.0-or-later ([`../LICENSES/GPL-3.0-or-later.txt`](../LICENSES/GPL-3.0-or-later.txt)). The
-firmware is a separate work from the hardware, which is CERN-OHL-W v2; see [`../LICENSE`](../LICENSE).
-The Teensy build links QNEthernet (AGPL-3.0-or-later), so the AGPL's network clause applies to a
-built image, and the page the tuner serves links to this source.
+GPL-3.0-or-later ([`LICENSE`](LICENSE)). The firmware is a separate work from the hardware, which is
+CERN-OHL-W v2; see [`../NOTICE`](../NOTICE). The Teensy build links QNEthernet (AGPL-3.0-or-later),
+so the AGPL's network clause applies to a built image, and the page the tuner serves links to this
+source.

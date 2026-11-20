@@ -1,0 +1,80 @@
+Notices
+=======
+
+Copyright 2026 Reuben A. Popp, KF0OWR.
+
+This repository is the design of a 1500 W automated antenna tuner. It is open
+hardware, and its firmware is free software:
+
+  Hardware and design   CERN-OHL-W-2.0     everything outside fw/, except the
+                                           third-party material listed below;
+                                           full text in LICENSE
+  Firmware (fw/)        GPL-3.0-or-later   full text in fw/LICENSE
+
+
+Hardware and design: CERN-OHL-W-2.0
+-----------------------------------
+
+This covers the KiCad boards and the scripts that generate them (kicad/), the
+CAD models and drawings (cad/), the NEC models and their results (nec/), the
+design log with its diagrams and PDFs (doc/), the earlier drafts (archive/) and
+the top-level README.
+
+  This source describes Open Hardware and is licensed under the CERN-OHL-W v2.
+  You may redistribute and modify this source and make products using it under
+  the terms of the CERN-OHL-W v2 (https://ohwr.org/cern_ohl_w_v2.txt).
+
+  This source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY,
+  INCLUDING OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A
+  PARTICULAR PURPOSE. Please see the CERN-OHL-W v2 for applicable conditions.
+
+  Source location: https://github.com/driador/antenna-tuner
+
+  As per CERN-OHL-W v2 section 4.1, should You produce hardware based on this
+  source, You must, where practicable, maintain the Source Location visible on
+  the external case of the tuner or other products you make using this source.
+
+The boards carry the license and the Source Location on their back silkscreen,
+and every drawing sheet and schematic carries them in its title block.
+
+
+Firmware: GPL-3.0-or-later
+--------------------------
+
+The firmware in fw/ is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. It is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+details.
+
+The firmware is a separate work. It meets the hardware only through interfaces
+the design documents: the pin map in design log section 8B.0.4 (PINMAP in
+kicad/board_control.py) and the buses and signals of the parts on it. That makes
+it External Material under CERN-OHL-W v2 section 1.8, so it keeps its own
+license (sections 3.3(d) and 4.2). The data it carries from the design, such as
+the pin numbers and the tables generated from nec/, is licensed with it under
+GPL-3.0-or-later.
+
+The Teensy build links QNEthernet, which is AGPL-3.0-or-later. As GPLv3 section
+13 allows, a built firmware image combines the two: the GPL still covers this
+firmware's own code, and section 13 of the AGPL (offering the source to users
+over a network) applies to the combination. The page the tuner serves links to
+this source for that reason. The portable core in fw/core contains no AGPL code.
+
+
+Third-party material
+--------------------
+
+- doc/coilcraft-worksheet-link-coil.pdf is Coilcraft's Inductor Design
+  Worksheet (Document 321), filled in for this project. It belongs to
+  Coilcraft, Inc. and is not covered by either license above.
+- nec/data/61-Material-Fair-Rite.csv and nec/data/61-Material-B-vs-Pv-at-25C.csv
+  are Fair-Rite Products Corp.'s published data for their #61 ferrite material,
+  kept for the choke analyses. They are Fair-Rite's and are not covered by
+  either license above.
+- The drawing PDFs embed the osifont typeface, which is distributed under the
+  GNU LGPL version 3 with the GPL font exception.
+- The firmware's build-time dependencies (the Teensyduino core and libraries,
+  and QNEthernet) are fetched by PlatformIO and keep their own licenses.
