@@ -17,9 +17,9 @@ src = io.open(src_path, encoding='utf-8').read()
 # ---- 1. attribution ----
 def tag(m):
     body, who = m.group(0), m.group(1).upper()
-    cls = 'claude-block' if who.startswith('CLAUDE') else 'gemini-block'
+    cls = 'reviewer-a' if who.startswith('REVIEWER A') else 'reviewer-b'
     return body.replace('<p>', f'<p class="{cls}">', 1)
-h = re.sub(r'<p><strong>((?:CLAUDE|GEMINI|Gemini)[^<]*)</strong>.*?</p>', tag, h, flags=re.S)
+h = re.sub(r'<p><strong>((?:REVIEWER A|REVIEWER B|Reviewer B)[^<]*)</strong>.*?</p>', tag, h, flags=re.S)
 
 # ---- 2. status chips ----
 def classify(t):
@@ -101,8 +101,8 @@ cover = f"""<div class="coverpage">
     <span class="chip chip-ok">RESOLVED</span>
     <span class="chip chip-mixed">PARTIAL</span>
     <span class="chip chip-bad">DISPUTED</span>
-    &nbsp;&nbsp;<span style="border-left:3pt solid #0C6B7A;padding-left:5pt">Claude</span>
-    &nbsp;<span style="border-left:3pt solid #4F5B93;padding-left:5pt">Gemini</span>
+    &nbsp;&nbsp;<span style="border-left:3pt solid #0C6B7A;padding-left:5pt">Reviewer A</span>
+    &nbsp;<span style="border-left:3pt solid #4F5B93;padding-left:5pt">Reviewer B</span>
   </div>
 </div>"""
 h = h.replace('<h1 class="title">Design Review</h1>', cover, 1)

@@ -21,15 +21,15 @@ h4 { font-family:"Noto Sans",sans-serif; font-size:10pt; font-weight:700; margin
 p { margin:0 0 6pt; orphans:3; widows:3; }
 
 /* ---- two-party attribution bands ---- */
-.claude-block, .gemini-block {
+.reviewer-a, .reviewer-b {
   padding:6pt 10pt; margin:8pt 0; break-inside:avoid-page;
 }
-.claude-block { border-left:3pt solid #0C6B7A; background:#F2F7F8; }
-.gemini-block { border-left:3pt solid #4F5B93; background:#F4F4F9; }
-.claude-block > strong:first-child { color:#0C6B7A; }
-.gemini-block > strong:first-child { color:#4F5B93; }
-.claude-block + ul, .claude-block + ol, .claude-block + table, .claude-block + pre,
-.gemini-block + ul, .gemini-block + ol, .gemini-block + table, .gemini-block + pre {
+.reviewer-a { border-left:3pt solid #0C6B7A; background:#F2F7F8; }
+.reviewer-b { border-left:3pt solid #4F5B93; background:#F4F4F9; }
+.reviewer-a > strong:first-child { color:#0C6B7A; }
+.reviewer-b > strong:first-child { color:#4F5B93; }
+.reviewer-a + ul, .reviewer-a + ol, .reviewer-a + table, .reviewer-a + pre,
+.reviewer-b + ul, .reviewer-b + ol, .reviewer-b + table, .reviewer-b + pre {
   margin-left:10pt; border-left:1pt dotted #C3CBCE; padding-left:9pt;
 }
 
