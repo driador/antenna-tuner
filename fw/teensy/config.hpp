@@ -70,6 +70,8 @@ constexpr double kMaxCalWatts = 2000;       // a reading above this is a typo: t
 
 // ---- RF path (§5.5, §6B) ----
 constexpr double kCoilOnVolts = 0.03;       // ASSUMED: across the 1 ohm sense, a CX600N-24 coil draws more
+constexpr double kFwdRfVolts = 0.05;        // ASSUMED: V_FWD in any 1 ms sample above this is RF at the tuner;
+                                            // the Schottky detector idles near 0 V. Set from its idle and a few watts
 constexpr double kLoadRfVolts = 0.70;       // ASSUMED: CAL_ADC (the detector halved) with ~5 W in the load;
                                             // it idles near 0.5 V (§6B.3a: 1.03 V bias)
 

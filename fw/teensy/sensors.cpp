@@ -60,7 +60,9 @@ void Sensors::poll(uint32_t now_ms) {
         sum_mag_ += analogRead(pins::V_MAG);
         sum_phs_ += analogRead(pins::V_PHS);
         sum_ref_ += analogRead(pins::AD_VREF);
-        sum_fwd_ += analogRead(pins::V_FWD);
+        const int fwd = analogRead(pins::V_FWD);
+        sum_fwd_ += fwd;
+        fwd_now_ = fwd * 3.3 / 4095;
         ++n_;
     }
     if (now_ms - last_slow_ms_ >= 10) {

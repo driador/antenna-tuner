@@ -294,17 +294,21 @@ TEST(tunes_every_band_edge_cold) {
 TEST(random_antennas_errors_and_starts) {
     // Draws anywhere inside the bounds the corner sweeps use: an edge, the feeder spread, element and
     // bridge errors, a starting setting anywhere in range, factory priors or none. Fixed seed.
-    // With priors every draw must match. Cold, from an arbitrary setting, a reading can sit at the top
-    // of the AD8302's range through every coarse move; those few must end in a fault, never anything
-    // unsafe, and the in-band tuner always has its seeds (seed.hpp).
-    uint64_t state = 0x7475'6e65'7231ULL;
+    // With priors every draw must match. Cold, from an arbitrary setting, a few end in a fault: the
+    // cold-start search (fsm.hpp) rescues most that would find no solution, and what remains is mostly
+    // 160 m running out of attempts. Never anything unsafe, and the in-band tuner always has its seeds.
+    // RANDOM_DRAWS and RANDOM_SEED widen the run by hand; the defaults are what the suite checks.
+    const char* draws_env = std::getenv("RANDOM_DRAWS");
+    const char* seed_env = std::getenv("RANDOM_SEED");
+    const int draws = draws_env ? std::atoi(draws_env) : 1000;
+    uint64_t state = seed_env ? std::strtoull(seed_env, nullptr, 0) : 0x7475'6e65'7231ULL;
     auto uni = [&](double lo, double hi) {
         state = state * 6364136223846793005ULL + 1442695040888963407ULL;
         return lo + (hi - lo) * double(state >> 11) / double(1ULL << 53);
     };
     int cases = 0, matched = 0, marginal = 0, worst_attempts = 0, cold = 0, cold_matched = 0, violations = 0;
     double worst_s = 0;
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < draws; ++i) {
         const Vec& v = kVecs[std::min(kVecCount - 1, int(uni(0, kVecCount)))];
         const Errors e{uni(-0.03, 0.03), uni(-0.03, 0.03), uni(-0.03, 0.03), uni(-0.25, 0.25), uni(-2, 2)};
         const cplx z = vec::at_tuner(v.mhz, {v.zl_r, v.zl_x}, uni(39, 42), uni(0.93, 0.97));
@@ -733,4 +737,53 @@ TEST(preset_only_while_receiving_in_idle) {
     CHECK(p.moves == m + 1 && tu.state() == State::Idle && p.violations == 0);
     ask(14.175);                                      // already there: nothing to do
     CHECK(p.moves == m + 1);
+}
+
+namespace {
+// Cold draws as random_antennas_errors_and_starts makes them, run with or without the cold-start search:
+// how many end in a fault, and how many of those find no solution.
+void cold_draws(uint64_t seed, int draws, bool search, int& cases, int& faults, int& unsolved, int& violations) {
+    uint64_t state = seed;
+    auto uni = [&](double lo, double hi) {
+        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+        return lo + (hi - lo) * double(state >> 11) / double(1ULL << 53);
+    };
+    for (int i = 0; i < draws; ++i) {
+        const Vec& v = kVecs[std::min(kVecCount - 1, int(uni(0, kVecCount)))];
+        const Errors e{uni(-0.03, 0.03), uni(-0.03, 0.03), uni(-0.03, 0.03), uni(-0.25, 0.25), uni(-2, 2)};
+        const cplx z = vec::at_tuner(v.mhz, {v.zl_r, v.zl_x}, uni(39, 42), uni(0.93, 0.97));
+        const Parts reach{kParts.c1_min * (1 + e.c1), kParts.c1_max * (1 + e.c1), kParts.c2_min * (1 + e.c2),
+                          kParts.c2_max * (1 + e.c2), kParts.l_min * (1 + e.l), kParts.l_max * (1 + e.l)};
+        const Setting start{uni(kParts.c1_min, kParts.c1_max),
+                            kParts.l_min * std::pow(kParts.l_max / kParts.l_min, uni(0, 1)),
+                            uni(kParts.c2_min, kParts.c2_max)};
+        if (!solve(v.mhz * 1e6, z, kParts).ok || !solve(v.mhz * 1e6, z, reach).ok) continue;
+        Config cfg = config();
+        if (!search) cfg.max_search = 0;
+        Tuner tu(cfg);
+        Plant p;
+        p.mhz = v.mhz;
+        p.z_load = z;
+        p.err_c1 = e.c1, p.err_l = e.l, p.err_c2 = e.c2, p.mag_err_db = e.db, p.phs_err_deg = e.deg;
+        p.pos = start;
+        const Outputs o = key(tu, p);
+        const bool ok = o.state == State::Matched && p.swr() <= 1.55;
+        ++cases;
+        faults += !ok;
+        unsolved += !ok && o.fault == Fault::NoSolution;
+        violations += p.violations;
+    }
+}
+}  // namespace
+
+TEST(cold_start_search_rescues_unsolvable_starts) {
+    // Off the bands there is no prior. From a bad enough start the reading gives nothing to solve from and
+    // the coarse moves end in NO SOLUTION; the reference settings (tnet.hpp) find a readable neighborhood
+    // instead. The same cold draws with the search off and on.
+    int cases[2] = {}, faults[2] = {}, unsolved[2] = {}, violations = 0;
+    for (int with = 0; with < 2; ++with)
+        cold_draws(67890, 1500, with == 1, cases[with], faults[with], unsolved[with], violations);
+    std::printf("    %d cold draws: %d faults (%d no solution) without the search, %d (%d) with it\n", cases[1],
+                faults[0], unsolved[0], faults[1], unsolved[1]);
+    CHECK(cases[0] == cases[1] && unsolved[1] < unsolved[0] && faults[1] < faults[0] && violations == 0);
 }

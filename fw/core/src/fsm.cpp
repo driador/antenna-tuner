@@ -77,6 +77,21 @@ int Tuner::prior_sign(const Measurement& m, const Setting& at, const Prior& p) {
     return 0;
 }
 
+// The next reference setting worth a move from here, if the search has one left.
+bool Tuner::next_reference(const Setting& here) {
+    if (search_n_ < 0) search_n_ = reference_settings(m_.mhz * 1e6, cfg_.parts, search_, 10);
+    while (search_i_ < search_n_ && search_i_ < cfg_.max_search) {
+        const Setting s = search_[search_i_++];
+        if (setting_distance(here, s, cfg_.parts) <= kAtSetting) continue;
+        enter(State::Move);
+        searching_ = true;
+        move_target_ = s;
+        move_pending_ = true;
+        return true;
+    }
+    return false;
+}
+
 void Tuner::start_probe() {
     // Step C2 the way that stays in range; m_ and at_ are the reading and setting before the step.
     enter(State::Probe);
@@ -88,6 +103,7 @@ void Tuner::start_probe() {
 
 void Tuner::enter(State s) {
     if (s != State::Move) jogging_ = false;
+    if (s != State::Move && s != State::Verify) searching_ = false;
     state_ = s;
     probed_ = false;
     move_pending_ = false;
@@ -148,6 +164,8 @@ void Tuner::begin_tune(const Inputs& in) {
     attempts_ = 0;
     coarse_ = 0;
     prior_used_ = false;
+    search_n_ = -1;
+    search_i_ = 0;
     Prior p;
     const bool have = prior_near(in.m.mhz, p);
     if (have && swr > cfg_.trust_swr && setting_distance(at_, p.at, cfg_.parts) > kAtSetting) {
@@ -272,6 +290,20 @@ Outputs Tuner::step(const Inputs& in) {
         case State::Verify:
             if (!in.carrier) {
                 enter(State::Idle);
+            } else if (in.have_measurement && searching_) {
+                // A cold start's reference setting: readable enough to go on from, or on to the next one.
+                // When none reads well, the tune goes on from the best reading seen.
+                note_best(in.m, in.position);
+                if (swr_of(in.m) > cfg_.trust_swr && next_reference(in.position)) break;
+                searching_ = false;
+                m_ = best_m_;
+                at_ = best_at_;
+                if (sign_matters(m_.gamma)) {
+                    start_probe();
+                } else {
+                    sign_ = +1;
+                    enter(State::Solve);
+                }
             } else if (in.have_measurement) {
                 // The move itself is the probe: the readings before and after it fix the sign. A reading
                 // from too far off predicts nothing, so after a coarse move the prior decides if it can,
@@ -343,6 +375,7 @@ Outputs Tuner::step(const Inputs& in) {
             last_load_ = load_estimate(m_, sign_, at_);
             sol = solve(m_.mhz * 1e6, last_load_, cfg_.parts, o);
         }
+        Prior p;
         if (!sol.ok && coarse) {
             // Nothing fits a reading this far off, which proves little: back to the best setting seen
             // and probe from there.
@@ -350,6 +383,8 @@ Outputs Tuner::step(const Inputs& in) {
             m_ = best_m_;
             at_ = best_at_;
             start_probe();
+        } else if (!sol.ok && !prior_near(m_.mhz, p) && next_reference(at_)) {
+            // Cold, the coarse moves spent, and still nothing fits: a reference setting may read better.
         } else if (!sol.ok) {
             fault(Fault::NoSolution);
         } else {

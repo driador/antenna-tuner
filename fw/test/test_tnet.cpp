@@ -92,3 +92,19 @@ TEST(refuses_what_cannot_be_matched) {
     CHECK(!solve(14.2e6, cplx(-3, 20), kParts).ok);           // an impossible reading
     CHECK(!solve(14.2e6, cplx(std::nan(""), 0), kParts).ok);  // a failed de-embedding
 }
+
+TEST(reference_settings_span_the_range) {
+    // A cold start's search (fsm.hpp): distinct settings, all inside the parts, each a real match for a
+    // load on the chart, on every band.
+    for (double mhz : {1.8, 3.75, 7.15, 14.175, 21.2, 29.7}) {
+        Setting s[10];
+        const int n = reference_settings(mhz * 1e6, kParts, s, 10);
+        CHECK(n >= 4);
+        for (int i = 0; i < n; ++i) {
+            CHECK(s[i].c1 >= kParts.c1_min && s[i].c1 <= kParts.c1_max && s[i].c2 >= kParts.c2_min &&
+                  s[i].c2 <= kParts.c2_max && s[i].l >= kParts.l_min && s[i].l <= kParts.l_max);
+            for (int k = 0; k < i; ++k) CHECK(setting_distance(s[i], s[k], kParts) >= 0.05);
+        }
+        CHECK(reference_settings(mhz * 1e6, kParts, s, 2) == 2);   // cap respected
+    }
+}

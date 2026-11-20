@@ -6,6 +6,10 @@
 // currents confirm them, and only then is the vote given back. The first key-down after a change is
 // checked at the cal-load detector: RF there in CAL, none in TUNE or AUX (§6B.3a). Any disagreement is
 // a class B fault, and the relays go back to TUNE, their de-energized state.
+//
+// The permit holds off the amplifier, not the exciter (§7.4), so the relays move only after blank_ms
+// with no RF at all (§5.5: zero-RF switching). A key-down before they move cancels the change, and with
+// nothing switched the vote goes straight back.
 #pragma once
 #include <cstdint>
 
@@ -25,12 +29,14 @@ public:
         uint32_t now_ms = 0;
         bool k1_current = false, k2_current = false;   // each driver channel's coil-current sense
         bool carrier = false;                          // a steady key-down
+        bool rf_now = false;                           // the forward detector sees RF this instant
         bool load_rf = false;                          // the cal-load detector sees RF
     };
     struct Out {
         bool hold_vote = false;    // the MCU's vote must stay down
         bool k1 = false, k2 = false;
         bool mismatch = false;     // this tick: raise the class B fault
+        bool canceled = false;     // this tick: RF came before the relays moved, so the change was dropped
     };
 
     PathSwitch() = default;

@@ -59,7 +59,7 @@ python3 fw/tools/gen_tables.py
 | `motion` | The coordinated move: every axis on one straight line in step space, speed and acceleration per axis, the roller's slow zone, a ramp-down when stopped | §7.2, §8B.3, §8B.3a |
 | `sense` | The steady-carrier test, the tank NTC, over-temperature hysteresis | §6A.10, §8B.4a |
 | `cal` | The bridge's calibration per band from open, short and load, with an optional slope standard | §6A.8 |
-| `path` | TUNE / AUX / CAL: the vote held while K1 and K2 change, coil currents and the first key-down checked | §5.5, §6B.2 |
+| `path` | TUNE / AUX / CAL: the vote held while K1 and K2 change, never under RF, coil currents and the first key-down checked | §5.5, §6B.2 |
 | `panel` | Every panel screen, drawn as text, with the scroll-to-confirm rule for class C | §7.5, §8B.4f |
 | `panel_io` | The encoders' quadrature and the Nextion's serial protocol | §7.5 |
 | `qualify` | The PERMISSIVE qualification: tunes, bands, powered hours, no mechanical fault, the inspection | §8B.4a-1 |
@@ -97,7 +97,7 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `clear` | Local clear of class B and C faults |
 | `tune` | Start a tune |
 | `mode commissioning\|strict` | Set the fault policy. PERMISSIVE is refused until the §8B.4a-1 qualification counters exist |
-| `path tune\|aux\|cal` | Change the RF path |
+| `path tune\|aux\|cal` | Change the RF path, only while receiving (§5.5) |
 | `cal load\|open\|short\|save` | The calibration steps (below) |
 | `cal watts <W>` | Add a forward-power point at the wattmeter reading W |
 | `jog c1\|c2\|l <turns>` | Move one element |
@@ -224,6 +224,8 @@ back. A class C clear needs the fault list scrolled to the end before Confirm ap
   points, the blower PWM and the derate's averaging time (§9 item 30).
 - **Relays:** the K1/K2 coil-current threshold. Measure an energized coil across its 1 Ω sense.
 - **Cal-load detector:** its RF threshold, from the detector with ~5 W in the load.
+- **Forward detector:** `kFwdRfVolts`, the level that counts as RF for the §5.5 relay guard: just
+  above its idle reading, below what a few watts give.
 - **Panel knobs:** which knob is left and the 62V15's edges per detent. If a knob runs backward, swap
   its A and B.
 
@@ -285,10 +287,19 @@ sweeps (39–42 ft, VF 0.93–0.97) and the 10 m feedpoint uncertainty of §9 it
 - With the factory priors: every band edge from every start (mid-range, band change up, band change
   down) at every error corner. Most tunes take 1 attempt, the worst 3.
 - 1000 random draws over the same bounds (992 within the network's reach), starting anywhere in
-  range, half with priors and half cold: every seeded draw matches. Cold draws match 99.4 %. The
-  rest start where the reading stays pinned at |Γ| = 1 through every coarse move, and they end in a
-  fault, never anything unsafe. In band the tuner always has its seeds, so cold starts happen only
-  out of band.
+  range, half with priors and half cold: every seeded draw matches, and cold draws match 99.8 %
+  (508 of 509). In band the tuner always has its seeds, so cold starts happen only out of band.
+- **The cold-start search.** Cold, a bad enough start can leave nothing to solve from, and the coarse
+  moves used to end there in NO SOLUTION. Now the tune first steps through up to six reference
+  settings, each the match for a likely load at the measured frequency (`reference_settings`), and
+  goes on from the first that reads within SWR 5, or from the best. Those moves count as neither
+  attempts nor coarse moves, and a tune that a coarse move rescues never searches, so nothing that
+  worked before is slower. Over 1491 cold draws it cuts the faults from 8 to 4 and the no-solution
+  faults from 4 to 0.
+- **Wider runs** (`RANDOM_DRAWS=5000 RANDOM_SEED=12345`, and seed 67890) show the limits. Cold faults
+  fall from 0.59 % to 0.42 % with the search; what is left is 160 m running out of its three attempts
+  (bounded by §8B.3 on purpose), and every fault is a clean stop. Separately, 3 of about 2,500 seeded
+  draws at 29.700 MHz run out of attempts at SWR 14–15, with or without the search.
 
 These bounds are what commissioning has to meet. The element calibration curves need to be within
 about 3 %.
@@ -296,9 +307,14 @@ about 3 %.
 ## Next
 
 - **Bring-up** on the built boards, per the list above, then a calibration of every band.
+- **The built-in test** of design log §8B.4g: an active check at power-up and on demand (each axis
+  out and back, each relay cycled, the hold latch, the detectors' idle levels, the permit's rise),
+  graded C / B / warning, with a result word that names the failed check. Also from that table:
+  cross-check the counter against the forward detector, watch the blower tach, name the permit term
+  that dropped, and read the imbalance CT.
 - **Recovery mode stage 2** (§8B.4f.3): the panel's backup browser and network editor.
-- **Cold-start search:** when there is no prior and the reading stays pinned at the top of the
-  range, step through a few reference settings to find a readable neighborhood.
+- **The top of 10 m:** wider random runs show 3 of about 2,500 seeded draws at 29.700 MHz ending in
+  "tune failed after 3 attempts" at SWR 14–15; find what sends those attempts astray.
 
 ## License
 

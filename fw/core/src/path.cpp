@@ -40,9 +40,14 @@ PathSwitch::Out PathSwitch::step(const In& in) {
             break;
         }
         case Phase::Blanking:                     // the old relay state, vote down, waiting
-            o.hold_vote = true;
             o.k1 = k1_for(path_);
             o.k2 = k2_for(path_);
+            if (in.carrier || in.rf_now) {           // keyed before the relays moved: drop the change
+                phase_ = Phase::Steady;
+                o.canceled = true;
+                break;
+            }
+            o.hold_vote = true;
             if (in.now_ms - t0_ >= cfg_.blank_ms) {
                 phase_ = Phase::Settling;
                 t0_ = in.now_ms;

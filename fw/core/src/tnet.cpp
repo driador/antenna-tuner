@@ -53,6 +53,25 @@ double setting_distance(const Setting& a, const Setting& b, const Parts& p) {
     return std::fmax(d1, std::fmax(d2, dl));
 }
 
+int reference_settings(double f_hz, const Parts& p, Setting* out, int cap) {
+    // Points on the Smith chart (|Gamma|, degrees, against 50 ohm). First the right-hand side, where a
+    // doublet on open-wire line sits at the tuner on every band (high impedance, either reactance), then
+    // the rest of the chart for whatever a frequency off the bands brings.
+    static const double kPoints[][2] = {{0.9, 0},  {0.9, -30}, {0.9, 20},  {0.6, -45}, {0.6, 20},
+                                        {0.97, -10}, {0, 0},   {0.8, 90},  {0.8, -90}, {0.8, 180}};
+    int n = 0;
+    for (const auto& pt : kPoints) {
+        if (n >= cap) break;
+        const cplx g = std::polar(pt[0], pt[1] * kPi / 180);
+        const Solution sol = solve(f_hz, 50.0 * (1.0 + g) / (1.0 - g), p);
+        if (!sol.ok) continue;
+        bool near = false;
+        for (int k = 0; k < n && !near; ++k) near = setting_distance(out[k], sol.s, p) < 0.05;
+        if (!near) out[n++] = sol.s;
+    }
+    return n;
+}
+
 Solution solve(double f_hz, cplx z_load, const Parts& parts, const SolveOptions& o) {
     Solution lowest{};
     // First pass: the lowest roller current (the §5.1 policy the loss and derate figures assume).

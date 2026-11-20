@@ -214,6 +214,19 @@ TEST(rf_path_switch_follows_the_relay_sequence) {
     in.load_rf = true;                                  // CAL: the load sees the first key-down
     CHECK(!ps.step(in).mismatch);
 
+    for (int fast = 0; fast < 2; ++fast) {              // a key-down before the relays move (§5.5)
+        PathSwitch keyed;
+        PathSwitch::In k;
+        CHECK(keyed.request(Path::Aux, 0));
+        k.now_ms = 60;
+        CHECK(keyed.step(k).hold_vote);
+        (fast ? k.rf_now : k.carrier) = true;           // the detector at once, or the counter's gate later
+        const PathSwitch::Out c = keyed.step(k);
+        CHECK(c.canceled && !c.hold_vote && !c.k1 && !c.k2 && !keyed.busy() && keyed.path() == Path::Tune);
+        k.now_ms = 300;
+        CHECK(!keyed.step(k).k1);                       // and nothing moves later either
+    }
+
     PathSwitch weld;                                    // AUX, but RF still reaches the load: K2 welded
     PathSwitch::In w;
     w.now_ms = 0;

@@ -204,7 +204,9 @@ void restore(uint32_t n) {
 }
 
 const char* set_path(tuner::Path p) {                  // allowed remotely too, like a band change (§6B.4)
-    const char* why = !quiet() ? "path: finish what is running first"
+    // §5.5: the relays switch with no RF at all, and the permit holds off only the amplifier.
+    const char* why = g_sensors.carrier() || g_sensors.rf_now() ? "path: only while receiving"
+                      : !quiet() ? "path: finish what is running first"
                       : !g_path.request(p, millis()) ? "path: a change is under way" : nullptr;
     note(why ? why : p == tuner::Path::Tune ? "path TUNE" : p == tuner::Path::Aux ? "path AUX" : "path CAL");
     return why;
@@ -472,8 +474,10 @@ void tick(uint32_t now) {
         pin.k1_current = g_sensors.k1_on();
         pin.k2_current = g_sensors.k2_on();
         pin.carrier = g_sensors.carrier();
+        pin.rf_now = g_sensors.rf_now();
         pin.load_rf = g_sensors.load_rf();
         g_path_out = g_path.step(pin);
+        if (g_path_out.canceled) note("path: keyed mid-change; retry");
     }
     hw::set_relays(g_path_out.k1, g_path_out.k2);
 

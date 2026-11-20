@@ -1360,6 +1360,11 @@ While the permissive is up, the MCU can command anything and the relays do not m
 key on, the permissive is held up, so the relays freeze in place. At power-up the permissive is down,
 the latch is open, and the relay commands are pulled low: both relays are off, which is TUNE (§6B.2).
 
+*Firmware (§8B.6):* the permit holds off only the amplifier (§7.4), and the exciter may still be
+transmitting. So the firmware refuses a path change while any RF is present, and drops a change that
+is keyed before the relays move. Its fast check reads the forward detector every millisecond, well
+inside the frequency counter's 200 ms gate.
+
 ## Section 6 — Input Common-Mode Choke
 
 *Rev 3.7c: a #61 ferrite choke standing in the RF bay, under the deck. It replaces air-core design C in
@@ -2886,6 +2891,64 @@ has had to read the fault detail to unlock Confirm.
 another power cycle — so you cannot stumble out of recovery into a transmitting state. Signaled
 throughout: fast LED flash at the box, banner in the web UI.
 
+### 8B.4g Failure modes, and when each is caught *(Rev 3.7c)*
+
+Each part that can fail, how it fails, when the tuner finds out today (the firmware of §8B.6), what
+happens if it does not, and what could catch it sooner. *Boot* is the passive check of §8B.4b step 2,
+where nothing moves. *First use* means the fault surfaces only when the part is next needed, usually
+at a key-down.
+
+| Part | How it fails | Caught today | If it is not | What could catch it sooner |
+|:--|:--|:--|:--|:--|
+| Stepper driver or motor, any axis | Dead driver, open winding, reversed lead, slipped coupling | First move: the encoder disagrees (§8B.3), class C under STRICT | A tune that faults at key-down | Boot: a small out-and-back move per axis, its size and direction checked on the encoder |
+| Absolute encoder (AS5048A) | No answer, magnet out of range, error flag | Boot, and after every move | — | Covered |
+| Limit switch, inner or outer | Open lead, or tripped | Boot (all must be closed), and at once in hardware (§7.2: STEP gated, EN dropped) | — | Covered |
+| | Stuck closed | Never | Overtravel reaches the torque ceiling or the hard stops (§7.2 layers 4–5) | Commissioning proof test: drive each axis into its switches (§9 item 48) |
+| K1/K2 coil, driver or coil-current sense | Coil open, driver dead | First path change, by coil current: RELAY MISMATCH, class B | AUX or CAL unusable, found when wanted | Boot: cycle each relay, with coil current checked on and off |
+| K1/K2 contacts | Welded, or not closing | First key-down after a change, at the cal-load detector (§6B.3a) | RF to the wrong port | Needs RF: the key-down check covers it |
+| Relay hold latch (§5.5) | Passes changes with the permit up | Never | A relay could change under amplifier power | Boot, after release with no carrier: command a relay with the permit up and confirm no coil current |
+| | Never opens | First path change (coil current) | Path changes fail | The relay cycle covers it |
+| AD8302 bridge | Dead, or VREF out of range | Boot | — | Covered |
+| | V_MAG or V_PHS stuck or drifted | First tune, as NO SOLUTION or TUNE FAILED | The antenna gets the blame | Boot: both idle levels inside their windows with no RF |
+| Frequency counter (prescaler, comparator) | Dead | Never: no carrier is ever seen | Silent: the tuner simply never tunes | Continuous: RF at the forward detector with no count is a fault |
+| Forward detector (V_FWD) | Dead or open | Never | No power reading; the derate stays silent; the fast RF check of §5.5 is blind | Continuous: a counted carrier with no forward voltage. Boot: idle near 0 V |
+| Cal-load detector | Open or dead | At once: it trips the permit's window (fail-safe, §6B.3a) | — | Name the term (below) |
+| Imbalance CT | Any | Never: the firmware does not read it yet | No imbalance figure | Read it (§8B.6) |
+| Tank thermistor | Open or shorted | At once: it reads as hot, OVER-TEMPERATURE (class A, held while it lasts) | — | Covered |
+| | Drifted | Never | Over-temperature early or late | Boot: a plausible reading (about −20 to +60 °C) |
+| Blower | Stalled or slow | Only later, as over-temperature | A hot tank with no stated cause | Continuous: the tach against the PWM. It is counted (`board.cpp`), but nothing reads it |
+| Permit chain: a term, the LED, the fiber, the bench receiver | Dark or open | At once: inhibit (fail-safe, §8B.4c) | The amplifier will not key | Name the term: the expander reads all seven (GPB0–6), but the firmware uses only SWR_OK |
+| MCU vote path | Permit stuck high | Boot (down while the vote is down) | — | Covered |
+| | Permit cannot rise | Never | The amplifier never keys, unexplained | Boot: after release, the permit must read high |
+| Bench switch | Welded closed | Never, from the tuner | Interlock and E-STOP defeated | Proof test at the bench (§8C.2), periodically |
+| Over-SWR comparator | Never trips | Never | Over-SWR protection gone | Proof test: low power into the open standard on AUX |
+| RF service-panel switch | Stuck closed | Never | Personnel protection gone | Proof test with the panel off (§9 item 51) |
+| MCU | Hung | The watchdog resets it within 0.5 s, and MCU_PERMIT falls with the reset; logged | — | Covered; check once on the bench |
+| EEPROM records | Corrupt | Boot (two copies, CRC): a corrupt authoritative record fails the self-test | — | Covered |
+| SD card | Missing, foreign, writes failing | Probed every 10 s (§8B.5.6) | Backups stop | Covered, as a warning |
+| Ethernet, panel display | Down | The link state; the display only by eye | The remote or local view. Protection is unaffected | Boot: report both |
+| Supply rails (24 V motors, 12 V, 5 V) | Sag or loss | Indirectly: a stall shows as an encoder mismatch, and a brown-out resets the MCU | — | Nothing measures a rail: a divider on 24 V is a board change |
+
+**What the table says.**
+
+- **Well covered:** the interlock chain (fail-safe by construction), the encoders, the limits,
+  temperature, the processor and the records.
+- **Found only at first use**, which a built-in test would move to boot: a stepper driver or motor, a
+  relay coil, the hold latch, the detectors' idle levels and the permit's rise. A dead detector is
+  worse than late, because the fault it causes names the antenna.
+- **Never found, and cheap to fix in firmware:** a dead counter (cross-check the forward detector), a
+  stalled blower (the tach is already counted), which permit term dropped (all seven are already
+  read), and the imbalance CT.
+- **Never found, and only a proof test can:** a welded bench switch, a stuck limit switch, a
+  comparator that never trips, and the RF-panel switch. These belong in commissioning and in a
+  periodic manual check.
+- **Grading, for the built-in test:** a failure latches class C only where tuning or transmitting
+  would be unsafe: the permit stuck high, an axis that will not move or moves the wrong way, the hold
+  latch passing changes, a lost encoder, a corrupt record. One that leaves the tuner degraded but safe
+  is class B. The rest are warnings: logged and shown, with nothing inhibited. Active checks run only
+  with no carrier, the bypass off, nothing latched, the TUNE path in use and the RF service panel
+  closed.
+
 ### 8B.5 Storage — two tiers, and the card may always be absent
 
 The Teensy 4.1 carries a **built-in microSD socket** on dedicated SDIO pins, so removable storage
@@ -3083,7 +3146,17 @@ The tests settled what §8B left open:
 
 With the factory priors, every band edge tunes from every start: most in one attempt, none in more
 than three. Over 1000 random draws inside those bounds, every seeded draw matches. Cold draws (no
-prior, which in practice means out of band) match 99.4 %, and the rest end in a fault.
+prior, which in practice means out of band) match 99.8 %, and the rest end in a fault.
+
+**Cold-start search.** Cold, a bad enough start can leave nothing to solve from, and the coarse
+moves used to end there in NO SOLUTION. The tune now first steps through up to six reference settings,
+each the match for a likely load at the measured frequency, and goes on from the first that reads
+within SWR 5, or from the best. The search moves are neither attempts nor coarse moves, and a tune a
+coarse move rescues never searches. Over 1491 cold draws it cuts the faults from 8 to 4 and the
+no-solution faults from 4 to 0. Wider runs (5,000 draws on two other seeds) put the cold fault rate at
+0.42 %, from 0.59 %; the rest is 160 m running out of its three attempts, a clean stop. They also show
+3 of about 2,500 seeded draws at 29.700 MHz running out of attempts at SWR 14–15, which the search does
+not touch and which is now a firmware follow-up.
 
 **The Teensy layer** (`fw/teensy/`, PlatformIO) builds but has not run: the boards are not built.
 
@@ -3132,6 +3205,9 @@ prior, which in practice means out of band) match 99.4 %, and the rest end in a 
 - **Link protocol:** the commands of §8C.5 plus PATH, CAL and NET, with mode changes, class C clears,
   the bypass and jogging refused as local only. A number that is not a plain finite one (`NAN`, `5X`)
   is refused rather than read as 0, and a calibration point above 2000 W is taken as a typo.
+- **No relay switching under RF (§5.5):** a path change is refused while RF is present, and one keyed
+  before the relays move is dropped with nothing switched. The forward detector's 1 ms samples catch a
+  key-down well inside the counter's 200 ms gate (the threshold is ASSUMED until bring-up).
 - **Pre-positioning (§8B.3a):** PRESET on the link, a band button on the page, or the console drives the
   elements to the stored setting for a frequency while the rig still receives. It runs only in IDLE
   with no carrier, on the TUNE path, with the bypass off and no blocking fault, and the move drops the

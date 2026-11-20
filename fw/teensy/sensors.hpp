@@ -31,6 +31,7 @@ public:
     const tuner::GammaReading& gamma() const { return gamma_; }   // the last gate's, calibrated
     const tuner::Standard& standard() const { return raw_; }     // ...and as raw volts, for calibration
     double v_fwd() const { return v_fwd_; }                      // the forward detector over that gate
+    bool rf_now() const { return fwd_now_ > kFwdRfVolts; }       // ...and RF in its latest 1 ms sample
     double forward_watts() const;                                // below zero: this band is not calibrated
 
     bool read_iox();                  // false if it did not answer
@@ -54,7 +55,7 @@ private:
     bool fresh_ = false;
     tuner::Measurement pending_;
     uint32_t pending_start_ = 0;
-    double mhz_ = 0, tank_c_ = 0, vref_ = 0, v_fwd_ = 0;
+    double mhz_ = 0, tank_c_ = 0, vref_ = 0, v_fwd_ = 0, fwd_now_ = 0;
     double k1_v_ = 0, k2_v_ = 0, cal_v_ = 0;
     tuner::GammaReading gamma_;
     tuner::Standard raw_;

@@ -47,6 +47,11 @@ Solution solve(double f_hz, cplx z_load, const Parts& parts, const SolveOptions&
 // largest of the three, because the axes move together and the slowest sets the time (§8B.3).
 double setting_distance(const Setting& a, const Setting& b, const Parts& p);
 
+// Settings that match a spread of loads at f_hz, the likeliest first: where a cold start (no prior, and a
+// reading too far off to use) looks for a readable neighborhood. Near-duplicates are left out. Returns
+// how many it wrote.
+int reference_settings(double f_hz, const Parts& p, Setting* out, int cap);
+
 // What the network presents at its input with a given load, and the inverse: the load that the
 // network must be seeing, given what the bridge measured at the input (de-embedding).
 cplx input_impedance(double f_hz, const Setting& s, cplx z_load);

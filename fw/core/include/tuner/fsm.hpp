@@ -24,6 +24,12 @@
 // by a large factor. If a stored setting exists for the frequency, MEASURE first drives there (§7.6,
 // §8B.3a) and measures again. A solve from such a reading is a coarse move, not an attempt, and a move
 // that leaves a reading like that, much worse than the best so far, is undone.
+//
+// With no prior (in practice, off the bands), a tune that would end in NO SOLUTION, its coarse moves
+// spent and still nothing to solve from, first makes a cold-start search. The elements step through
+// reference settings, each a match for a different likely load at the frequency (tnet.hpp), until one
+// reads within trust_swr; the tune goes on from there, or from the best reading if none does. These moves
+// are neither attempts nor coarse moves, and a tune that a coarse move rescues never searches.
 #pragma once
 #include <cstdint>
 
@@ -47,6 +53,7 @@ struct Config {
     double near_tolerance = 0.03;  // §8B.3a: prefer the nearest solution within 3 % of the lowest current
     double trust_swr = 5.0;        // a reading above this is too far from match to refine from
     int max_coarse = 3;            // coarse moves per tune, on top of the attempts
+    int max_search = 6;            // reference settings a cold start may step through
     double gamma_ceiling = 0.98;   // |Gamma| is taken as at most this when de-embedding
     uint32_t rf_decay_ms = 30;     // §5.5, §7.4.5: permit down this long before anything moves
     uint32_t move_timeout_ms = 15000;   // a move still running after this is a position fault
@@ -133,6 +140,7 @@ private:
     bool prior_near(double mhz, Prior& p) const;
     int prior_sign(const Measurement& m, const Setting& at, const Prior& p);
     void start_probe();
+    bool next_reference(const Setting& here);
     void note_best(const Measurement& m, const Setting& at);
     int resolve_sign(const Measurement& m0, const Setting& p0, const Measurement& m1, const Setting& p1) const;
 
@@ -154,6 +162,9 @@ private:
     bool prior_used_ = false;      // the prior has chosen a sign once this tune; measurements decide after
     bool armed_ = false;           // IDLE has seen the carrier absent since it was entered
     bool jogging_ = false;         // the move in progress is a jog or a preset: it ends in IDLE
+    bool searching_ = false;       // the move in progress is to a cold start's reference setting
+    Setting search_[10];           // the reference settings for this tune, computed when first needed
+    int search_n_ = -1, search_i_ = 0;
     bool probed_ = false;          // PROBE: the C2 step is done, waiting for its reading
     bool move_pending_ = false;    // a move has been asked for and has not finished
     bool move_issued_ = false;     // ...and has gone out to the motion layer
