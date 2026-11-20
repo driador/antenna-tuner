@@ -25,6 +25,7 @@
 #include "persist.hpp"
 #include "sensors.hpp"
 #include "storage.hpp"
+#include "tuner/derate.hpp"
 #include "tuner/events.hpp"
 #include "tuner/fsm.hpp"
 #include "tuner/mirror.hpp"
@@ -58,6 +59,7 @@ uint32_t g_note_ms = 0;
 hw::Storage g_store;
 hw::Net g_net;
 tuner::EventLog g_events;
+tuner::Derate g_derate(hw::kDerateTauS);   // §1.7.1: a warning, never an inhibit
 tuner::Qualification g_qual;           // live; g_auth.qual is its snapshot, taken on events and every 10 min
 uint16_t g_raised[unsigned(tuner::Fault::Count)] = {};
 tuner::State g_prev_state = tuner::State::SelfTest;
@@ -372,24 +374,28 @@ void link_telemetry(tuner::proto::Telemetry& t) {
     }
     t.permit = hw::permit();
     t.bypass = g_sensors.iox(iox::BYPASS_KEY);
+    t.loss_w = g_derate.loss_w();
+    t.limit_w = g_derate.limit_w();
+    t.derate = g_derate.warning();
 }
 
 void status() {
-    if (Serial.availableForWrite() < 220) return;          // nobody reading: never block the tick
+    if (Serial.availableForWrite() < 260) return;          // nobody reading: never block the tick
     const tuner::Setting at = g_motion.position();
     const tuner::FaultRecord f = g_tuner->faults().persist();
     char addr[20];
     if (g_net.link()) g_net.address(addr, sizeof addr);
     else std::snprintf(addr, sizeof addr, "no link");
     Serial.printf("%-9s %-4s %8.4f MHz %s  |G| %.3f /%5.1f deg  C1 %5.1f pF  C2 %5.1f pF  L %6.3f uH  tank %5.1f C  "
-                  "vote %d permit %d  iox %04X  lim %02X  C %04X B %04X  %s  card %s  net %s%s\n",
+                  "vote %d permit %d  iox %04X  lim %02X  C %04X B %04X  %s  card %s  net %s%s%s\n",
                   tuner::state_name(g_out.state), tuner::path_name(g_path.path()), g_sensors.mhz(),
                   g_sensors.carrier() ? "carrier" : "-      ", g_sensors.gamma().mag, g_sensors.gamma().theta_deg,
                   at.c1 * 1e12, at.c2 * 1e12, at.l * 1e6, g_sensors.tank_c(),
                   g_out.mcu_permit && !g_path_out.hold_vote && !g_recovery,
                   hw::permit(), g_sensors.iox_word(), hw::limits(), f.latched_c, f.unacked_b,
                   mode_name(g_tuner->faults().mode()),
-                  g_store.present() ? (g_store.foreign() ? "FOREIGN" : "ok") : "NONE", addr, g_recovery ? "  RECOVERY" : "");
+                  g_store.present() ? (g_store.foreign() ? "FOREIGN" : "ok") : "NONE", addr, g_recovery ? "  RECOVERY" : "",
+                  g_derate.warning() ? "  DERATE" : "");
 }
 
 void command(const char* s) {
@@ -524,6 +530,14 @@ void tick(uint32_t now) {
     if (g_path.path() != g_prev_path) {
         g_prev_path = g_path.path();
         log_event(tuner::EventKind::Path, uint8_t(g_prev_path));
+    }
+    // §1.7.1: the RF bay's averaged loss against its cooling. Over it, warn and log; PTT is untouched.
+    if (g_derate.update(g_sensors.mhz(), g_sensors.forward_watts(),
+                        g_sensors.carrier() && g_path.path() == tuner::Path::Tune, hw::kTickMs / 1000.0)) {
+        static char msg[40];
+        std::snprintf(msg, sizeof msg, "derate: keep under %.0f W here", g_derate.limit_w());
+        log_event(tuner::EventKind::Derate);
+        note(msg);
     }
     if (g_cal.changes() != g_cal_changes) {               // a band saved or a power point taken
         g_cal_changes = g_cal.changes();

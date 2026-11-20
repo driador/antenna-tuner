@@ -508,6 +508,7 @@ Three things keep this from being a real constraint in practice:
 
 **Firmware requirement:** implement the derate as a **warning plus a logged event**, not a hard
 PTT inhibit. An operator running a 160 m contest sprint should be told, not silently cut off.
+*(Implemented, §8B.6.)*
 
 #### 1.7.2 Bandwidth and retune cadence
 
@@ -3137,6 +3138,13 @@ prior, which in practice means out of band) match 99.4 %, and the rest end in a 
   permit like any other. The key-down that follows measures the real frequency, so a wrong preset costs
   only a longer move. Simulated over all 90 changes between band edges, key-down travel falls from 54 %
   of range to 10 % on average (worst 32 %), 2.2 moves to 1.5.
+- **160 m derate (§1.7.1):** the RF bay's loss is the forward power on the TUNE path times its
+  segment's loss at the worst point. That is 200 W at each 160 m limit, and 166 W at 1500 W elsewhere.
+  The loss is averaged as the bay's temperature follows it, over about two minutes (ASSUMED until the
+  §9 item 30 thermal run). Above 200 W the tuner logs an event, puts a note on the panel and console
+  and a banner on the page; PTT is never touched. Averaging the loss rather than the power keeps a hot
+  bay hot across a band change. Key-down at 1500 W at 1.82 MHz warns after ~49 s; SSB at 1500 W PEP
+  and full power on any other band never do.
 - **Network settings:** the page's Network card, NET on the link, or the console sets DHCP or a static
   address, and the hostname. A change must pass a check (a host address on a /8 to /30 subnet, a
   gateway on that subnet, a hostname a resolver takes). It is then saved as an administrative change
@@ -3630,7 +3638,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 27 | **Homebuilt roller — R-1 = C decided (Rev 3.7b)** — build the 34 µH / 5.2″ / 22-turn roller, no series link (§5.3a); drawings TUNER-L-100 to L-109 regenerated for it (2026-11-16). Run the §5.3a commissioning checks. The Harris / 229-class roller in hand is a spare (§11.5) | **OPEN — blocks 160 m above ~145 W until built** |
 | 28 | ~~Roller orientation~~ — **RESOLVED Rev 3.7** by the vertical stack (§3.0): every element stands upright on a vertical shaft, so element length goes into height. The 34 µH roller at 5.2″ (11.547″ over the plates, §5.3a) and the 9.62″ CB-154 both fit in the 24.00″ box (§3.0 closure; 22.00″ until Rev 3.7c); no right-angle drive. Confirm in the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
 | 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 24″ tall since Rev 3.7c (22″ in 3.7b)**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one 36 × 48 of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Frame junctions detailed Rev 3.7c (E-201: corner clips, 60 flush #6 flat heads). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
-| 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay — the input choke under the deck is now part of that 200 W (Rev 3.7c, §6; its own key-down check is item 49); (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
+| 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay — the input choke under the deck is now part of that 200 W (Rev 3.7c, §6; its own key-down check is item 49); the run also gives the bay's thermal time constant, which the firmware's derate averaging assumes is ~2 min (§8B.6); (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
 | 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″) and Rev 3.7c (24.00″ — the box grew with the deck, so nothing above it moved):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
 | 33 | **Teensy 4.1 row spacing** — verify 15.24 mm with calipers before ordering control boards (§10.5) | **OPEN — check** |

@@ -65,6 +65,7 @@ python3 fw/tools/gen_tables.py
 | `qualify` | The PERMISSIVE qualification: tunes, bands, powered hours, no mechanical fault, the inspection | §8B.4a-1 |
 | `events` | The numbered event log that the SD log and each link client read from, so nothing is lost | §8B.5.3, §8C.6 |
 | `json`, `mirror` | The mirrored settings document, `/recovery.cfg` (network keys only), backup numbering and pruning | §8B.5.4 |
+| `derate` | The continuous power limit: the RF bay's averaged loss against its 200 W of cooling, as a warning | §1.7.1 |
 | `netcfg` | The network settings: the check a change must pass, and the key=value text the link, the console and `/recovery.cfg` share | §8B.5.3 |
 | `proto` | The line protocol: commands, refusals of local-only actions, telemetry and event lines with checksums | §8C.5 |
 | `web` | HTTP heads, the WebSocket handshake and frames, and the page | §8C.4 |
@@ -170,6 +171,16 @@ real frequency as always, so a wrong preset costs a longer move and nothing else
 over all 90 changes between band edges, it cuts the key-down travel from 54 % of range to 10 % on
 average (2.2 moves to 1.5), which leaves the refine.
 
+**The 160 m derate** (§1.7.1). The cooling carries 200 W of loss in the RF bay, and only the bottom of
+160 m loses more than that at full power: the continuous limits are about 502 / 600 / 882 W for
+1.800–1.850 / –1.950 / –2.000 MHz, and 1500 W everywhere else. The tuner averages the bay's loss
+(forward power times each segment's loss at its worst point, on the TUNE path) the way its temperature
+follows it, over about two minutes (ASSUMED, `kDerateTauS`). Over 200 W it warns: an event in the log,
+a note on the panel and console, and a banner on the page. It never touches PTT, as §1.7.1 requires;
+the tank's over-temperature fault stays the hard stop. Key-down at 1500 W at 1.82 MHz warns after about
+49 s; SSB at 1500 W PEP never does, nor does any other band at full power. A band with no power
+calibration counts as no power. `TLM` carries `loss=`, `lim=` and `derate=`.
+
 **On the network** (§8C):
 
 - **Addresses:** DHCP with the hostname `tuner` unless a static address is set (§8B.5.3). mDNS also
@@ -210,7 +221,7 @@ back. A class C clear needs the fault list scrolled to the end before Confirm ap
   (`enc_zero`). Find them by jogging at COMMISSIONING.
 - **Travel and limits:** the capacitors' turns (§9 item 48), and which LIM input is which end.
 - **Elements and thermal:** the element curves (§9 item 54); C1's part; the NTC's beta, the trip
-  points and the blower PWM (§9 item 30).
+  points, the blower PWM and the derate's averaging time (§9 item 30).
 - **Relays:** the K1/K2 coil-current threshold. Measure an energized coil across its 1 Ω sense.
 - **Cal-load detector:** its RF threshold, from the detector with ~5 W in the load.
 - **Panel knobs:** which knob is left and the 62V15's edges per detent. If a knob runs backward, swap
@@ -286,7 +297,6 @@ about 3 %.
 
 - **Bring-up** on the built boards, per the list above, then a calibration of every band.
 - **Recovery mode stage 2** (§8B.4f.3): the panel's backup browser and network editor.
-- **Operation:** the 160 m power derate (§1.7.1).
 - **Cold-start search:** when there is no prior and the reading stays pinned at the top of the
   range, step through a few reference settings to find a readable neighborhood.
 

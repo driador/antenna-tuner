@@ -11,6 +11,7 @@
 #include "tuner/as5048.hpp"
 #include "tuner/cal.hpp"
 #include "tuner/curve.hpp"
+#include "tuner/derate.hpp"
 #include "tuner/motion.hpp"
 #include "tuner/path.hpp"
 #include "tuner/sense.hpp"
@@ -281,4 +282,62 @@ TEST(power_curve_points) {
     CHECK(c.n == 3 && c.valid());
     CHECK_NEAR(c.at(1.21), 102, 1e-9);
     CHECK_NEAR(c.at(0.805), 56, 1e-9);
+}
+
+namespace {
+// Run the derate model for so many seconds at 100 ticks a second; duty is the share of each `period` s
+// on the air at `watts`. Returns the seconds when the warning first came on, or -1.
+double run_derate(Derate& d, double mhz, double watts, double seconds, double duty = 1, double period = 30,
+                  bool network = true, int* onsets = nullptr) {
+    double first = -1;
+    for (int i = 0; i < int(seconds * 100); ++i) {
+        const double t = i / 100.0;
+        const bool on = std::fmod(t, period) < duty * period;
+        if (d.update(mhz, watts, on && network, 0.01)) {
+            if (first < 0) first = t;
+            if (onsets) ++*onsets;
+        }
+    }
+    return first;
+}
+}  // namespace
+
+TEST(derate_warns_on_160m_key_down_only) {
+    // §1.7.1: a warning when the RF bay's averaged loss passes the 200 W the cooling carries.
+    CHECK(continuous_limit_w(1.800) == 502 && continuous_limit_w(1.850) == 502 && continuous_limit_w(1.851) == 600);
+    CHECK(continuous_limit_w(1.950) == 600 && continuous_limit_w(1.990) == 882 && continuous_limit_w(3.600) == 1500);
+    CHECK(std::fabs(502 * loss_fraction(1.82) - 200) < 1e-9 && std::fabs(1500 * loss_fraction(4.0) - 166) < 1e-9);
+    {
+        Derate d(120);                                     // key-down at 1500 W, 1.82 MHz
+        int onsets = 0;
+        const double t = run_derate(d, 1.82, 1500, 300, 1, 30, true, &onsets);
+        CHECK(t > 45 && t < 55 && onsets == 1 && d.warning() && d.limit_w() == 502);   // 48.9 s for tau 120 s
+        run_derate(d, 1.82, 0, 180);                       // off the air: 549 W of loss falls under 180 W in 134 s
+        CHECK(!d.warning() && d.loss_w() < 180);
+    }
+    {
+        Derate d(120);                                     // SSB: 1500 W PEP, about 30 % average
+        CHECK(run_derate(d, 1.82, 1500, 1800, 0.30, 1) < 0);
+    }
+    {
+        Derate low(120), high(120);                        // FT8: 15 s on, 15 s off
+        CHECK(run_derate(low, 1.82, 1500, 1800, 0.5) > 0);
+        CHECK(run_derate(high, 1.99, 1500, 1800, 0.5) < 0);   // 750 W average under 882 W
+    }
+    {
+        Derate d(120);                                     // other bands: full power never warns
+        CHECK(run_derate(d, 3.60, 1500, 3600) < 0 && run_derate(d, 14.2, 1500, 3600) < 0);
+    }
+    {
+        Derate d(120);                                     // an uncalibrated band, and the AUX path, count as none
+        CHECK(run_derate(d, 1.82, -1, 600) < 0 && run_derate(d, 1.82, 1500, 600, 1, 30, false) < 0);
+        CHECK(d.loss_w() == 0);
+    }
+    {
+        Derate d(120);                                     // a hot bay stays hot across a band change
+        run_derate(d, 1.82, 1500, 300);
+        CHECK(d.warning());
+        run_derate(d, 3.60, 1500, 30);
+        CHECK(d.warning() && d.limit_w() == 1500);
+    }
 }

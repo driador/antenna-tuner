@@ -10,7 +10,7 @@ namespace tuner {
 namespace {
 const char* const kKinds[] = {"boot", "watchdog_reset", "fault", "ack", "clear", "mode", "path",
                               "tuned", "cal_saved", "inspected", "card_in", "card_out", "restore", "recovery",
-                              "network"};
+                              "network", "derate"};
 const char* const kFaults[] = {"over_temp", "carrier_lost", "no_solution", "tune_failed", "over_swr",
                                "limit_hit", "encoder_mismatch", "self_test_fail", "relay_mismatch"};
 const char* const kModes[] = {"commissioning", "strict", "permissive"};

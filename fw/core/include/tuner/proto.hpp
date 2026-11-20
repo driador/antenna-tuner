@@ -58,11 +58,13 @@ struct Telemetry {
     double tank_c = 0;
     uint16_t latched_c = 0, unacked_b = 0;
     bool permit = false, bypass = false;
+    double loss_w = 0, limit_w = 1500;   // the RF bay's averaged loss, the continuous limit here (§1.7.1)
+    bool derate = false;           // the loss is over the 200 W the cooling carries: a warning only
     uint32_t next_event = 0;       // a client that has seen less than this asks GET_LOG
 };
 
 // "TLM state=MATCHED path=TUNE mode=STRICT mhz=14.2051 carrier=1 swr=1.12 fwd=812 c1=123.4 c2=456.7
-//  l=5.123 tank=31.2 c=0000 b=0000 permit=1 bypass=0 ev=12*HH" (pF, uH, W, °C)
+//  l=5.123 tank=31.2 c=0000 b=0000 permit=1 bypass=0 loss=12 lim=1500 derate=0 ev=12*HH" (pF, uH, W, °C)
 size_t telemetry(const Telemetry& t, char* out, size_t cap);
 size_t event(const EventRecord& e, char* out, size_t cap);         // "EVT seq=... *HH"
 size_t reply(bool ok, const char* text, char* out, size_t cap);    // "OK TUNE*HH" / "ERR ...*HH"

@@ -73,7 +73,7 @@ TEST(protocol_lines_carry_checksums) {
     const std::string s(line, n);
     CHECK(s.rfind("TLM state=MATCHED path=TUNE mode=STRICT mhz=14.2051 carrier=1 swr=1.12 fwd=- c1=123.4 c2=456.7 "
                   "l=5.123", 0) == 0);
-    CHECK(s.find(" c=0020 ") != std::string::npos && s.find(" ev=12*") != std::string::npos);
+    CHECK(s.find(" c=0020 ") != std::string::npos && s.find(" loss=0 lim=1500 derate=0 ev=12*") != std::string::npos);
     CHECK(proto::parse(line).cmd == proto::Cmd::Invalid);              // a tuner line is not a command...
     CHECK(std::string(proto::parse(line).why) == "unknown command");   // ...but its checksum is good
     EventRecord e;
@@ -135,6 +135,7 @@ TEST(page_speaks_only_what_the_link_may_carry) {
     CHECK(page.find("href=\"https://github.com/driador/antenna-tuner\"") != std::string::npos);   // AGPL s13
     CHECK(page.find("send(\"NET\")") != std::string::npos && page.find("\"NET mode=\"") != std::string::npos);
     CHECK(page.find("data-c=\"PRESET 14.175\"") != std::string::npos && page.find("send(\"PRESET \"") != std::string::npos);
+    CHECK(page.find("t.derate==\"1\"") != std::string::npos);
 }
 
 TEST(network_settings) {

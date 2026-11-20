@@ -19,6 +19,7 @@ add_library(tuner_core STATIC
   core/src/bridge.cpp
   core/src/cal.cpp
   core/src/curve.cpp
+  core/src/derate.cpp
   core/src/events.cpp
   core/src/faults.cpp
   core/src/freq.cpp

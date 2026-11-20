@@ -143,10 +143,11 @@ size_t telemetry(const Telemetry& t, char* out, size_t cap) {
     else std::snprintf(fwd, sizeof fwd, "-");
     const int n = std::snprintf(out, cap,
                                 "TLM state=%s path=%s mode=%s mhz=%.4f carrier=%d swr=%.2f fwd=%s c1=%.1f c2=%.1f "
-                                "l=%.3f tank=%.1f c=%04X b=%04X permit=%d bypass=%d ev=%lu",
+                                "l=%.3f tank=%.1f c=%04X b=%04X permit=%d bypass=%d loss=%.0f lim=%.0f derate=%d ev=%lu",
                                 state_name(t.state), path_name(t.path), kMode[unsigned(t.mode) % 3], t.mhz,
                                 t.carrier, t.swr, fwd, t.at.c1 * 1e12, t.at.c2 * 1e12, t.at.l * 1e6, t.tank_c,
-                                t.latched_c, t.unacked_b, t.permit, t.bypass, static_cast<unsigned long>(t.next_event));
+                                t.latched_c, t.unacked_b, t.permit, t.bypass, t.loss_w, t.limit_w, t.derate,
+                                static_cast<unsigned long>(t.next_event));
     if (n < 0 || size_t(n) >= cap) return 0;
     return seal(out, size_t(n), cap);
 }

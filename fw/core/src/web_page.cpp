@@ -27,7 +27,7 @@ input{font:inherit;width:6em;padding:5px;border-radius:8px;border:1px solid var(
 input[type=radio]{width:auto}.addr{width:9em}label{white-space:nowrap}
 </style></head><body><main>
 <div class="card row"><h1>Antenna tuner</h1><span id="link" class="bad">connecting</span>
-<span class="mut">policy <b id="mode" class="v">-</b> (set at the box)</span></div>
+<span class="mut">policy <b id="mode" class="v">-</b> (set at the box)</span><span id="derate" class="bad"></span></div>
 <div class="card row"><div><div class="mut">SWR</div><div id="swr" class="big">-</div></div>
 <div><div class="mut">state</div><div id="state" class="v">-</div></div>
 <div><div class="mut">path</div><div id="path" class="v">-</div></div>
@@ -75,6 +75,7 @@ function line(raw){const star=raw.lastIndexOf("*");if(star<0||cs(raw.slice(0,sta
   $("mhz").textContent=t.carrier=="1"?t.mhz+" MHz":"no carrier";$("fwd").textContent=t.fwd=="-"?"not calibrated":t.fwd+" W";
   $("permit").textContent=(t.permit=="1"?"up":"down")+(t.bypass=="1"?" (BYPASS)":"");$("permit").className="v "+(t.bypass=="1"?"bad":t.permit=="1"?"ok":"warn");
   for(const k of["c1","c2","l","tank"])$(k).textContent=t[k];
+  $("derate").textContent=t.derate=="1"?"DERATE: the RF bay averages "+t.loss+" W of loss against 200 W of cooling; keep under "+t.lim+" W here":"";
   const f=names(parseInt(t.c,16),"C").concat(names(parseInt(t.b,16),"B"));$("faults").textContent=f.length?f.join(", "):"none";
   $("faults").className="v "+(f.length?"bad":"ok");if(parseInt(t.ev)>next)send("GET_LOG "+next)}
  else if(s.startsWith("EVT ")){const e=kv(s.slice(4)),q=parseInt(e.seq);if(q<next)return;next=q+1;

@@ -15,7 +15,7 @@ namespace tuner {
 
 enum class EventKind : uint8_t {
     Boot, WatchdogReset, Fault, Ack, Clear, Mode, Path, Tuned, CalSaved, Inspected, CardIn, CardOut, Restore, Recovery,
-    Network
+    Network, Derate
 };
 
 struct EventRecord {

@@ -58,6 +58,10 @@ inline tuner::Curve axis_curve(int axis) {
 // LIM1-LIM6 (§8B.0.4) as low and high end of C1, C2, roller. ASSUMED: the driver board is not drawn.
 inline constexpr uint8_t kLimitAxis[6] = {0, 0, 1, 1, 2, 2};
 
+// ---- the 160 m derate (§1.7.1) ----
+constexpr double kDerateTauS = 120;         // ASSUMED: how quickly the RF bay's temperature follows its loss;
+                                            // the §9 item 30 thermal run measures it
+
 // ---- measurement (§6A.5, §6A.6, §6A.8) ----
 constexpr double kAdVref = 1.80;            // AD8302 VREF; V_MAG and V_PHS are read against it
 constexpr int kCalGates = 5;                // gates averaged for each calibration standard or power point
