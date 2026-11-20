@@ -25,6 +25,7 @@ public:
         // Carries out a command the link may give. Returns nullptr, or why it was not done.
         const char* (*command)(const tuner::proto::Request& r);
         void (*telemetry)(tuner::proto::Telemetry& t);
+        void (*network)(tuner::NetConfig& saved);    // the saved settings, which NET reports
     };
 
     void begin(const tuner::NetConfig& cfg, const tuner::EventLog* log, const Hooks& h);
@@ -32,6 +33,7 @@ public:
     bool link() const;
     bool clock_set() const { return clock_set_; }
     void address(char* out, size_t cap) const;     // the tuner's address, or "none"
+    const tuner::NetConfig& running() const;       // the settings it started with, in use until a restart
 
 private:
     void ntp(uint32_t now_ms);

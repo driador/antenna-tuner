@@ -13,15 +13,10 @@
 #include "tuner/faults.hpp"
 #include "tuner/freq.hpp"
 #include "tuner/fsm.hpp"
+#include "tuner/netcfg.hpp"
 #include "tuner/qualify.hpp"
 
 namespace tuner {
-
-struct NetConfig {
-    bool dhcp = true;
-    char hostname[32] = "tuner";
-    uint8_t ip[4] = {}, netmask[4] = {255, 255, 255, 0}, gateway[4] = {}, dns[4] = {};
-};
 
 struct Settings {
     uint64_t tuner_id = 0;             // random at first boot; restore is gated on it (§8B.5.4b)
@@ -42,7 +37,8 @@ const char* read_mirror(const char* doc, Settings& s);
 
 // /recovery.cfg: "key = value" lines, # comments. Only the network keys (net.mode dhcp|static,
 // hostname, ip, netmask, gateway, dns) are taken; anything else is refused and listed in report,
-// because recovery may restore reachability and nothing more.
+// because recovery may restore reachability and nothing more. A result the tuner could not run on
+// (net::check) is refused whole, and net is left as it was.
 bool read_recovery(const char* text, NetConfig& net, char* report, size_t cap);
 
 // Backups are /backup/NNNNNN.json or /backup/NNNNNN-YYYYMMDDTHHMMSS.json, numbered so they sort even

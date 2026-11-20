@@ -3128,9 +3128,16 @@ prior, which in practice means out of band) match 99.4 %, and the rest end in a 
 - **SD card:** it mirrors the flash as §8B.5.4 sets out. It keeps versioned backups and a tuner
   identity, writes atomically, applies `/recovery.cfg` once, and refuses a restore that would promote
   the policy.
-- **Link protocol:** the commands of §8C.5 plus PATH and CAL, with mode changes, class C clears, the
-  bypass and jogging refused as local only. A number that is not a plain finite one (`NAN`, `5X`) is
-  refused rather than read as 0, and a calibration point above 2000 W is taken as a typo.
+- **Link protocol:** the commands of §8C.5 plus PATH, CAL and NET, with mode changes, class C clears,
+  the bypass and jogging refused as local only. A number that is not a plain finite one (`NAN`, `5X`)
+  is refused rather than read as 0, and a calibration point above 2000 W is taken as a typo.
+- **Network settings:** the page's Network card, NET on the link, or the console sets DHCP or a static
+  address, and the hostname. A change must pass a check (a host address on a /8 to /30 subnet, a
+  gateway on that subnet, a hostname a resolver takes). It is then saved as an administrative change
+  (§8B.5.4) and used from the next restart, so the connection that made it never drops under it. The
+  page shows the address in use and whether saved settings are waiting. `/recovery.cfg` takes the
+  same keys and the same check, and recovery mode (§8B.4f.3) is the way back from a change that leaves
+  the tuner unreachable.
 - **Transport:** on QNEthernet (§8C.3.3), with no call that waits.
   - The line protocol is on TCP 4600, and the page and its WebSocket are on port 80.
   - Only the tuner's own subnet is served (§8C.7), which also refuses anything port-forwarded in.

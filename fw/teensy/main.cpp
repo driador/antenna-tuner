@@ -293,6 +293,21 @@ void panel_request() {
     }
 }
 
+// Network settings (§8B.5.4): checked, saved to flash and the card as one administrative change, and
+// used from the next restart, so the connection that made the change never drops under it.
+const char* set_net(const tuner::proto::Request& r) {
+    tuner::NetConfig n = g_auth.net;
+    tuner::net::merge(n, r.net, r.net_fields);
+    if (const char* why = tuner::net::check(n)) return why;
+    if (!std::memcmp(&n, &g_auth.net, sizeof n)) return nullptr;     // nothing to save
+    g_auth.net = n;
+    log_event(tuner::EventKind::Network, n.dhcp ? 1 : 0);
+    persist();
+    backup_now();
+    note("network settings saved: used from the next restart");
+    return nullptr;
+}
+
 // The link (§8C.5): what it may ask, through the same paths as the console and the panel.
 const char* link_command(const tuner::proto::Request& r) {
     using tuner::proto::Cmd;
@@ -305,8 +320,24 @@ const char* link_command(const tuner::proto::Request& r) {
         case Cmd::CalShort: return cal_step(hw::Calibration::Step::Short);
         case Cmd::CalSave: return cal_save();
         case Cmd::CalWatts: return cal_step(hw::Calibration::Step::Power, r.value);
+        case Cmd::Net: return set_net(r);
         default: return "not on the link";
     }
+}
+
+void link_network(tuner::NetConfig& n) { n = g_auth.net; }
+
+// "net" shows the saved settings and the address in use; "net key=value ..." changes them, as NET does.
+void net_console(const char* s) {
+    const tuner::proto::Request r = tuner::proto::parse(s);
+    if (r.cmd != tuner::proto::Cmd::Net) return note(r.why ? r.why : "net [mode=dhcp|static] [hostname=] [ip=] ...");
+    if (r.net_fields)
+        if (const char* why = set_net(r)) return note(why);
+    char text[160], addr[20];
+    tuner::net::format(g_auth.net, text, sizeof text);
+    g_net.address(addr, sizeof addr);
+    Serial.printf("saved:  %s\nin use: %s%s\n", text, addr,
+                  tuner::net::same(g_auth.net, g_net.running()) ? "" : " (the saved settings apply at the next restart)");
 }
 
 void link_telemetry(tuner::proto::Telemetry& t) {
@@ -374,6 +405,7 @@ void command(const char* s) {
         Serial.println();
     } else if (!std::strncmp(s, "restore ", 8)) restore(uint32_t(std::atol(s + 8)));
     else if (!std::strcmp(s, "adopt")) note(g_store.adopt(g_auth.tuner_id) ? "card adopted" : "adopt: no card");
+    else if (!std::strncmp(s, "net", 3) && (s[3] == 0 || s[3] == ' ')) net_console(s);
     else if (!std::strncmp(s, "jog ", 4)) {
         const char* a = s + 4;
         const int axis = !std::strncmp(a, "c1 ", 3) ? 0 : !std::strncmp(a, "c2 ", 3) ? 1 : !std::strncmp(a, "l ", 2) ? 2 : -1;
@@ -382,7 +414,7 @@ void command(const char* s) {
     } else {
         Serial.println("commands: status, ack, clear, tune, mode commissioning|strict, path tune|aux|cal,");
         Serial.println("          cal load|open|short|save, cal watts <W>, jog c1|c2|l <turns>, inspected, qual,");
-        Serial.println("          backups, restore <n>, adopt");
+        Serial.println("          backups, restore <n>, adopt, net [mode=dhcp|static hostname= ip= netmask= gateway= dns=]");
     }
 }
 
@@ -566,10 +598,12 @@ void setup() {
 
     // The SD card (§8B.5): /recovery.cfg once, if present (§8B.5.4c), and the restore offer.
     g_store.begin(g_auth.tuner_id);
-    char report[96];
+    char report[96] = "";
     if (g_store.recovery(g_auth.net, report, sizeof report)) {
         log_event(tuner::EventKind::Recovery);
         Serial.printf("RECOVERY.CFG APPLIED (network only)%s%s\n", report[0] ? ": " : "", report);
+    } else if (report[0]) {
+        Serial.printf("RECOVERY.CFG NOT APPLIED: %s\n", report);
     }
     if (recovery) {                                       // §8B.4f.3 stage 1: reachable, strict, inhibited
         g_recovery = true;
@@ -578,7 +612,7 @@ void setup() {
         log_event(tuner::EventKind::Recovery);
         Serial.println("RECOVERY MODE: DHCP as 'tuner', policy STRICT, transmit inhibited until a reboot");
     }
-    g_net.begin(g_auth.net, &g_events, hw::Net::Hooks{link_command, link_telemetry});   // never blocks
+    g_net.begin(g_auth.net, &g_events, hw::Net::Hooks{link_command, link_telemetry, link_network});   // never blocks
     if (g_restorable && g_store.present()) {
         uint32_t n[64];
         const int k = g_store.list(n, 64);

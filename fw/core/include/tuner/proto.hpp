@@ -7,7 +7,11 @@
 //
 //   to the tuner     TUNE | ACK | QUERY | SUBSCRIBE [hz] | GET_LOG [from] | PATH TUNE|AUX|CAL
 //                    | CAL LOAD|OPEN|SHORT|SAVE | CAL WATTS <w>
-//   from the tuner   OK <command> | ERR <reason> | TLM <fields> | EVT <event>
+//                    | NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]
+//   from the tuner   OK <command> | ERR <reason> | TLM <fields> | EVT <event> | NET <settings>
+//
+// NET alone asks for the network settings; with keys it changes the ones named. A change is checked,
+// saved as an administrative change (§8B.5.4) and used from the next restart.
 //
 // A command may omit its checksum (typed by hand); one that has a checksum must match it. Deliberately
 // absent, and refused by name so the refusal is visible: mode changes (§8B.4a-1), class C clears
@@ -19,12 +23,13 @@
 #include "tuner/events.hpp"
 #include "tuner/faults.hpp"
 #include "tuner/fsm.hpp"
+#include "tuner/netcfg.hpp"
 #include "tuner/path.hpp"
 
 namespace tuner::proto {
 
 enum class Cmd : uint8_t {
-    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, LocalOnly
+    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Net, LocalOnly
 };
 
 struct Request {
@@ -32,6 +37,8 @@ struct Request {
     double value = 0;              // SUBSCRIBE rate, GET_LOG start, CAL WATTS
     Path path = Path::Tune;
     const char* why = nullptr;     // for Invalid and LocalOnly: the reason to send back
+    NetConfig net;                 // NET: the values given, and which fields they are (net::Field bits)
+    uint8_t net_fields = 0;
 };
 
 uint8_t checksum(const char* s, size_t n);
@@ -58,5 +65,8 @@ struct Telemetry {
 size_t telemetry(const Telemetry& t, char* out, size_t cap);
 size_t event(const EventRecord& e, char* out, size_t cap);         // "EVT seq=... *HH"
 size_t reply(bool ok, const char* text, char* out, size_t cap);    // "OK TUNE*HH" / "ERR ...*HH"
+// "NET mode=static hostname=tuner ip=... netmask=... gateway=... dns=... now=192.168.1.37 pending=1*HH":
+// the saved settings, the address in use now, and whether the saved ones wait for a restart.
+size_t network(const NetConfig& saved, bool pending, const uint8_t now[4], char* out, size_t cap);
 
 }  // namespace tuner::proto

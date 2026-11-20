@@ -26,6 +26,7 @@ add_library(tuner_core STATIC
   core/src/json.cpp
   core/src/mirror.cpp
   core/src/motion.cpp
+  core/src/netcfg.cpp
   core/src/panel.cpp
   core/src/panel_io.cpp
   core/src/path.cpp

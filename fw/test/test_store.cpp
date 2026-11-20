@@ -135,6 +135,11 @@ TEST(recovery_restores_reachability_and_nothing_else) {
     CHECK(keep.dhcp);
     CHECK(read_recovery("net.mode = static\nip = 192.168.7.20\nnetmask = 255.255.255.0\n", keep, report, sizeof report));
     CHECK(!keep.dhcp && keep.ip[0] == 192 && keep.ip[3] == 20);
+    const NetConfig before = keep;                      // one the tuner could not run on: refused whole
+    CHECK(!read_recovery("net.mode = static\nip = 10.0.0.5\nnetmask = 255.255.255.0\ngateway = 10.0.1.1\n",
+                         keep, report, sizeof report));
+    CHECK(std::string(report).find("unusable: gateway") == 0 && net::same(keep, before));
+    CHECK(!read_recovery("mode = dhcp\n", keep, report, sizeof report));   // the key is net.mode here
 }
 
 TEST(backup_rotation) {

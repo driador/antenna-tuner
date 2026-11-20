@@ -65,6 +65,7 @@ python3 fw/tools/gen_tables.py
 | `qualify` | The PERMISSIVE qualification: tunes, bands, powered hours, no mechanical fault, the inspection | §8B.4a-1 |
 | `events` | The numbered event log that the SD log and each link client read from, so nothing is lost | §8B.5.3, §8C.6 |
 | `json`, `mirror` | The mirrored settings document, `/recovery.cfg` (network keys only), backup numbering and pruning | §8B.5.4 |
+| `netcfg` | The network settings: the check a change must pass, and the key=value text the link, the console and `/recovery.cfg` share | §8B.5.3 |
 | `proto` | The line protocol: commands, refusals of local-only actions, telemetry and event lines with checksums | §8C.5 |
 | `web` | HTTP heads, the WebSocket handshake and frames, and the page | §8C.4 |
 | `sntp` | One network-time request and its reply, to set the RTC | §8C |
@@ -102,6 +103,7 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `inspected` | Record the roller inspection (§8B.4a-1) |
 | `qual` | Show the PERMISSIVE qualification |
 | `backups`, `restore <n>`, `adopt` | List the card's versions, restore one, claim another tuner's card (§8B.5.4b) |
+| `net [key=value ...]` | Show the network settings, or change them as `NET` does (below) |
 
 **Calibrating a band** (§6A.8), from the console or the panel's Calibrate screen. Key a steady
 carrier of about 10 W on the band for each step; each averages five gates.
@@ -138,7 +140,8 @@ encoder mismatch starts the count over. The panel's policy screen shows where it
 - **Restore:** a restore from this tuner's own card is a rollback and can be done any time. A board
   that came up blank or corrupt may restore from any card. Otherwise another tuner's card needs `adopt`
   first. A restore never promotes the policy to PERMISSIVE.
-- **`/recovery.cfg`** is applied once at boot, network keys only, then renamed.
+- **`/recovery.cfg`** is applied once at boot, network keys only, then renamed. Settings the tuner
+  could not run on are refused whole, and the console says why.
 
 **The recovery button** held at power-up (§8B.4f.3) forces DHCP as `tuner` and the STRICT policy, and
 holds transmit off until the next reboot. Latched faults stay latched.
@@ -146,7 +149,8 @@ holds transmit off until the next reboot. Latched faults stay latched.
 **The link protocol** (§8C.5), the same on a TCP port and inside the web page's WebSocket:
 
 - **Commands:** `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE [hz]` (0.1–20 Hz; 0 stops it), `GET_LOG [from]`,
-  `PATH TUNE|AUX|CAL`, and `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W). A malformed number
+  `PATH TUNE|AUX|CAL`, `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W), and
+  `NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]`. A malformed number
   (`NAN`, `5X`) is refused with the usage, never read as 0.
 - **Refused by name:** mode changes, class C clears, the bypass and jogging, which are local only.
 - **Checksums:** every line ends in an NMEA-style `*HH`. A command typed by hand may leave it off.
@@ -154,12 +158,19 @@ holds transmit off until the next reboot. Latched faults stay latched.
   - `TLM` carries the state at the subscribed rate.
   - `EVT` lines are numbered, and `TLM` says how far the log has got. A client that missed events asks
     `GET_LOG` for them, so a dropped link loses nothing that is still in the 128-event ring (§8C.6).
+  - `NET` answers `NET` with the saved settings, the address in use and `pending=1` while saved
+    settings wait for a restart.
 
 **On the network** (§8C):
 
 - **Addresses:** DHCP with the hostname `tuner` unless a static address is set (§8B.5.3). mDNS also
   answers `tuner.local`.
 - **Page:** `http://tuner.local/` serves it, and it talks over a WebSocket at `/ws`.
+- **Settings:** the page's Network card, `NET` over `nc`, or `net` on the console sets DHCP or a static
+  address, mask, gateway, DNS and the hostname. A change is checked (a host address on a /8 to /30
+  subnet, a gateway on it, a hostname a resolver takes), saved to flash and the card, logged, and used
+  from the next restart, so the connection that made it never drops. If the tuner can't be reached
+  after one, hold the recovery button at power-up (§8B.4f.3).
 - **Scripts:** `nc tuner.local 4600` speaks the line protocol directly. Type `SUBSCRIBE 5`, `QUERY` or
   `GET_LOG 1`.
 - **Access:** only hosts on the tuner's own subnet are served (§8C.7). Never port-forward it.
@@ -265,8 +276,6 @@ about 3 %.
 ## Next
 
 - **Bring-up** on the built boards, per the list above, then a calibration of every band.
-- **Network settings from the web UI:** a page to edit the address, mask, gateway and hostname, saved
-  to flash and backed up. `/recovery.cfg` and the recovery button already cover getting it wrong.
 - **Recovery mode stage 2** (§8B.4f.3): the panel's backup browser and network editor.
 - **Operation:** pre-positioning on band select (§8B.3a) and the 160 m power derate (§1.7.1).
 - **Cold-start search:** when there is no prior and the reading stays pinned at the top of the

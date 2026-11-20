@@ -39,6 +39,7 @@ Session g_s[kSessions];
 EthernetServer g_line(kLinePort), g_http(80);
 EthernetUDP g_udp;
 Net::Hooks g_hooks;
+tuner::NetConfig g_running;          // what begin() was given; saved changes wait for a restart
 const tuner::EventLog* g_log = nullptr;
 enum class Ntp : uint8_t { Idle, Resolving, Waiting };
 Ntp g_ntp = Ntp::Idle;
@@ -98,6 +99,20 @@ void handle(Session& s, const char* line, uint32_t now_ms) {
             s.next_event = r.value < 1 ? 1 : r.value > g_log->next() ? g_log->next() : uint32_t(r.value);
             reply(s, true, "GET_LOG");
             return;
+        case Cmd::Net: {                // §8B.5.4: a change is saved for the next restart, never applied live
+            if (r.net_fields) {
+                const char* why = g_hooks.command(r);
+                reply(s, !why, why ? why : "NET saved; the tuner uses it from the next restart");
+                if (why) return;
+            }
+            tuner::NetConfig saved;
+            g_hooks.network(saved);
+            const IPAddress ip = Ethernet.localIP();
+            const uint8_t now[4] = {ip[0], ip[1], ip[2], ip[3]};
+            const size_t n = tuner::proto::network(saved, !tuner::net::same(saved, g_running), now, out, sizeof out);
+            if (n) send_line(s, out, n);
+            return;
+        }
         case Cmd::Invalid:
         case Cmd::LocalOnly:
             reply(s, false, r.why ? r.why : "refused");
@@ -241,6 +256,7 @@ void accept(EthernetServer& server, Kind kind, uint32_t now_ms) {
 void Net::begin(const tuner::NetConfig& cfg, const tuner::EventLog* log, const Hooks& h) {
     g_log = log;
     g_hooks = h;
+    g_running = cfg;
     Ethernet.setHostname(cfg.hostname);              // DHCP hostname; "tuner" unless configured (§8B.5.3)
     if (cfg.dhcp) {
         Ethernet.begin();                            // returns at once; the lease arrives later
@@ -254,6 +270,8 @@ void Net::begin(const tuner::NetConfig& cfg, const tuner::EventLog* log, const H
 }
 
 bool Net::link() const { return Ethernet.linkState(); }
+
+const tuner::NetConfig& Net::running() const { return g_running; }
 
 void Net::address(char* out, size_t cap) const {
     const IPAddress ip = Ethernet.localIP();

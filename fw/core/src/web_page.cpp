@@ -24,6 +24,7 @@ button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--li
 input{font:inherit;width:6em;padding:5px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 #log{font:12px/1.5 ui-monospace,monospace;max-height:260px;overflow:auto;white-space:pre}
 .foot{font-size:12px;margin:0 4px}a{color:inherit}
+input[type=radio]{width:auto}.addr{width:9em}label{white-space:nowrap}
 </style></head><body><main>
 <div class="card row"><h1>Antenna tuner</h1><span id="link" class="bad">connecting</span>
 <span class="mut">policy <b id="mode" class="v">-</b> (set at the box)</span></div>
@@ -43,15 +44,26 @@ input{font:inherit;width:6em;padding:5px;border-radius:8px;border:1px solid var(
 <span><input id="watts" type="number" min="1" step="1" placeholder="W"><button id="addw">add wattmeter reading</button></span>
 <span id="reply" class="mut"></span></div>
 <div class="card"><b>Events</b><div id="log"></div></div>
+<div class="card"><div class="row"><b>Network</b><span id="netnow" class="mut"></span></div>
+<div class="row"><label><input type="radio" name="nm" id="dhcp"> DHCP</label><label><input type="radio" name="nm" id="static"> static</label>
+<label>hostname <input id="host" class="addr" maxlength="31"></label></div>
+<div class="row"><label>address <input id="ip" class="addr"></label><label>netmask <input id="mask" class="addr"></label>
+<label>gateway <input id="gw" class="addr"></label><label>DNS <input id="dns" class="addr"></label></div>
+<div class="row"><button id="netsave">Save</button><span id="netmsg" class="mut">Saved settings are used from the next restart.
+If the tuner cannot be reached then, hold the recovery button at power-up: DHCP as "tuner".</span></div></div>
 <p class="foot mut">Source: <a href="https://github.com/driador/antenna-tuner">github.com/driador/antenna-tuner</a>
 &middot; GPL-3.0-or-later, built with QNEthernet (AGPL-3.0-or-later)</p>
 </main><script>
 const F=["over-temperature","carrier lost","no solution","tune failed","over-SWR trip","limit switch hit","encoder mismatch","self-test failure","K1/K2 relay mismatch"];
-let ws=null,next=1;const $=id=>document.getElementById(id);
+let ws=null,next=1,netwait=false;const $=id=>document.getElementById(id);
 function cs(s){let c=0;for(const ch of s)c^=ch.charCodeAt(0);return c.toString(16).toUpperCase().padStart(2,"0")}
 function send(s){if(ws&&ws.readyState==1)ws.send(s+"*"+cs(s))}
 function kv(s){const o={};for(const p of s.split(" ")){const i=p.indexOf("=");if(i>0)o[p.slice(0,i)]=p.slice(i+1)}return o}
 function names(mask,cls){const out=[];for(let i=0;i<F.length;i++)if(mask&(1<<i))out.push(cls+" "+F[i]);return out}
+function netmode(){const st=$("static").checked;for(const k of["ip","mask","gw","dns"])$(k).disabled=!st}
+function netshow(n){$("dhcp").checked=n.mode=="dhcp";$("static").checked=n.mode=="static";$("host").value=n.hostname;
+ $("ip").value=n.ip;$("mask").value=n.netmask;$("gw").value=n.gateway;$("dns").value=n.dns;netmode();
+ $("netnow").textContent="in use now: "+n.now+(n.pending=="1"?" (the saved settings take over at the next restart)":"")}
 function line(raw){const star=raw.lastIndexOf("*");if(star<0||cs(raw.slice(0,star))!=raw.slice(star+1))return;const s=raw.slice(0,star);
  if(s.startsWith("TLM ")){const t=kv(s.slice(4)),swr=parseFloat(t.swr);
   $("swr").textContent=swr>=99?"high":swr.toFixed(2);$("swr").className="big "+(swr<=1.5?"ok":swr<=2?"warn":"bad");
@@ -63,13 +75,18 @@ function line(raw){const star=raw.lastIndexOf("*");if(star<0||cs(raw.slice(0,sta
   $("faults").className="v "+(f.length?"bad":"ok");if(parseInt(t.ev)>next)send("GET_LOG "+next)}
  else if(s.startsWith("EVT ")){const e=kv(s.slice(4)),q=parseInt(e.seq);if(q<next)return;next=q+1;
   $("log").textContent=s.slice(4)+"\n"+$("log").textContent}
- else if(s.startsWith("OK ")||s.startsWith("ERR "))$("reply").textContent=s}
+ else if(s.startsWith("NET "))netshow(kv(s.slice(4)))
+ else if(s.startsWith("OK ")||s.startsWith("ERR ")){if(netwait){netwait=false;$("netmsg").textContent=s}else $("reply").textContent=s}}
 function connect(){ws=new WebSocket("ws://"+location.host+"/ws");
- ws.onopen=()=>{$("link").textContent="connected";$("link").className="ok";send("SUBSCRIBE 10");send("GET_LOG "+next)};
+ ws.onopen=()=>{$("link").textContent="connected";$("link").className="ok";send("SUBSCRIBE 10");send("GET_LOG "+next);send("NET")};
  ws.onmessage=m=>{for(const l of String(m.data).split("\n"))if(l)line(l.trim())};
  ws.onclose=()=>{$("link").textContent="link lost: the tuner carries on, protection is at the box";$("link").className="bad";setTimeout(connect,2000)}}
 document.querySelectorAll("button[data-c]").forEach(b=>b.onclick=()=>send(b.dataset.c));
 $("addw").onclick=()=>{const w=parseFloat($("watts").value);if(w>0)send("CAL WATTS "+w)};
+$("dhcp").onchange=$("static").onchange=netmode;
+$("netsave").onclick=()=>{const v=k=>$(k).value.trim(),st=$("static").checked;
+ let c="NET mode="+(st?"static":"dhcp")+" hostname="+v("host");
+ if(st)c+=" ip="+v("ip")+" netmask="+v("mask")+" gateway="+v("gw")+" dns="+v("dns");netwait=true;send(c)};
 connect();
 </script></body></html>
 )PAGE";

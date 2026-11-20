@@ -9,7 +9,8 @@ namespace tuner {
 
 namespace {
 const char* const kKinds[] = {"boot", "watchdog_reset", "fault", "ack", "clear", "mode", "path",
-                              "tuned", "cal_saved", "inspected", "card_in", "card_out", "restore", "recovery"};
+                              "tuned", "cal_saved", "inspected", "card_in", "card_out", "restore", "recovery",
+                              "network"};
 const char* const kFaults[] = {"over_temp", "carrier_lost", "no_solution", "tune_failed", "over_swr",
                                "limit_hit", "encoder_mismatch", "self_test_fail", "relay_mismatch"};
 const char* const kModes[] = {"commissioning", "strict", "permissive"};
@@ -58,6 +59,7 @@ size_t EventLog::format(const EventRecord& e, char* out, size_t cap) {
     if (e.kind == EventKind::Fault && e.arg < unsigned(Fault::Count)) std::snprintf(what, sizeof what, " fault=%s", kFaults[e.arg]);
     else if (e.kind == EventKind::Mode && e.arg < 3) std::snprintf(what, sizeof what, " mode=%s", kModes[e.arg]);
     else if (e.kind == EventKind::Path && e.arg < 3) std::snprintf(what, sizeof what, " path=%s", kPaths[e.arg]);
+    else if (e.kind == EventKind::Network) std::snprintf(what, sizeof what, " net=%s", e.arg ? "dhcp" : "static");
     const int n = std::snprintf(out, cap, "seq=%lu t=%s event=%s%s state=%s mhz=%.4f",
                                 static_cast<unsigned long>(e.seq), t, kind, what, state_name(e.state), double(e.mhz));
     return n < 0 ? 0 : size_t(n) < cap ? size_t(n) : cap - 1;

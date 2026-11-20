@@ -3,6 +3,7 @@
 
 // The link (§8C.4, §8C.5): the line protocol and what it refuses, the WebSocket handshake and frames,
 // the HTTP head, and the page.
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -129,6 +130,62 @@ TEST(page_speaks_only_what_the_link_may_carry) {
     CHECK(page.find("send(\"SUBSCRIBE") != std::string::npos && page.find("GET_LOG") != std::string::npos);
     for (const char* never : {"\"MODE", "\"CLEAR", "\"BYPASS", "\"JOG"}) CHECK(page.find(never) == std::string::npos);
     CHECK(page.find("href=\"https://github.com/driador/antenna-tuner\"") != std::string::npos);   // AGPL s13
+    CHECK(page.find("send(\"NET\")") != std::string::npos && page.find("\"NET mode=\"") != std::string::npos);
+}
+
+TEST(network_settings) {
+    using proto::Cmd;
+    NetConfig n;
+    CHECK(!net::check(n));                                       // the default: DHCP as "tuner"
+    uint8_t f = 0;
+    CHECK(!net::assign("Hostname", "Shack-Tuner", n, f) && f == net::kHostname && std::string(n.hostname) == "shack-tuner");
+    CHECK(net::assign("hostname", "this-name-is-far-too-long-for-it", n, f));   // 32 characters
+    for (const char* bad : {"-tuner", "tuner-", "tu_ner", "tuner.local", ""}) {
+        NetConfig h;
+        std::strcpy(h.hostname, bad);
+        CHECK(net::check(h) != nullptr);
+    }
+    // A static address: every field named, the rest of the saved settings kept.
+    proto::Request r = proto::parse("net mode=STATIC ip=192.168.1.50 netmask=255.255.255.0 gateway=192.168.1.1 dns=192.168.1.1");
+    CHECK(r.cmd == Cmd::Net && r.net_fields == (net::kMode | net::kIp | net::kNetmask | net::kGateway | net::kDns));
+    NetConfig s;
+    net::merge(s, r.net, r.net_fields);
+    CHECK(!s.dhcp && !net::check(s) && std::string(s.hostname) == "tuner");
+    const auto refused = [&](const char* change) {
+        const proto::Request q = proto::parse(change);
+        NetConfig t = s;
+        net::merge(t, q.net, q.net_fields);
+        return q.cmd != Cmd::Net || net::check(t) != nullptr;
+    };
+    for (const char* bad : {"NET netmask=255.0.255.0", "NET netmask=255.255.255.255", "NET netmask=128.0.0.0",
+                            "NET ip=192.168.1.0", "NET ip=192.168.1.255", "NET ip=127.0.0.1", "NET ip=224.0.0.1",
+                            "NET ip=0.1.2.3", "NET gateway=192.168.2.1", "NET gateway=192.168.1.50",
+                            "NET dns=255.255.255.255", "NET mode=auto", "NET ip=300.1.1.1", "NET colour=red",
+                            "NET ip", "NET hostname="})
+        CHECK(refused(bad));
+    CHECK(!refused("NET gateway=0.0.0.0 dns=0.0.0.0"));          // no gateway, no DNS: the LAN still works
+    CHECK(!refused("NET netmask=255.255.0.0 gateway=192.168.7.1"));
+    CHECK(!refused("NET mode=dhcp ip=0.0.0.0"));                 // DHCP ignores the addresses
+    CHECK(proto::parse("NET").cmd == Cmd::Net && proto::parse("NET").net_fields == 0);   // a question
+    CHECK(proto::parse("NET ip=10.0.0.9*2B").cmd == Cmd::Invalid);                     // a bad checksum
+    CHECK(proto::parse("NETWORK").cmd == Cmd::Invalid);
+    // Whether a change waits for a restart, and the text both ways.
+    NetConfig d1, d2;
+    std::memcpy(d2.ip, s.ip, 4);
+    CHECK(net::same(s, s) && net::same(d1, d2) && !net::same(s, d1));
+    char text[200];
+    CHECK(net::format(s, text, sizeof text) &&
+          std::string(text) == "mode=static hostname=tuner ip=192.168.1.50 netmask=255.255.255.0 gateway=192.168.1.1 dns=192.168.1.1");
+    r = proto::parse((std::string("NET ") + text).c_str());
+    NetConfig back;
+    net::merge(back, r.net, r.net_fields);
+    CHECK(net::same(back, s));
+    const uint8_t now[4] = {192, 168, 1, 37};
+    char line[256];
+    const size_t k = proto::network(s, true, now, line, sizeof line);
+    CHECK(k && std::string(line).find("NET mode=static hostname=tuner") == 0 &&
+          std::string(line).find(" now=192.168.1.37 pending=1*") != std::string::npos);
+    CHECK(line[k - 3] == '*' && proto::checksum(line, k - 3) == std::strtoul(line + k - 2, nullptr, 16));
 }
 
 TEST(network_time) {
