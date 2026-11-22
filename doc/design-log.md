@@ -206,6 +206,8 @@ Source location: <https://github.com/driador/antenna-tuner>.
     - **Built-in test:** a run at power-up and on demand checks each axis, each relay, the hold latch, the
       permit and the detectors at rest. It grades every failure and names it.
     - **Alarm:** sounds at the box and on the page, with one pattern for the worst fault sounding.
+    - **Sounder:** a Floyd Bell TMC-86-530-W on the cassette face (E-202, G; §10.7), switched by Q5 from
+      the MCP23017's GPA7 through J12 (§10.5).
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -2326,6 +2328,10 @@ is in §11.1.*
   2026-11-19); the stocked 62V15-02-P (~$77, PC pins) is the fallback, with your own pigtail. Bypass key **E-Switch KO128A2007** (SPST,
   key removable in OFF only, Ø0.748″ hole with a flat at 0.669″). Recovery **E-Switch PV6F240SS**
   (flush, sealed, Ø0.630″) with a 1/4″ guard ring so it is not pressed by accident (§8B.4f.2).
+  *Rev 3.7c:* alarm sounder **Floyd Bell TMC-86-530-W** (§8B.4i). It is a self-drive piezo with a
+  steady 2.9 kHz tone, 5–30 V at 2–10 mA, sealed to IP68, in a Ø1.065″ hole with a ring nut and gasket.
+  Its Ø1.06″ body fits under encoder 2 and clear of the tray. The better-stocked Mallory SC628R is
+  Ø1.687″ behind the panel, and in that band there is room for only 1.52″.
 - **Menu architecture:**
   - *Tuning Monitor* — SWR, forward/reflected PEP, band and frequency, step counts for Cap 1,
     Cap 2 and the roller, plus feeder current imbalance from the bifilar CT
@@ -2561,7 +2567,7 @@ filtered DC, plus one 29 kHz logic line on its own coax.
 - GPA6: the bypass key.
 - GPB0–6: SWR_OK, CALDET_OK, CALTH_OK, PANEL_OK, LIMIT_OK, HARD_OK and BYP_OK. The firmware can
   therefore name which term dropped the permissive.
-- GPA7 and GPB7: unused; they are output-only on current silicon.
+- GPA7: the alarm sounder's switch (§8B.4i). GPB7: unused. Both are output-only on current silicon.
 
 ### 8B.1 State machine
 
@@ -3825,7 +3831,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 38 | ~~Sampler → control signal path~~ — **Resolved Rev 3.7a (§7.3a):** filtered DB-25 J-S at the partition, Alpha Wire M13197 (≡ Belden 9508) across the motor chamber to J-B at the bulkhead; prescaler on RG-316 between discrete 1000 pF feedthroughs at both walls; relay-coil diodes at the relay | **RESOLVED** |
 | 39 | ~~24 V supply height~~ — **Resolved Rev 3.7a: Mean Well UHP-200-24**, 2.17″ tall on edge, fanless, Class B (§8A.1) | **RESOLVED** |
 | 40 | ~~Filtered bulkhead connectors~~ — **Resolved Rev 3.7a (§7.3a):** Amphenol FCE17 DB-25 1000 pF (J-A), DB-25 5600 pF (J-B, J-S), DE-9 5600 pF (J-E, Rev 3.7b; was DA-15); Spectrum Control 9910-381-6002 power feedthroughs; Tusonix 2499 discrete feedthroughs. Connectors moved to the +Y half, clear of the C1 axis module and the PSU; plug envelopes checked | **RESOLVED** |
-| 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout. *Rev 3.7c:* the Adafruit 6070 microSD extender's hole (1.00″) is likewise from its ~30 mm body. Also check its depth behind the face: the control board is 0.68″ back, and the model assumes 0.55″ | **OPEN — check in hand** |
+| 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout. *Rev 3.7c:* the Adafruit 6070 microSD extender's hole (1.00″) is likewise from its ~30 mm body. Also check its depth behind the face: the control board is 0.68″ back, and the model assumes 0.55″. The TMC-86-530-W sounder's hole (1.065″) is from Floyd Bell's drawing, and its depth (0.9″) is estimated: its bezel height is not dimensioned | **OPEN — check in hand** |
 | 42 | ~~Link coil has no RF-bay position~~ — **RESOLVED Rev 3.7b:** series link and pad deleted (§5.2, §5.4); the deck holds only C1, C2 and the roller. The imbalance CT rides the output conductors at the top feedthroughs and the tank thermal is a small probe — neither needs deck area. Original entry in §11.6 | **RESOLVED** |
 | 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-208, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
 | 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly: the 28–31 MHz resonance must sit above ~30.5 MHz.** If it lands in-band: slimmer rib contact at the notches, or fewer idle turns | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
@@ -4027,7 +4033,7 @@ number are commodity: 1 %, X7R 50 V unless marked C0G.
   Ordered with the control board it ships in the same parcel.
 - **Stencil:** about $7, as for the control board.
 
-### 10.5 Control board — 166 components *(Rev 3.7c)*
+### 10.5 Control board — 171 components *(Rev 3.7c)*
 
 `kicad/control.kicad_sch` / `control.kicad_pcb`, generated by `kicad/board_control.py` and
 `kicad/route.sh`. *The Rev 3.4 board it replaces is in §11.13.*
@@ -4039,9 +4045,9 @@ number are commodity: 1 %, X7R 50 V unless marked C0G.
   - 0.6 / 0.3 mm vias.
   - Power nets 0.6 mm, logic supplies 0.4 mm.
 - **Routing:** freerouting, then DRC shows 0 unconnected and no electrical errors; only
-  silkscreen-overlap warnings remain. 2,444 tracks, 295 vias.
-- **Assembly:** sized for hot-air hand soldering. 141 SMD parts (1206 passives, SOIC, SOT-223,
-  SMA/SOD-123 diodes, 1812/2920 PTCs) and 25 through-hole (Teensy, connectors, DC-DCs,
+  silkscreen-overlap warnings remain. 2,558 tracks, 308 vias.
+- **Assembly:** sized for hot-air hand soldering. 145 SMD parts (1206 passives, SOIC, SOT-223,
+  SMA/SOD-123 diodes, 1812/2920 PTCs) and 26 through-hole (Teensy, connectors, DC-DCs,
   electrolytics, inductors, trimmer, fiber transmitter).
 - **Floor plan:**
   - The bulkhead ribbons, POF and blower lead are at the left end (cabinet +Y); the 24 V entry is at the
@@ -4072,9 +4078,9 @@ Octopart). Passives with no part number are commodity: 1 %, X7R 50 V, any maker.
 | 1 | **MCP23017-E/SO** | SOIC-28W | U10 | 1.53 |
 | 1 each | **LM393DR** · **MCP6002-I/SN** (cal-load window) | SOIC-8 | U11 · U12 | 0.23 · 0.89 |
 | 1 | **Broadcom HFBR-1521Z**: single source, 18–20 wk factory lead; **order early** | Versatile Link | U13 | ~16 |
-| 4 | **IRLL2705TRPBF**: 55 V, Vgs(th) 1–2 V, ≤ 65 mΩ at 4 V (alt. IRLL024NTRPBF, NDT3055L) | SOT-223 | Q1–Q4 | 0.99 |
+| 5 | **IRLL2705TRPBF**: 55 V, Vgs(th) 1–2 V, ≤ 65 mΩ at 4 V (alt. IRLL024NTRPBF, NDT3055L) | SOT-223 | Q1–Q5 | 0.99 |
 | 2 · 1 | **S1M-E3/61T** · **SS14-E3/61T** | SMA | D7, D8 · D9 | 0.35 |
-| 9 | **BAT42W-7-F**, I_R ≤ 0.5 µA | SOD-123 | D1–D6, D10–D12 | 0.19 |
+| 10 | **BAT42W-7-F**, I_R ≤ 0.5 µA | SOD-123 | D1–D6, D10–D13 | 0.19 |
 | 1 | PTC 1.85 A / 33 V, **Littelfuse 2920L185DR** | 2920 | F1 | 1.05 |
 | 2 | PTC 0.3 A / 60 V, **Bourns MF-MSMF030/60X-2** | 1812 | F2, F3 | 0.73 |
 | 2 | 1 µH 7.5 A, **Fastron 07HCP-1R0M-50** (alt. Würth 744772010) | radial 7.8 mm, 5 mm | L1, L2 | 0.99 |
@@ -4087,16 +4093,16 @@ Octopart). Passives with no part number are commodity: 1 %, X7R 50 V, any maker.
 | 27 | 100 nF (17) · 10 nF (9) · 1 nF (1) | 1206 | C7, C8, C16–C19, C23, C24, C28–C36 · C9–C13, C15, C20, C21, C26 · C14 | — |
 | 17 | 1 kΩ anti-surge, **Panasonic ERJ-P08J102V** (the §7.3 series element) | 1206 | R27–R31, R33, R35, R41, R48, R52, R54, R55, R57, R58, R67, R75, R80 | 0.17 |
 | 19 | 47 Ω (§7.3 logic grade) | 1206 | R1–R19 | — |
-| 25 | 10 kΩ | 1206 | R20–R25, R34, R38–R40, R44, R46, R50, R53, R56, R60–R62, R65, R66, R68–R71, R78 | — |
-| 15 | 100 Ω (6) · 100 kΩ (5) · 4.7 kΩ (2) · 10 MΩ, 1 MΩ, 560 kΩ, 56 kΩ, 6.8 kΩ, 3.9 kΩ | 1206 | R45, R49, R59, R63, R64, R77 · R32, R37, R74, R82, R83 · R72, R73 · R36, R26, R81, R43, R76, R42 | — |
+| 26 | 10 kΩ | 1206 | R20–R25, R34, R38–R40, R44, R46, R50, R53, R56, R60–R62, R65, R66, R68–R71, R78, R85 | — |
+| 16 | 100 Ω (7) · 100 kΩ (5) · 4.7 kΩ (2) · 10 MΩ, 1 MΩ, 560 kΩ, 56 kΩ, 6.8 kΩ, 3.9 kΩ | 1206 | R45, R49, R59, R63, R64, R77, R84 · R32, R37, R74, R82, R83 · R72, R73 · R36, R26, R81, R43, R76, R42 | — |
 | 3 | 1 Ω 1 W (coil sense) · 56 Ω 1 W (fiber LED) | 2512 | R47, R51 · R79 | — |
 | 1 | 10 kΩ multi-turn trimmer, **Bourns 3296W-1-103LF** (60 W trip) | 3296W | RV1 | 2.56 |
 | 1 | SMA jack, vertical, **Cinch 142-0701-201** (Amphenol 132134-11 is $17) | THT | J11 | 6.53 |
 | 1 | Terminal block 2-pos 5.08 mm, **Phoenix 1729128** (1715721 is out of stock) | THT | J1 | 0.95 |
 | 2 · 1 | Shrouded IDC header 2×13 · 2×5, **On Shore 302-S261 · 302-S101** | THT | J2, J3 · J4 | 0.37 · 0.27 |
-| 6 | Pin header 1×02 (2), 1×03, 1×04, 1×06 (2) | 2.54 mm | J5–J10 | — |
+| 7 | Pin header 1×02 (3), 1×03, 1×04, 1×06 (2) | 2.54 mm | J5–J10, J12 | — |
 
-- **Parts for one board:** ≈ **$109** at qty-1 prices, with commodity passives estimated. The
+- **Parts for one board:** ≈ **$110** at qty-1 prices, with commodity passives estimated. The
   panel adds the Nextion ($39.90) and two encoders ($94–154, §7.5).
 - **Bare boards** (JLCPCB quote, 2026-11-19, 5 pcs, 139 × 91 mm, 4-layer, 1.6 mm):
   - $32.80 with leaded HASL (+$18.10 for ENIG).
@@ -4168,6 +4174,7 @@ De-energized at idle (§8A.1), otherwise ~42 W of standing heat in a sealed box.
 | 1 | Recovery button | **E-Switch PV6F240SS** — flush, sealed, Ø16 mm, with a 1/4″ guard ring | Part | §8B.4f.2 |
 | 1 | microSD card | 8–32 GB, industrial or high-endurance grade | Class | §8B.5.5 |
 | 1 | microSD extender | **Adafruit 6070**, round panel mount, ~30 mm body, ~18 cm ribbon to the Teensy's socket; $9.50 at Adafruit, in stock (2026-11-20); also Digi-Key 1528-6070-ND | Part | §8B.5.6 |
+| 1 | Alarm sounder | **Floyd Bell TMC-86-530-W**: 2.9 kHz continuous, 5–30 V at 2–10 mA (+12 V via J12), IP68, Ø1.065″ hole, ring nut and gasket supplied. Its 2.75″ leads need a 2-pin pigtail to J12. $12.74 on the Digi-Key Marketplace, 998 listed and shipped by Floyd Bell; $12.75 direct (2026-11-20). Alternates: Mallory SC628R + ACC03 gasket ($17.93, 3,058 at Mouser), whose Ø1.687″ body needs a rearranged face; SNP428R (27 mm snap-in, $26.96) | Part | §8B.4i |
 | 1 | Panel gasket | Closed-cell elastomer behind display and control cutouts | Class | §8E.4 |
 
 > §8B.5.6 constrains Control-board placement: the Teensy's SD socket needs insertion and ejection

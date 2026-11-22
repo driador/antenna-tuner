@@ -26,7 +26,8 @@ COLUMNS_CONTROL = [
     ((44, 3, 106, 88),  ['teensy', 'logic', 'relay', 'cal', 'freq', 'panel']),
     ((106, 3, 136, 88), ['power', 'blower']),
 ]
-ROT_CONTROL = {'A1': 90, 'U13': 90, 'J1': 90, 'J5': 90, 'J6': 90, 'J7': 90, 'J8': 90, 'J9': 90, 'J10': 90}
+ROT_CONTROL = {'A1': 90, 'U13': 90, 'J1': 90, 'J5': 90, 'J6': 90, 'J7': 90, 'J8': 90, 'J9': 90, 'J10': 90,
+               'J12': 90}
 # Parts that must face out of an edge, placed before their column is packed:
 # ref -> (column index, 'top' | 'bottom', courtyard left x in mm).
 # - The Teensy (flat on its sockets, as always) is turned 90 deg in the board's

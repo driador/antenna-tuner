@@ -19415,6 +19415,231 @@
 		)
 	)
 	(symbol
+		(lib_id "Connector_Generic:Conn_01x02")
+		(at 420.37 100.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b16b39de-5571-4989-ad58-fe5454ee25a6")
+		(property "Reference" "J12"
+			(at 419.1 91.44 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "sounder"
+			(at 419.1 93.98 0)
+			(effects
+				(font
+					(size 1.02 1.02)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+			(at 420.37 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(instances
+			(project "tuner"
+				(path "/0723e373-545e-aa2c-b374-6e993496cc39"
+					(reference "J12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Transistor_FET:Q_NMOS_GDS")
+		(at 444.5 100.33 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0874f75b-e602-8258-0ad1-b6a6a2562723")
+		(property "Reference" "Q5"
+			(at 443.23 91.44 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "IRLL2705TRPBF"
+			(at 443.23 93.98 0)
+			(effects
+				(font
+					(size 1.02 1.02)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+			(at 444.5 100.33 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(instances
+			(project "tuner"
+				(path "/0723e373-545e-aa2c-b374-6e993496cc39"
+					(reference "Q5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 487.68 375.92 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "55310d2a-1133-0bdd-7f19-829d379ac249")
+		(property "Reference" "R84"
+			(at 486.41 367.03000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "100"
+			(at 486.41 369.57 0)
+			(effects
+				(font
+					(size 1.02 1.02)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
+			(at 487.68 375.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(instances
+			(project "tuner"
+				(path "/0723e373-545e-aa2c-b374-6e993496cc39"
+					(reference "R84")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 508.0 375.92 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7846ee76-0e71-af2f-dbf2-0e3d4cd0a5a8")
+		(property "Reference" "R85"
+			(at 506.73 367.03000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "10k"
+			(at 506.73 369.57 0)
+			(effects
+				(font
+					(size 1.02 1.02)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_1206_3216Metric"
+			(at 508.0 375.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(instances
+			(project "tuner"
+				(path "/0723e373-545e-aa2c-b374-6e993496cc39"
+					(reference "R85")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:D_Schottky")
+		(at 528.32 375.92 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "da02ead7-bf6c-85fe-a447-765825ffbaf9")
+		(property "Reference" "D13"
+			(at 527.0500000000001 367.03000000000003 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "BAT42W"
+			(at 527.0500000000001 369.57 0)
+			(effects
+				(font
+					(size 1.02 1.02)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Diode_SMD:D_SOD-123"
+			(at 528.32 375.92 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(instances
+			(project "tuner"
+				(path "/0723e373-545e-aa2c-b374-6e993496cc39"
+					(reference "D13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:PWR_FLAG")
 		(at 20.32 80.01 0)
 		(unit 1)
@@ -28179,6 +28404,27 @@
 		)
 		(uuid "fd6e8c83-576a-0d2e-7bae-36356d4b48eb")
 	)
+	(wire
+		(pts
+			(xy 513.08 113.02999999999999)
+			(xy 518.16 113.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "598e1c05-a082-0cfc-4618-3dff67d514c8")
+	)
+	(label "SOUNDER"
+		(at 518.16 113.03 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8ca17cf8-2d7b-c678-9a8e-84721aa6e559")
+	)
 	(no_connect
 		(at 513.08 135.89)
 		(uuid "22c13164-25b6-417b-7132-800bdfc5e73e")
@@ -28194,10 +28440,6 @@
 	(no_connect
 		(at 487.68 113.02999999999999)
 		(uuid "37d0d478-4330-4433-9b06-ae5cdae6cce9")
-	)
-	(no_connect
-		(at 513.08 113.02999999999999)
-		(uuid "acda81e0-c364-81d0-6911-ad3a0c23c1eb")
 	)
 	(wire
 		(pts
@@ -30954,6 +31196,237 @@
 			(justify left bottom)
 		)
 		(uuid "875ae2b9-0533-c52e-d5e6-8e3db0572763")
+	)
+	(wire
+		(pts
+			(xy 415.29 100.33)
+			(xy 410.21 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6cf266c8-4cc0-09f3-d688-9f884d54fee3")
+	)
+	(label "+12V"
+		(at 410.21 100.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d9a18b72-4898-bc9c-6a9a-77609b162292")
+	)
+	(wire
+		(pts
+			(xy 415.29 102.87)
+			(xy 410.21 102.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "10f68c9b-a9d5-9b7a-8a13-b2183dbc618b")
+	)
+	(label "SND_LO"
+		(at 410.21 102.87 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "4e8b7bed-de5b-fc33-d9b7-0ca2d8a118d0")
+	)
+	(wire
+		(pts
+			(xy 439.42 100.33)
+			(xy 434.34 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5c5ad355-9618-c987-455f-ce6ad3ed73d5")
+	)
+	(label "Q5_G"
+		(at 434.34 100.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "34d74b3d-7494-4035-4a99-c63983611009")
+	)
+	(wire
+		(pts
+			(xy 447.04 95.25)
+			(xy 447.04 90.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9eb5984e-bc4f-a345-2be3-b4dbbc17364c")
+	)
+	(label "SND_LO"
+		(at 447.04 90.17 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1e026c44-ca41-dc10-605c-d1edb6f2ef7d")
+	)
+	(wire
+		(pts
+			(xy 447.04 105.41)
+			(xy 447.04 110.49)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "599869bc-8275-f814-729e-414fac01a4af")
+	)
+	(label "GND"
+		(at 447.04 110.49 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8753f797-b311-9ec0-21c5-b59b5876bc41")
+	)
+	(wire
+		(pts
+			(xy 487.68 372.11)
+			(xy 487.68 367.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9ab5de7e-24df-b1ae-3d9d-cc363d41a4ab")
+	)
+	(label "SOUNDER"
+		(at 487.68 367.03 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "fd27fbb6-748b-877e-41ac-8c0ce319c24d")
+	)
+	(wire
+		(pts
+			(xy 487.68 379.73)
+			(xy 487.68 384.81)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8cfdf387-ee5e-3729-3782-f7cf2b611a8d")
+	)
+	(label "Q5_G"
+		(at 487.68 384.81 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1a3f5a32-e197-6cda-4f4f-fa68b488fc01")
+	)
+	(wire
+		(pts
+			(xy 508.0 372.11)
+			(xy 508.0 367.03)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "72a73d96-4792-819c-e842-0c32aa7af1d6")
+	)
+	(label "Q5_G"
+		(at 508.0 367.03 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "d9f33182-6c3f-db49-052c-4a345cd39c53")
+	)
+	(wire
+		(pts
+			(xy 508.0 379.73)
+			(xy 508.0 384.81)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "18465221-7d99-782a-b628-a67c48e01160")
+	)
+	(label "GND"
+		(at 508.0 384.81 90)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "6bebe855-4b24-5eab-ea80-63167e6c7f7a")
+	)
+	(wire
+		(pts
+			(xy 532.13 375.92)
+			(xy 537.21 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ae743e04-3503-d737-1122-3aa49391b418")
+	)
+	(label "SND_LO"
+		(at 537.21 375.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3f0f0542-0d42-d05a-a815-615acebe5994")
+	)
+	(wire
+		(pts
+			(xy 524.5100000000001 375.92)
+			(xy 519.43 375.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "30109755-28e2-1da6-75b5-ff9e9b3183e7")
+	)
+	(label "+12V"
+		(at 519.43 375.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "adfbf641-8122-1477-25cf-8ade856ef64b")
 	)
 	(wire
 		(pts

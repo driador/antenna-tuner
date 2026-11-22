@@ -322,14 +322,15 @@ R('10k', '+3V3', 'BTN_RECOVERY'); C('100n', 'BTN_RECOVERY', 'GND')
 
 # ---- MCP23017: panel inputs and permissive status, one interrupt ----
 block('logic')
-# GPA7/GPB7 are output-only on current silicon, so they stay unused.
+# GPA7/GPB7 are output-only on current silicon: GPA7 switches the alarm sounder
+# (8B.4i), and GPB7 stays unused.
 U10 = A('Interface_Expansion:MCP23017x-x-SO', 'U10', 'MCP23017', (500, 115), footprint=SOIC[28])
 for pin, net in (('V_{DD}', '+3V3'), ('V_{SS}', 'GND'), ('SCK', 'I2C_SCL'), ('SDA', 'I2C_SDA'),
                  ('A0', 'GND'), ('A1', 'GND'), ('A2', 'GND'), ('~{RESET}', 'IOX_RST'), ('INTA', 'IOX_INT'),
                  ('GPA0', 'ENC1_A'), ('GPA1', 'ENC1_B'), ('GPA2', 'ENC1_SW'),
                  ('GPA3', 'ENC2_A'), ('GPA4', 'ENC2_B'), ('GPA5', 'ENC2_SW'), ('GPA6', 'BYPASS'),
                  ('GPB0', 'SWR_OK_L'), ('GPB1', 'CALDET_OK'), ('GPB2', 'CALTH_OK'), ('GPB3', 'PANEL_OK'),
-                 ('GPB4', 'LIMIT_OK'), ('GPB5', 'HARD_OK'), ('GPB6', 'BYP_OK')):
+                 ('GPB4', 'LIMIT_OK'), ('GPB5', 'HARD_OK'), ('GPB6', 'BYP_OK'), ('GPA7', 'SOUNDER')):
     s.net(U10, pin, net)
 s.nc_rest(U10)
 R('10k', '+3V3', 'IOX_RST'); R('10k', '+3V3', 'IOX_INT')
@@ -410,6 +411,19 @@ for _ in ('U4', 'U5', 'U6', 'U7', 'U8', 'U9', 'U10'):
 block('cal')
 for _ in ('U11', 'U12'):
     C('100n', '+5V', 'GND')
+
+# ---- alarm sounder (8B.4i), last so that no earlier reference designator moves ----
+block('panel')
+# Alarm sounder (8B.4i): an active piezo indicator on the cassette face, switched
+# low-side from +12 V. The gate is pulled down, so the sounder stays off while the
+# expander's outputs float at power-up. The Schottky covers a part whose driver
+# has a coil.
+J12 = A('Connector_Generic:Conn_01x02', 'J12', 'sounder', (420, 100), footprint=hdr(2))
+s.net(J12, 'Pin_1', '+12V'); s.net(J12, 'Pin_2', 'SND_LO')
+Q5 = A(NFET, 'Q5', 'IRLL2705TRPBF', (445, 100), footprint=FP_FET)
+s.net(Q5, 'G', 'Q5_G'); s.net(Q5, 'D', 'SND_LO'); s.net(Q5, 'S', 'GND')
+R('100', 'SOUNDER', 'Q5_G'); R('10k', 'Q5_G', 'GND')
+D('BAT42W', 'SND_LO', '+12V')
 
 # ================= power flags =================
 block('none')
