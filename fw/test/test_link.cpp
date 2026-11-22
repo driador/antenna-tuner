@@ -8,6 +8,7 @@
 #include <string>
 
 #include "harness.hpp"
+#include "tuner/bit.hpp"
 #include "tuner/proto.hpp"
 #include "tuner/sntp.hpp"
 #include "tuner/web.hpp"
@@ -43,6 +44,7 @@ TEST(protocol_commands_and_refusals) {
     r = proto::parse("CAL WATTS 100");
     CHECK(r.cmd == Cmd::CalWatts && r.value == 100);
     CHECK(proto::parse("cal save").cmd == Cmd::CalSave);
+    CHECK(proto::parse("selftest").cmd == Cmd::SelfTest);
     r = proto::parse("preset 14.2");
     CHECK(r.cmd == Cmd::Preset && r.value == 14.2);
     for (const char* bad : {"PRESET", "PRESET X", "PRESET NAN"}) CHECK(proto::parse(bad).cmd == Cmd::Invalid);
@@ -73,7 +75,8 @@ TEST(protocol_lines_carry_checksums) {
     const std::string s(line, n);
     CHECK(s.rfind("TLM state=MATCHED path=TUNE mode=STRICT mhz=14.2051 carrier=1 swr=1.12 fwd=- c1=123.4 c2=456.7 "
                   "l=5.123", 0) == 0);
-    CHECK(s.find(" c=0020 ") != std::string::npos && s.find(" loss=0 lim=1500 derate=0 ev=12*") != std::string::npos);
+    CHECK(s.find(" tank=0.0 hot=0 c=0020 ") != std::string::npos &&
+          s.find(" loss=0 lim=1500 derate=0 bit=00000 bitrun=0 ev=12*") != std::string::npos);
     CHECK(proto::parse(line).cmd == proto::Cmd::Invalid);              // a tuner line is not a command...
     CHECK(std::string(proto::parse(line).why) == "unknown command");   // ...but its checksum is good
     EventRecord e;
@@ -81,6 +84,11 @@ TEST(protocol_lines_carry_checksums) {
     e.kind = EventKind::Ack;
     char ev[128];
     CHECK(proto::event(e, ev, sizeof ev) > 0 && std::string(ev).rfind("EVT seq=3 t=+0s event=ack", 0) == 0);
+    e.kind = EventKind::SelfTest;                       // one token per field
+    e.arg = uint8_t(bit::Check::Latch);
+    CHECK(proto::event(e, ev, sizeof ev) > 0 && std::string(ev).find(" event=selftest check=hold_latch ") != std::string::npos);
+    e.arg = kSelfTestPassed;
+    CHECK(proto::event(e, ev, sizeof ev) > 0 && std::string(ev).find(" event=selftest result=passed ") != std::string::npos);
     CHECK(proto::reply(false, "local only: at the box", ev, sizeof ev) > 0);
     CHECK(std::string(ev).rfind("ERR local only: at the box*", 0) == 0);
 }
@@ -220,4 +228,13 @@ TEST(network_time) {
     CHECK(!sntp::unix_time(r, sizeof r, t));
     at(978307200UL + 2208988800UL);                     // 2001: not a real answer now
     CHECK(!sntp::unix_time(r, sizeof r, t));
+}
+
+TEST(page_names_every_check) {
+    // The page decodes TLM bit= with its own list of the check names (§8B.4h): it must match bit.hpp.
+    std::string want = "const K=[";
+    for (unsigned i = 0; i < unsigned(bit::Check::Count); ++i)
+        want += std::string(i ? ",\"" : "\"") + bit::name(bit::Check(i)) + "\"";
+    want += "]";
+    CHECK(std::string(web::kPage).find(want) != std::string::npos);
 }

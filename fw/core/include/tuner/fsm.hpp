@@ -86,6 +86,7 @@ struct Inputs {
     // and CAL nothing tunes, and an over-SWR trip is a fault as it is once MATCHED.
     bool tune_path = true;
     bool relay_mismatch = false;   // K1/K2 failed their coil-current or RF check
+    uint16_t raise = 0;            // bit per Fault: what the built-in test found (§8B.4h), raised as if here
     // Manual override (§7.5): one move to jog_target, taken only in IDLE, under the same PTT rules as a
     // tune's moves.
     bool jog = false;

@@ -15,15 +15,18 @@ namespace tuner {
 
 enum class EventKind : uint8_t {
     Boot, WatchdogReset, Fault, Ack, Clear, Mode, Path, Tuned, CalSaved, Inspected, CardIn, CardOut, Restore, Recovery,
-    Network, Derate
+    Network, Derate, SelfTest
 };
+
+constexpr uint8_t kSelfTestPassed = 255, kSelfTestStopped = 254;
 
 struct EventRecord {
     uint32_t seq = 0;
     uint32_t time_s = 0;       // Unix time when the clock is set, else seconds since boot
     bool wall = false;         // which of the two time_s is
     EventKind kind = EventKind::Boot;
-    uint8_t arg = 0;           // the fault, mode or path, by kind; for Network, 1 for DHCP
+    uint8_t arg = 0;           // the fault, mode or path, by kind; for Network, 1 for DHCP; for SelfTest,
+                               // the check that failed (bit.hpp), or kSelfTestPassed / kSelfTestStopped
     State state = State::SelfTest;
     float mhz = 0;
 };

@@ -75,6 +75,14 @@ constexpr double kFwdRfVolts = 0.05;        // ASSUMED: V_FWD in any 1 ms sample
 constexpr double kLoadRfVolts = 0.70;       // ASSUMED: CAL_ADC (the detector halved) with ~5 W in the load;
                                             // it idles near 0.5 V (§6B.3a: 1.03 V bias)
 
+// ---- built-in test (§8B.4h) ----
+constexpr bool kBitAtPowerUp = true;        // the active run once the boot has settled; off, it runs on demand only
+constexpr uint32_t kBitSettleMs = 3000;     // after setup, so the detectors have been read at rest for a few gates
+constexpr uint32_t kBitRfQuietMs = 500;     // no RF for this long first: the last gate's averages hold none
+
+// ---- audible alarm (§8B.4i) ----
+constexpr bool kSounder = true;             // the sounder at the box; false leaves the page's tone alone
+
 // ---- data link (§8C.5) ----
 constexpr uint16_t kLinePort = 4600;        // the line protocol for nc and scripts; the page is on 80
 constexpr uint16_t kNtpLocalPort = 4123;

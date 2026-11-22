@@ -5,14 +5,17 @@
 
 #include <cstdio>
 
+#include "tuner/bit.hpp"
+
 namespace tuner {
 
 namespace {
 const char* const kKinds[] = {"boot", "watchdog_reset", "fault", "ack", "clear", "mode", "path",
                               "tuned", "cal_saved", "inspected", "card_in", "card_out", "restore", "recovery",
-                              "network", "derate"};
+                              "network", "derate", "selftest"};
 const char* const kFaults[] = {"over_temp", "carrier_lost", "no_solution", "tune_failed", "over_swr",
-                               "limit_hit", "encoder_mismatch", "self_test_fail", "relay_mismatch"};
+                               "limit_hit", "encoder_mismatch", "self_test_fail", "relay_mismatch",
+                               "built_in_test"};
 const char* const kModes[] = {"commissioning", "strict", "permissive"};
 const char* const kPaths[] = {"tune", "aux", "cal"};
 static_assert(sizeof kFaults / sizeof kFaults[0] == unsigned(Fault::Count), "a name for every fault");
@@ -60,6 +63,13 @@ size_t EventLog::format(const EventRecord& e, char* out, size_t cap) {
     else if (e.kind == EventKind::Mode && e.arg < 3) std::snprintf(what, sizeof what, " mode=%s", kModes[e.arg]);
     else if (e.kind == EventKind::Path && e.arg < 3) std::snprintf(what, sizeof what, " path=%s", kPaths[e.arg]);
     else if (e.kind == EventKind::Network) std::snprintf(what, sizeof what, " net=%s", e.arg ? "dhcp" : "static");
+    else if (e.kind == EventKind::SelfTest && (e.arg == kSelfTestPassed || e.arg == kSelfTestStopped))
+        std::snprintf(what, sizeof what, " result=%s", e.arg == kSelfTestPassed ? "passed" : "stopped");
+    else if (e.kind == EventKind::SelfTest) {
+        std::snprintf(what, sizeof what, " check=%s", bit::name(bit::Check(e.arg)));
+        for (char* c = what + 7; *c; ++c)   // one token, as every field of the line is
+            if (*c == ' ') *c = '_';
+    }
     const int n = std::snprintf(out, cap, "seq=%lu t=%s event=%s%s state=%s mhz=%.4f",
                                 static_cast<unsigned long>(e.seq), t, kind, what, state_name(e.state), double(e.mhz));
     return n < 0 ? 0 : size_t(n) < cap ? size_t(n) : cap - 1;

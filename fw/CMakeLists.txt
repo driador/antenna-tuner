@@ -16,6 +16,8 @@ endif()
 
 add_library(tuner_core STATIC
   core/src/as5048.cpp
+  core/src/bit.cpp
+  core/src/alarm.cpp
   core/src/bridge.cpp
   core/src/cal.cpp
   core/src/curve.cpp
@@ -44,7 +46,7 @@ target_compile_options(tuner_core PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wer
   -fno-exceptions -fno-rtti)
 
 enable_testing()
-foreach(name tnet bridge freq_faults fsm hw panel store link)
+foreach(name tnet bridge freq_faults fsm hw panel store link bit alarm)
   add_executable(test_${name} test/test_${name}.cpp test/test_main.cpp)
   target_link_libraries(test_${name} PRIVATE tuner_core)
   target_compile_options(test_${name} PRIVATE -Wall -Wextra)

@@ -31,6 +31,7 @@ struct PanelView {                         // what the panel shows; the Teensy l
     Setting at;
     double tank_c = 0;
     uint16_t latched_c = 0, unacked_b = 0;
+    uint32_t bit_failed = 0;               // the built-in test's failed checks, named under their fault (§8B.4h)
     bool over_temp = false, bypass = false;
     bool cal_valid = false;                // this band's bridge calibration
     uint8_t cal_have = 0;                  // standards taken this session: 1 load, 2 open, 4 short
@@ -44,7 +45,7 @@ struct PanelView {                         // what the panel shows; the Teensy l
 };
 
 enum class PanelAction : uint8_t {
-    None, Ack, ClearLocal, Tune, SetMode, SetPath, CalLoad, CalOpen, CalShort, CalSave, Jog, Inspected
+    None, Ack, ClearLocal, Tune, SetMode, SetPath, CalLoad, CalOpen, CalShort, CalSave, Jog, Inspected, SelfTest
 };
 
 struct PanelRequest {
@@ -61,6 +62,7 @@ public:
     void turn(int knob, int detents);
     void push(int knob);
     PanelRequest take();                   // the pending request, once
+    uint32_t presses() const { return presses_; }   // every push so far: someone is at the box (§8B.4i)
     // The screen: kRows lines of up to kCols characters, and the row to highlight (-1: none).
     void render(char rows[kRows][kCols + 1], int& highlight) const;
 
@@ -79,6 +81,7 @@ private:
     int deepest_ = 0;                      // the furthest line reached on the fault screen
     int menu_cursor_ = 0;                  // where the menu was left, to come back to
     PanelRequest req_;
+    uint32_t presses_ = 0;
 };
 
 }  // namespace tuner

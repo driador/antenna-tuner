@@ -7,7 +7,7 @@
 //
 //   to the tuner     TUNE | ACK | QUERY | SUBSCRIBE [hz] | GET_LOG [from] | PATH TUNE|AUX|CAL
 //                    | CAL LOAD|OPEN|SHORT|SAVE | CAL WATTS <w>
-//                    | PRESET <MHz> | NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]
+//                    | PRESET <MHz> | SELFTEST | NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]
 //   from the tuner   OK <command> | ERR <reason> | TLM <fields> | EVT <event> | NET <settings>
 //
 // PRESET moves the elements to the stored setting for a frequency while the rig still receives
@@ -30,7 +30,7 @@
 namespace tuner::proto {
 
 enum class Cmd : uint8_t {
-    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Preset, Net, LocalOnly
+    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Preset, SelfTest, Net, LocalOnly
 };
 
 struct Request {
@@ -56,15 +56,20 @@ struct Telemetry {
     double swr = 0, fwd_w = -1;    // fwd_w below zero: this band's power curve is not calibrated
     Setting at;
     double tank_c = 0;
+    bool over_temp = false;        // class A: the tank is hot, or its thermistor has failed
     uint16_t latched_c = 0, unacked_b = 0;
     bool permit = false, bypass = false;
     double loss_w = 0, limit_w = 1500;   // the RF bay's averaged loss, the continuous limit here (§1.7.1)
     bool derate = false;           // the loss is over the 200 W the cooling carries: a warning only
+    uint32_t bit_failed = 0;       // the built-in test's failed checks (bit.hpp), boot and last run
+    bool bit_running = false;
     uint32_t next_event = 0;       // a client that has seen less than this asks GET_LOG
 };
 
 // "TLM state=MATCHED path=TUNE mode=STRICT mhz=14.2051 carrier=1 swr=1.12 fwd=812 c1=123.4 c2=456.7
-//  l=5.123 tank=31.2 c=0000 b=0000 permit=1 bypass=0 loss=12 lim=1500 derate=0 ev=12*HH" (pF, uH, W, °C)
+//  l=5.123 tank=31.2 hot=0 c=0000 b=0000 permit=1 bypass=0 loss=12 lim=1500 derate=0 bit=00000 bitrun=0
+//  ev=12*HH"
+//  (pF, uH, W, °C)
 size_t telemetry(const Telemetry& t, char* out, size_t cap);
 size_t event(const EventRecord& e, char* out, size_t cap);         // "EVT seq=... *HH"
 size_t reply(bool ok, const char* text, char* out, size_t cap);    // "OK TUNE*HH" / "ERR ...*HH"

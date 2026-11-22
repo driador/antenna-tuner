@@ -3,6 +3,7 @@
 
 // The frequency counter, the tune window (§6A.10, §8B.2) and the fault policy (§8B.4a to §8B.4b).
 #include <string_view>
+#include <string>
 
 #include "harness.hpp"
 #include "tuner/faults.hpp"
@@ -34,6 +35,7 @@ TEST(classes_under_strict) {
     CHECK(p.raise(Fault::NoSolution) == FaultClass::B);
     CHECK(p.raise(Fault::TuneFailed) == FaultClass::B);
     CHECK(p.raise(Fault::OverSwr) == FaultClass::B);
+    CHECK(p.raise(Fault::BuiltInTest) == FaultClass::B && std::string(fault_name(Fault::BuiltInTest)) == "built-in test");
     CHECK(p.raise(Fault::LimitHit) == FaultClass::C);
     CHECK(p.raise(Fault::EncoderMismatch) == FaultClass::C);
     CHECK(p.raise(Fault::SelfTestFail) == FaultClass::C);

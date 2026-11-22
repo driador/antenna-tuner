@@ -20,6 +20,7 @@ enum class Fault : uint8_t {
     EncoderMismatch,  // mechanical: by mode
     SelfTestFail,     // C, always
     RelayMismatch,    // B: K1/K2 did not do what was commanded (§6B.2)
+    BuiltInTest,      // B: a built-in check found a part degraded but safe (§8B.4h)
     Count
 };
 

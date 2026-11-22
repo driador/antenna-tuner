@@ -36,8 +36,11 @@ input[type=radio]{width:auto}.addr{width:9em}label{white-space:nowrap}
 <div><div class="mut">permit</div><div id="permit" class="v">-</div></div></div>
 <div class="card row"><span>C1 <b id="c1" class="v">-</b> pF</span><span>C2 <b id="c2" class="v">-</b> pF</span>
 <span>L <b id="l" class="v">-</b> &micro;H</span><span>tank <b id="tank" class="v">-</b> &deg;C</span></div>
-<div class="card"><div class="row"><b>Faults</b><span id="faults" class="v">none</span></div></div>
-<div class="card row"><button data-c="TUNE">Tune</button><button data-c="ACK">Acknowledge</button>
+<div class="card"><div class="row"><b>Faults</b><span id="faults" class="v">none</span></div>
+<div class="row"><span class="mut">self-test</span><span id="bit" class="v">-</span></div>
+<div class="row"><label><input type="checkbox" id="snd"> alarm sound here</label><button id="sil">Silence</button>
+<span id="sndmsg" class="mut"></span></div></div>
+<div class="card row"><button data-c="TUNE">Tune</button><button data-c="ACK">Acknowledge</button><button data-c="SELFTEST">Self-test</button>
 <span class="mut">path</span><button data-c="PATH TUNE">TUNE</button><button data-c="PATH AUX">AUX</button><button data-c="PATH CAL">CAL</button></div>
 <div class="card row"><b>Preset</b><span class="mut">while receiving, after a band change</span>
 <button data-c="PRESET 1.900">160</button><button data-c="PRESET 3.750">80</button><button data-c="PRESET 5.368">60</button><button data-c="PRESET 7.150">40</button><button data-c="PRESET 10.125">30</button>
@@ -58,7 +61,8 @@ If the tuner cannot be reached then, hold the recovery button at power-up: DHCP 
 <p class="foot mut">Source: <a href="https://github.com/driador/antenna-tuner">github.com/driador/antenna-tuner</a>
 &middot; GPL-3.0-or-later, built with QNEthernet (AGPL-3.0-or-later)</p>
 </main><script>
-const F=["over-temperature","carrier lost","no solution","tune failed","over-SWR trip","limit switch hit","encoder mismatch","self-test failure","K1/K2 relay mismatch"];
+const F=["over-temperature","carrier lost","no solution","tune failed","over-SWR trip","limit switch hit","encoder mismatch","self-test failure","K1/K2 relay mismatch","built-in test"];
+const K=["expander","encoders","bridge reference","limits","permit stuck high","fault record","bridge idle","forward detector idle","cal-load detector idle","thermistor","C1 axis","C2 axis","roller axis","K1","K2","hold latch","permit rise"],KW=(1<<9)|(1<<16);
 let ws=null,next=1,netwait=false;const $=id=>document.getElementById(id);
 function cs(s){let c=0;for(const ch of s)c^=ch.charCodeAt(0);return c.toString(16).toUpperCase().padStart(2,"0")}
 function send(s){if(ws&&ws.readyState==1)ws.send(s+"*"+cs(s))}
@@ -76,12 +80,32 @@ function line(raw){const star=raw.lastIndexOf("*");if(star<0||cs(raw.slice(0,sta
   $("permit").textContent=(t.permit=="1"?"up":"down")+(t.bypass=="1"?" (BYPASS)":"");$("permit").className="v "+(t.bypass=="1"?"bad":t.permit=="1"?"ok":"warn");
   for(const k of["c1","c2","l","tank"])$(k).textContent=t[k];
   $("derate").textContent=t.derate=="1"?"DERATE: the RF bay averages "+t.loss+" W of loss against 200 W of cooling; keep under "+t.lim+" W here":"";
-  const f=names(parseInt(t.c,16),"C").concat(names(parseInt(t.b,16),"B"));$("faults").textContent=f.length?f.join(", "):"none";
-  $("faults").className="v "+(f.length?"bad":"ok");if(parseInt(t.ev)>next)send("GET_LOG "+next)}
+  const f=(t.hot=="1"?["A over-temperature"]:[]).concat(names(parseInt(t.c,16),"C"),names(parseInt(t.b,16),"B"));
+  $("faults").textContent=f.length?f.join(", "):"none";
+  al={c:parseInt(t.c,16)||0,b:parseInt(t.b,16)||0,hot:t.hot=="1"?1:0,der:t.derate=="1"?1:0};alarm();
+  $("faults").className="v "+(f.length?"bad":"ok");
+  const bm=parseInt(t.bit,16)||0,bn=K.filter((k,i)=>bm&(1<<i));
+  $("bit").textContent=t.bitrun=="1"?"running":bn.length?"found "+bn.join(", "):"no failures";
+  $("bit").className="v "+(t.bitrun=="1"?"warn":bm&~KW?"bad":bm?"warn":"ok");if(parseInt(t.ev)>next)send("GET_LOG "+next)}
  else if(s.startsWith("EVT ")){const e=kv(s.slice(4)),q=parseInt(e.seq);if(q<next)return;next=q+1;
   $("log").textContent=s.slice(4)+"\n"+$("log").textContent}
  else if(s.startsWith("NET "))netshow(kv(s.slice(4)))
  else if(s.startsWith("OK ")||s.startsWith("ERR ")){if(netwait){netwait=false;$("netmsg").textContent=s}else $("reply").textContent=s}}
+// The alarm (§8B.4i): the box's rules, with the page's own silence. A C latch beeps fast, an unacknowledged
+// B slowly, an over-temperature or the derate warning chirps; anything new sounds again. Browsers let a page
+// make sound only after a click on it.
+let ac=null,al={c:0,b:0,hot:0,der:0},qc=0,qb=0,qh=0,qd=0,lv=0,tm=null,fl=null;
+function sndmsg(){$("sndmsg").textContent=$("snd").checked&&(!ac||ac.state!="running")?"click the page to let it sound":""}
+function arm(){const on=$("snd").checked;try{localStorage.setItem("snd",on?"1":"")}catch(e){}
+ if(on&&!ac){const A=window.AudioContext||window.webkitAudioContext;if(A)ac=new A()}
+ if(on&&ac)ac.resume().then(sndmsg,sndmsg);sndmsg()}
+function beep(hz,ms){if(!$("snd").checked||!ac||ac.state!="running")return;const o=ac.createOscillator(),g=ac.createGain();
+ o.type="square";o.frequency.value=hz;g.gain.value=0.12;o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+ms/1000)}
+function alarm(){qc&=al.c;qb&=al.b;qh&=al.hot;qd&=al.der;
+ const l=al.c&~qc?3:al.b&~qb?2:(al.hot&&!qh)||(al.der&&!qd)?1:0;if(l==lv)return;
+ lv=l;clearInterval(tm);clearInterval(fl);document.title="Antenna tuner";if(!l)return;
+ const p=[null,[1200,60,15000],[660,150,2000],[880,150,300]][l];beep(p[0],p[1]);tm=setInterval(()=>beep(p[0],p[1]),p[2]);
+ if(l>1)fl=setInterval(()=>document.title=document.title=="Antenna tuner"?"FAULT - Antenna tuner":"Antenna tuner",1000)}
 function connect(){ws=new WebSocket("ws://"+location.host+"/ws");
  ws.onopen=()=>{$("link").textContent="connected";$("link").className="ok";send("SUBSCRIBE 10");send("GET_LOG "+next);send("NET")};
  ws.onmessage=m=>{for(const l of String(m.data).split("\n"))if(l)line(l.trim())};
@@ -90,6 +114,9 @@ document.querySelectorAll("button[data-c]").forEach(b=>b.onclick=()=>send(b.data
 $("addw").onclick=()=>{const w=parseFloat($("watts").value);if(w>0)send("CAL WATTS "+w)};
 $("preset").onclick=()=>{const f=parseFloat($("pmhz").value);if(f>0)send("PRESET "+f)};
 $("dhcp").onchange=$("static").onchange=netmode;
+$("snd").onchange=arm;$("sil").onclick=()=>{qc=al.c;qb=al.b;qh=al.hot;qd=al.der;alarm()};
+document.addEventListener("click",()=>{if($("snd").checked&&ac&&ac.state!="running")ac.resume().then(sndmsg,sndmsg)});
+try{$("snd").checked=localStorage.getItem("snd")=="1"}catch(e){}if($("snd").checked)arm();
 $("netsave").onclick=()=>{const v=k=>$(k).value.trim(),st=$("static").checked;
  let c="NET mode="+(st?"static":"dhcp")+" hostname="+v("host");
  if(st)c+=" ip="+v("ip")+" netmask="+v("mask")+" gateway="+v("gw")+" dns="+v("dns");netwait=true;send(c)};

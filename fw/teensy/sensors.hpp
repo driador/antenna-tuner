@@ -10,6 +10,7 @@
 
 #include "config.hpp"
 #include "persist.hpp"
+#include "tuner/bit.hpp"
 #include "tuner/cal.hpp"
 #include "tuner/fsm.hpp"
 #include "tuner/sense.hpp"
@@ -37,6 +38,7 @@ public:
     bool read_iox();                  // false if it did not answer
     bool iox(uint8_t bit) const { return iox_ & (1u << bit); }
     uint16_t iox_word() const { return iox_; }
+    void set_sounder(bool on);        // the alarm's sounder on GPA7 (§8B.4i); written only when it changes
 
     bool k1_on() const { return k1_v_ > kCoilOnVolts; }    // coil current sensed (§6B.2)
     bool k2_on() const { return k2_v_ > kCoilOnVolts; }
@@ -44,6 +46,9 @@ public:
     double tank_c() const { return tank_c_; }         // NaN: open or shorted thermistor
     bool over_temp() const { return over_temp_; }     // a failed sensor counts as hot
     double vref() const { return vref_; }             // AD_VREF on the Teensy's 3.3 V scale
+    // The detectors as the built-in test judges them at rest (§8B.4h): the bridge and the forward
+    // detector over the last gate, the cal-load detector and the tank as last read.
+    tuner::bit::Rest rest() const { return {raw_.v_mag, raw_.v_phs, v_fwd_, cal_v_, tank_c_}; }
 
 private:
     const Authoritative* cal_ = nullptr;
@@ -61,6 +66,7 @@ private:
     tuner::Standard raw_;
     uint16_t iox_ = 0;
     bool over_temp_ = true;
+    bool sounder_ = false;
 };
 
 }  // namespace hw

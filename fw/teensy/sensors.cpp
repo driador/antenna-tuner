@@ -20,7 +20,8 @@ namespace hw {
 
 namespace {
 // MCP23017, IOCON.BANK = 0
-constexpr uint8_t kIodirA = 0x00, kIodirB = 0x01, kGpintenA = 0x04, kIocon = 0x0A, kGpioA = 0x12;
+constexpr uint8_t kIodirA = 0x00, kIodirB = 0x01, kGpintenA = 0x04, kIocon = 0x0A, kGpioA = 0x12, kOlatA = 0x14;
+constexpr uint8_t kGpa7 = 0x80;       // the sounder
 constexpr uint8_t kIoconMirror = 0x40, kIoconOdr = 0x04;
 
 bool iox_write(uint8_t reg, uint8_t value) {
@@ -41,10 +42,11 @@ bool Sensors::begin() {
     Wire.begin();
     Wire.setClock(400000);
     // INTA mirrors both ports, open drain (10 k pull-up on the board), and fires on any change of the
-    // panel encoders' lines. GPA7 and GPB7 are output-only on current silicon, so they stay outputs;
-    // everything else is an input with its pull-up on the board.
-    return iox_write(kIocon, kIoconMirror | kIoconOdr) && iox_write(kIodirA, 0x7F) && iox_write(kIodirB, 0x7F) &&
-           iox_write(kGpintenA, 0x3F) && read_iox();
+    // panel encoders' lines. GPA7 and GPB7 are output-only on current silicon, so they stay outputs:
+    // GPA7 drives the sounder, off from the start (a watchdog reset leaves the expander as it was), and
+    // GPB7 is unused. Everything else is an input with its pull-up on the board.
+    return iox_write(kIocon, kIoconMirror | kIoconOdr) && iox_write(kOlatA, 0) && iox_write(kIodirA, 0x7F) &&
+           iox_write(kIodirB, 0x7F) && iox_write(kGpintenA, 0x3F) && read_iox();
 }
 
 double Sensors::forward_watts() const {
@@ -109,6 +111,10 @@ void Sensors::restart_bridge() {
     sum_mag_ = sum_phs_ = sum_ref_ = sum_fwd_ = 0;
     n_ = 0;
     fresh_ = false;
+}
+
+void Sensors::set_sounder(bool on) {
+    if (on != sounder_ && iox_write(kOlatA, on ? kGpa7 : 0)) sounder_ = on;   // a failed write tries again
 }
 
 bool Sensors::read_iox() {

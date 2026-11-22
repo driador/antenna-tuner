@@ -224,6 +224,8 @@ Outputs Tuner::step(const Inputs& in) {
     // transmit.
     if ((state_ == State::Matched || !in.tune_path) && in.swr_trip && permit_up_) fault(Fault::OverSwr);
     if (in.relay_mismatch && state_ != State::SelfTest) fault(Fault::RelayMismatch);
+    for (unsigned i = 0; i < unsigned(Fault::Count); ++i)
+        if (in.raise & (1u << i)) fault(Fault(i));
     if (state_ != State::SelfTest && state_ != State::Fault && in.limit_hit && !limit_was_hit_)
         fault(Fault::LimitHit);
     limit_was_hit_ = in.limit_hit;

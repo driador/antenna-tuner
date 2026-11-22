@@ -6,6 +6,7 @@
 #include <string>
 
 #include "harness.hpp"
+#include "tuner/bit.hpp"
 #include "tuner/panel.hpp"
 #include "tuner/panel_io.hpp"
 
@@ -85,6 +86,12 @@ TEST(panel_monitor_and_menu) {
     p.push(0);                                          // "Tune now"
     CHECK(p.take().action == PanelAction::Tune);
     CHECK(p.take().action == PanelAction::None);        // once
+    const uint32_t pressed = p.presses();
+    p.push(0);                                          // the menu reopens where it was, on "Tune now"
+    CHECK(p.presses() == pressed + 1);
+    p.turn(0, 5);
+    p.push(0);                                          // "Self-test" (§8B.4h), and back to the monitor
+    CHECK(p.take().action == PanelAction::SelfTest && row(p, 0).rfind("IDLE", 0) == 0);
     CHECK(row(p, 0).rfind("IDLE", 0) == 0);
     v.note = "CAL: carrier needed";
     p.show(v);
@@ -110,6 +117,18 @@ TEST(panel_clear_unlocks_only_after_reading) {
     CHECK(hl == 5 && row(p, 5) == "[ clear at the box ]");
     p.push(0);
     CHECK(p.take().action == PanelAction::ClearLocal);
+
+    Panel t;                                            // the built-in test names its checks (§8B.4h)
+    PanelView vt;
+    vt.latched_c = uint16_t(1u << unsigned(Fault::SelfTestFail));
+    vt.unacked_b = uint16_t(1u << unsigned(Fault::BuiltInTest));
+    vt.bit_failed = bit::mask(bit::Check::Latch) | bit::mask(bit::Check::BridgeIdle) |
+                    bit::mask(bit::Check::FwdIdle) | bit::mask(bit::Check::AxisC2);   // C2 has no fault here
+    t.show(vt);
+    t.push(0);
+    t.push(0);
+    CHECK(row(t, 1) == "C  self-test failure" && row(t, 2) == "   hold latch");
+    CHECK(row(t, 3) == "B  built-in test" && row(t, 4).rfind("   bridge idle, forward detector", 0) == 0);
 
     Panel b;                                            // B alone: acknowledge
     PanelView vb;

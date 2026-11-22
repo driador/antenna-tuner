@@ -202,6 +202,10 @@ Source location: <https://github.com/driador/antenna-tuner>.
 20. **microSD extender** (§8B.5.6): an Adafruit 6070 brings the Teensy's card to the cassette face, below
     the encoders (E-202, F; §10.7). Its plug stays in the Teensy's socket, so the firmware treats the
     card as present only while it answers.
+21. **Built-in test and audible alarm** (§8B.4h, §8B.4i):
+    - **Built-in test:** a run at power-up and on demand checks each axis, each relay, the hold latch, the
+      permit and the detectors at rest. It grades every failure and names it.
+    - **Alarm:** sounds at the box and on the page, with one pattern for the worst fault sounding.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -2949,6 +2953,91 @@ at a key-down.
   with no carrier, the bypass off, nothing latched, the TUNE path in use and the RF service panel
   closed.
 
+### 8B.4h Built-in test *(Rev 3.7c)*
+
+Built from the table of §8B.4g: it moves to power-up the faults that would otherwise surface at first
+use, and it names what failed.
+
+**Passive, at every boot** (§8B.4b step 2; nothing moves). The original checks stay: the expander,
+the encoders and their magnets, the AD8302's VREF, no limit open, the permit down while the vote is
+down, and the fault record. Each failure is now named.
+
+**The detectors at rest**, judged as each active run starts. The bridge and the forward detector are
+averaged over the 200 ms counter gate, so the run first waits for 0.5 s with no RF:
+- V_MAG and V_PHS inside their no-RF windows.
+- The forward detector below its RF threshold.
+- The cal-load detector near its bias.
+- The tank thermistor between −20 and +60 °C.
+
+The windows are ASSUMED until bring-up reads the real idle levels.
+
+**Active, at power-up and on demand** (the panel, the page, SELFTEST on the link, `selftest` on the
+console):
+
+1. **Each axis** goes one turn away from its nearer end and back. The state machine's own move check
+   (§8B.3) judges each move, so a dead driver, a reversed lead or a slipped coupling is an encoder
+   mismatch.
+2. **The relays:** AUX, CAL, then TUNE again, each through the §5.5 sequence and confirmed by coil
+   current.
+3. **The hold latch:** with the permit up, K1 is driven directly for 50 ms. Its coil must draw nothing.
+   If the permit falls meanwhile, K1 is let go before the latch can open, and the check goes untested.
+4. **The permit:** in IDLE, with the vote given, it must read high within 50 ms. If it does not, the
+   first term reading low on the MCP23017 is named. COMMISSIONING withholds the vote, so there the
+   latch and the permit go untested, and the console says so.
+
+It runs only with no carrier and no RF, the bypass off, nothing latched, the TUNE path in use and the
+RF service panel closed (PANEL_OK). If any of those changes it stops, and if the path is not TUNE it
+puts it back as soon as the relays may move again. A run takes about 5 s. At power-up it starts once
+the boot has settled (`kBitAtPowerUp`, on by default).
+
+| Check | Grade |
+|:--|:--|
+| The original passive checks, and the hold latch | **C**: SELF-TEST FAILURE, local clear |
+| An axis | As the mechanical policy grades an encoder mismatch (§8B.4a-1): **C** under STRICT |
+| A relay | **B**: RELAY MISMATCH |
+| A detector's idle level | **B**: BUILT-IN TEST |
+| The thermistor's plausibility, and the permit's rise | **Warning** |
+
+**Reporting.** Each failed check is logged as its own event and named on the panel, the console and
+the page. The panel names it on the fault screen, under the fault it raised. Telemetry carries the
+result as a word of check bits (`bit=`), and whether a run is under way.
+
+### 8B.4i Audible alarm *(Rev 3.7c)*
+
+Nothing in the design made a sound. A fault that inhibits transmit was visible only on the panel, the
+page or the console, so it could go unnoticed until the next key-down.
+
+**Where it sounds.** The tuner sits on the garage wall, and the operator is at the radio. One alarm
+cannot serve both places, so there are two, under the same rules:
+- **At the radio: the web page.** It plays a tone and flashes its tab title. Browsers let a page make
+  sound only after a click on it, so the page has an "alarm sound here" switch, remembered by that
+  browser.
+- **At the box: a sounder on the cassette face** (§7.5), for someone standing there. It is an active
+  piezo indicator: it sounds whenever it is powered, and the firmware makes the patterns. It is switched
+  low-side from +12 V by an IRLL2705 (the board's other low-side switch), with its gate driven from the
+  MCP23017's GPA7 and pulled down, so it stays off while the expander's outputs float at power-up. The
+  part is in §10.7.
+
+**What it sounds.** One pattern, for the worst thing sounding:
+
+| Condition | Pattern |
+|:--|:--|
+| A class C latch | Fast: 150 ms on, 150 ms off |
+| An unacknowledged class B | Slow: 150 ms every 2 s |
+| Over-temperature, or the 160 m derate warning (§1.7.1) | A 60 ms chirp every 15 s |
+
+Each pattern starts with its first beep at once.
+
+**What silences it.**
+- **An ACK**, from either end, clears the B faults and so their sound.
+- **A knob press at the box** silences everything sounding at that moment, C latches included, which
+  stay latched. Someone is at the box, looking.
+- **The page's Silence button** silences the page alone. Neither silence reaches the other place, and
+  a C latch can be silenced only at the box, as it can only be cleared there.
+- **Anything new sounds again**, and so does anything that clears and comes back.
+
+The box's sounder can be turned off in the build (`kSounder`), which leaves the page's tone.
+
 ### 8B.5 Storage — two tiers, and the card may always be absent
 
 The Teensy 4.1 carries a **built-in microSD socket** on dedicated SDIO pins, so removable storage
@@ -3228,6 +3317,17 @@ not touch and which is now a firmware follow-up.
   page shows the address in use and whether saved settings are waiting. `/recovery.cfg` takes the
   same keys and the same check, and recovery mode (§8B.4f.3) is the way back from a change that leaves
   the tuner unreachable.
+- **Built-in test (§8B.4h):**
+  - **When:** the boot checks now name what failed. The active run follows 3 s after power-up and on
+    demand (the panel, the page, SELFTEST on the link, the console).
+  - **How:** it asks for its jogs and path changes through the operator's routes, so the state machine
+    and the path switch grade what they find. Only the latch check drives K1 itself.
+  - **Results:** each failed check is graded as the table says, logged as its own event and named on
+    the panel's fault screen. Telemetry carries the result as a word of check bits.
+  - **ASSUMED:** the detector windows, until bring-up.
+- **Audible alarm (§8B.4i):** one pattern for the worst fault sounding, at the box on GPA7 and on the
+  page, with an ACK, a knob press or the page's Silence button to quiet it. Telemetry carries the
+  over-temperature (`hot=`) so the page can show it and chirp.
 - **Transport:** on QNEthernet (§8C.3.3), with no call that waits.
   - The line protocol is on TCP 4600, and the page and its WebSocket are on port 80.
   - Only the tuner's own subnet is served (§8C.7), which also refuses anything port-forwarded in.

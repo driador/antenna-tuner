@@ -66,6 +66,8 @@ python3 fw/tools/gen_tables.py
 | `events` | The numbered event log that the SD log and each link client read from, so nothing is lost | §8B.5.3, §8C.6 |
 | `json`, `mirror` | The mirrored settings document, `/recovery.cfg` (network keys only), backup numbering and pruning | §8B.5.4 |
 | `derate` | The continuous power limit: the RF bay's averaged loss against its 200 W of cooling, as a warning | §1.7.1 |
+| `alarm` | The audible alarm: one pattern for the worst thing sounding, and what silences it | §8B.4i |
+| `bit` | The built-in test: the detectors' windows at rest, the active run (each axis, each relay, the hold latch, the permit), how each check is graded, and the permit term that holds the permit down | §8B.4g, §8B.4h |
 | `netcfg` | The network settings: the check a change must pass, and the key=value text the link, the console and `/recovery.cfg` share | §8B.5.3 |
 | `proto` | The line protocol: commands, refusals of local-only actions, telemetry and event lines with checksums | §8C.5 |
 | `web` | HTTP heads, the WebSocket handshake and frames, and the page | §8C.4 |
@@ -78,10 +80,10 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 
 | File | Does |
 |:--|:--|
-| `main.cpp` | The §8B.4b boot sequence: safe outputs, the recovery button, the watchdog before the permit can rise, the self-test, the restored fault record and priors. Then the 10 ms tick and the console |
+| `main.cpp` | The §8B.4b boot sequence: safe outputs, the recovery button, the watchdog before the permit can rise, the boot checks, the restored fault record and priors. Then the 10 ms tick, the built-in test and the console |
 | `board.*` | The direct pins: MCU_PERMIT and its read-back, DRV_EN, the relay commands (held in TUNE), the blower PWM and tach, LIM1–6, RTWDOG |
 | `motion.*` | Encoders over SPI, the 50 kHz step interrupt running a planned move, drivers on only while moving, the encoder check after every move |
-| `sensors.*` | V_MAG and V_PHS averaged over each 200 ms counter gate and read against the AD8302's VREF, the carrier test, the MCP23017, the tank thermistor |
+| `sensors.*` | V_MAG and V_PHS averaged over each 200 ms counter gate and read against the AD8302's VREF, the carrier test, the MCP23017, the tank thermistor, the detectors at rest for the built-in test, the alarm sounder on GPA7 |
 | `persist.*` | Two EEPROM records with their own CRCs, packed so that only changed bytes are rewritten. The authoritative one (faults, mode, calibration) is kept twice and written alternately, so a power loss mid-write leaves the older copy good. The other holds the priors and last positions |
 | `calib.*` | The calibration procedure below |
 | `panel_hw.*` | The Nextion on Serial8 (only changed rows are sent), the knobs and their pushes from the MCP23017 |
@@ -102,6 +104,7 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `cal watts <W>` | Add a forward-power point at the wattmeter reading W |
 | `jog c1\|c2\|l <turns>` | Move one element |
 | `preset <MHz>` | Pre-position for a band while receiving (below) |
+| `selftest` | Run the built-in test (below) |
 | `inspected` | Record the roller inspection (§8B.4a-1) |
 | `qual` | Show the PERMISSIVE qualification |
 | `backups`, `restore <n>`, `adopt` | List the card's versions, restore one, claim another tuner's card (§8B.5.4b) |
@@ -151,8 +154,8 @@ holds transmit off until the next reboot. Latched faults stay latched.
 **The link protocol** (§8C.5), the same on a TCP port and inside the web page's WebSocket:
 
 - **Commands:** `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE [hz]` (0.1–20 Hz; 0 stops it), `GET_LOG [from]`,
-  `PATH TUNE|AUX|CAL`, `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W), `PRESET <MHz>`, and
-  `NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]`. A malformed number
+  `PATH TUNE|AUX|CAL`, `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W), `PRESET <MHz>`, `SELFTEST`,
+  and `NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]`. A malformed number
   (`NAN`, `5X`) is refused with the usage, never read as 0.
 - **Refused by name:** mode changes, class C clears, the bypass and jogging, which are local only.
 - **Checksums:** every line ends in an NMEA-style `*HH`. A command typed by hand may leave it off.
@@ -180,6 +183,57 @@ a note on the panel and console, and a banner on the page. It never touches PTT,
 the tank's over-temperature fault stays the hard stop. Key-down at 1500 W at 1.82 MHz warns after about
 49 s; SSB at 1500 W PEP never does, nor does any other band at full power. A band with no power
 calibration counts as no power. `TLM` carries `loss=`, `lim=` and `derate=`.
+
+**The built-in test** (§8B.4h) moves to power-up the faults that would otherwise show at first use,
+and names what failed.
+
+- **When it runs:**
+  - **At every boot:** the original checks (the expander, the encoders, the AD8302's VREF, the limits,
+    the permit down, the fault record). A failure there is SELF-TEST FAILURE, as before.
+  - **At power-up:** the active run, 3 s after boot (`kBitAtPowerUp`, on by default; `kBitSettleMs`).
+  - **On demand:** the panel's Self-test, the page's button, `SELFTEST` on the link and `selftest` on
+    the console.
+- **What a run does:**
+  1. **The detectors at rest:** V_MAG and V_PHS inside their windows, the forward detector below its
+     RF threshold, the cal-load detector near its bias, the thermistor between −20 and +60 °C. The
+     windows are ASSUMED (`bit::Windows`) until bring-up reads the real idle levels.
+  2. **Each axis:** one turn away from its nearer end and back. These are ordinary jogs, so the state
+     machine's own move check judges them.
+  3. **The relays:** AUX, CAL and TUNE again, through the path switch, each confirmed by coil current.
+  4. **The hold latch:** with the permit up, K1 is driven directly for 50 ms, and its coil must draw
+     nothing.
+  5. **The permit:** it must follow the vote. If it doesn't, the console names the first term that
+     reads low on the MCP23017.
+- **Conditions:** no carrier and no RF for 0.5 s, the bypass off, nothing latched or awaiting ACK, the
+  TUNE path, and the RF service panel closed. If any changes during a run, it stops and puts the path
+  back to TUNE once the relays may move.
+- **Results and grades:**
+  - **SELF-TEST FAILURE (C):** the hold latch.
+  - **The mechanical policy:** an axis, which raises an encoder mismatch.
+  - **RELAY MISMATCH (B):** a relay.
+  - **BUILT-IN TEST (B):** a detector off at rest.
+  - **Warnings:** the thermistor and the permit.
+- **Reporting:**
+  - Each failed check is logged as its own event (`selftest check=`), and a run ends with
+    `result=passed` or `result=stopped`.
+  - The panel's fault screen names the checks under their fault, and the console says what could not
+    be judged (COMMISSIONING withholds the vote, so the latch and permit go untested).
+  - `TLM` carries `bit=`, the failed checks as a word of bits (`bit.hpp` order), and `bitrun=`.
+
+**The alarm** (§8B.4i) sounds at the box and on the page, under the same rules:
+- **Patterns:** a class C latch beeps fast (150 ms on, 150 off), an unacknowledged class B slowly (150 ms
+  every 2 s), and an over-temperature or the derate warning chirps (60 ms every 15 s). Each starts with a
+  beep at once.
+- **Silencing:**
+  - An ACK clears the B faults, and so their sound.
+  - At the box, a knob press silences everything sounding at that moment; the C latches stay latched.
+  - On the page, the Silence button quiets that page alone.
+  - Anything new sounds again, and so does anything that clears and comes back.
+- **At the box:** an active piezo sounder on the cassette face, switched from the MCP23017's GPA7.
+  `kSounder = false` in `config.hpp` turns it off and leaves the page's tone.
+- **On the page:** tick "alarm sound here" once; browsers allow sound only after a click on the page,
+  so after a reload one click anywhere re-enables it. The tab title flashes while a fault is sounding.
+  `TLM` carries `hot=` for the over-temperature.
 
 **On the network** (§8C):
 
@@ -307,11 +361,9 @@ about 3 %.
 ## Next
 
 - **Bring-up** on the built boards, per the list above, then a calibration of every band.
-- **The built-in test** of design log §8B.4g: an active check at power-up and on demand (each axis
-  out and back, each relay cycled, the hold latch, the detectors' idle levels, the permit's rise),
-  graded C / B / warning, with a result word that names the failed check. Also from that table:
-  cross-check the counter against the forward detector, watch the blower tach, name the permit term
-  that dropped, and read the imbalance CT.
+- **Continuous checks** from the §8B.4g table: cross-check the counter against the forward detector,
+  watch the blower tach, name the permit term that dropped in use (the built-in test names it only
+  when the permit fails to rise), and read the imbalance CT.
 - **Recovery mode stage 2** (§8B.4f.3): the panel's backup browser and network editor.
 - **The top of 10 m:** wider random runs show 3 of about 2,500 seeded draws at 29.700 MHz ending in
   "tune failed after 3 attempts" at SWR 14–15; find what sends those attempts astray.

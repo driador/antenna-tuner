@@ -3,9 +3,9 @@
 
 // The Teensy layer's top: the boot sequence of §8B.4b, then a fixed 10 ms tick that reads the hardware
 // into tuner::Inputs, steps the state machine and carries out its Outputs, with the RF path (§6B.2),
-// calibration (§6A.8), the local panel (§7.5), the event log, the PERMISSIVE qualification (§8B.4a-1)
-// and the SD mirror (§8B.5) around it. A USB console at the box offers the same local actions as the
-// panel (§8B.4f).
+// calibration (§6A.8), the local panel (§7.5), the event log, the PERMISSIVE qualification (§8B.4a-1),
+// the built-in test (§8B.4h) and the SD mirror (§8B.5) around it. A USB console at the box offers the
+// same local actions as the panel (§8B.4f).
 #include <Arduino.h>
 #include <Entropy.h>
 
@@ -25,6 +25,8 @@
 #include "persist.hpp"
 #include "sensors.hpp"
 #include "storage.hpp"
+#include "tuner/alarm.hpp"
+#include "tuner/bit.hpp"
 #include "tuner/derate.hpp"
 #include "tuner/events.hpp"
 #include "tuner/fsm.hpp"
@@ -68,6 +70,16 @@ uint32_t g_cal_changes = 0, g_last_ten_min = 0;
 bool g_restorable = false;             // the flash was blank or corrupt at boot: a restore may replace it
 bool g_recovery = false;               // §8B.4f.3 stage 1: DHCP, STRICT, transmit inhibited until reboot
 bool g_profiles_dirty = false;
+// The built-in test (§8B.4h).
+tuner::bit::Active g_bit;
+uint32_t g_bit_failed = 0;             // the checks failed at boot, or in the last run (TLM bit=, the panel)
+uint32_t g_bit_axis0 = 0;              // the raised counts as the run began: its own faults are the new ones
+uint16_t g_bit_relay0 = 0;
+uint16_t g_raise = 0;                  // what the last run found, raised on the next tick
+bool g_bit_due = hw::kBitAtPowerUp;    // the run at power-up, once the boot has settled
+uint32_t g_boot_ms = 0, g_last_rf_ms = 0;
+tuner::Alarm g_alarm;                  // §8B.4i
+uint32_t g_presses = 0;                // the panel's knob presses seen so far: each silences the alarm
 
 void note(const char* msg) {
     if (!msg) return;
@@ -102,6 +114,10 @@ const char* saved_time(char* buf, size_t cap) {
 const char* mode_name(tuner::Mode m) {
     return m == tuner::Mode::Commissioning ? "COMMISSIONING" : m == tuner::Mode::Strict ? "STRICT" : "PERMISSIVE";
 }
+
+// The MCU's vote in the permissive (§7.4): the state machine's, held down through a path change and in
+// recovery.
+bool vote() { return g_out.mcu_permit && !g_path_out.hold_vote && !g_recovery; }
 
 // Nothing in progress, so a path change or a jog may start.
 bool quiet() {
@@ -203,18 +219,24 @@ void restore(uint32_t n) {
     note("restored from the card");
 }
 
-const char* set_path(tuner::Path p) {                  // allowed remotely too, like a band change (§6B.4)
+// bit: the built-in test's own request; anyone else's waits until its run is over.
+const char* set_path(tuner::Path p, bool bit = false) {   // allowed remotely too, like a band change (§6B.4)
     // §5.5: the relays switch with no RF at all, and the permit holds off only the amplifier.
-    const char* why = g_sensors.carrier() || g_sensors.rf_now() ? "path: only while receiving"
+    const char* why = g_bit.running() && !bit ? "path: the self-test is running"
+                      : g_sensors.carrier() || g_sensors.rf_now() ? "path: only while receiving"
                       : !quiet() ? "path: finish what is running first"
                       : !g_path.request(p, millis()) ? "path: a change is under way" : nullptr;
     note(why ? why : p == tuner::Path::Tune ? "path TUNE" : p == tuner::Path::Aux ? "path AUX" : "path CAL");
     return why;
 }
 
-void jog(int axis, double turns) {                     // §7.5 manual override, through the state machine
+void jog(int axis, double turns, bool bit = false) {   // §7.5 manual override, through the state machine
     if (!std::isfinite(turns)) {
         note("jog c1|c2|l <turns>");
+        return;
+    }
+    if (g_bit.running() && !bit) {
+        note("jog: the self-test is running");
         return;
     }
     if (g_out.state != tuner::State::Idle || g_motion.busy()) {
@@ -228,6 +250,105 @@ void jog(int axis, double turns) {                     // §7.5 manual override,
     else t.l = v;
     g_jog = true;
     g_jog_target = t;
+}
+
+uint32_t axis_raised() {
+    return uint32_t(g_tuner->faults().raised(tuner::Fault::EncoderMismatch)) +
+           g_tuner->faults().raised(tuner::Fault::LimitHit);
+}
+
+// §8B.4h, at power-up or on demand. The plain refusals are said at once; the sequencer itself waits a
+// few seconds for the rest (a move finishing, the RF gone long enough).
+const char* start_selftest() {
+    if (g_bit.running()) return "self-test: already running";
+    if (g_sensors.carrier() || g_sensors.rf_now()) return "self-test: only while receiving";
+    if (g_sensors.iox(iox::BYPASS_KEY)) return "self-test: the bypass is engaged";
+    if (!g_sensors.iox(iox::PANEL_OK)) return "self-test: the RF service panel is open";
+    if (g_tuner->faults().any_blocking()) return "self-test: clear the faults first";
+    if (g_path.path() != tuner::Path::Tune) return "self-test: on the TUNE path only";
+    tuner::bit::Windows w;
+    w.fwd_max = hw::kFwdRfVolts;
+    g_bit.start(millis(), w);
+    g_bit_failed = 0;
+    g_bit_axis0 = axis_raised();
+    g_bit_relay0 = g_tuner->faults().raised(tuner::Fault::RelayMismatch);
+    return nullptr;
+}
+
+const char* selftest() {                               // the panel, the console and the link
+    const char* why = start_selftest();
+    note(why ? why : "self-test running");
+    return why;
+}
+
+tuner::bit::Active::In bit_in(uint32_t now) {
+    tuner::bit::Active::In b;
+    b.now_ms = now;
+    b.safe = !g_sensors.carrier() && !g_sensors.rf_now() && now - g_last_rf_ms >= hw::kBitRfQuietMs &&
+             !g_sensors.iox(iox::BYPASS_KEY) && g_sensors.iox(iox::PANEL_OK);
+    b.clear = !g_tuner->faults().any_blocking();
+    b.quiet = quiet();
+    for (int a = 0; a < 3; ++a) {
+        b.turns[a] = g_motion.turns(a);
+        b.travel[a] = hw::kAxes[a].full_turns;
+    }
+    b.axis_fault = axis_raised() != g_bit_axis0;
+    b.relay_fault = g_tuner->faults().raised(tuner::Fault::RelayMismatch) != g_bit_relay0;
+    b.path = g_path.path();
+    b.k1_current = g_sensors.k1_on();
+    b.vote = vote();
+    b.permit = hw::permit();
+    b.rest = g_sensors.rest();
+    return b;
+}
+
+// A run ended (§8B.4h): an event for each failed check, the faults behind them that nothing has raised
+// yet, and the result on the console and the panel.
+void bit_report() {
+    using tuner::bit::Check;
+    using tuner::bit::mask;
+    const uint32_t failed = g_bit.failed(), untested = g_bit.untested();
+    uint32_t hard = 0;
+    g_bit_failed = failed;
+    for (unsigned i = 0; i < unsigned(Check::Count); ++i) {
+        const Check c = Check(i);
+        if (!(failed & mask(c))) continue;
+        log_event(tuner::EventKind::SelfTest, uint8_t(i));
+        const tuner::Fault f = tuner::bit::fault_of(c);
+        if (f == tuner::Fault::Count) continue;            // a warning
+        hard |= mask(c);
+        // An axis fails on the move check's own fault, and a relay usually on the path switch's.
+        const bool raised = f == tuner::Fault::EncoderMismatch ||
+                            (f == tuner::Fault::RelayMismatch && g_tuner->faults().raised(f) != g_bit_relay0);
+        if (!raised) g_raise |= uint16_t(1u << unsigned(f));
+    }
+    if (!g_bit.completed()) log_event(tuner::EventKind::SelfTest, tuner::kSelfTestStopped);
+    else if (!hard) log_event(tuner::EventKind::SelfTest, tuner::kSelfTestPassed);
+
+    static char msg[128];
+    char list[96];
+    if (hard) {
+        tuner::bit::names(hard, list, sizeof list);
+        std::snprintf(msg, sizeof msg, "self-test FAILED: %s", list);
+        note(msg);
+    } else {
+        note(!g_bit.completed() ? "self-test stopped: run it again"
+             : failed           ? "self-test passed, with warnings"
+                                : "self-test passed");
+    }
+    if (failed & mask(Check::PermitRise)) {
+        const char* term = tuner::bit::permit_blocker(g_sensors.iox_word());
+        Serial.printf("self-test warning: the permit did not rise with the vote: %s\n",
+                      term ? term : "every term reads high, so the read-back");
+    }
+    if (failed & mask(Check::Thermistor))
+        Serial.printf("self-test warning: the tank thermistor reads %.1f C at rest\n", g_sensors.tank_c());
+    if (untested) {
+        tuner::bit::names(untested, list, sizeof list);
+        Serial.printf("self-test: not judged: %s (%s)\n", list,
+                      g_tuner->faults().mode() == tuner::Mode::Commissioning ? "COMMISSIONING withholds the vote"
+                                                                              : "the permit was not up");
+    }
 }
 
 double blower_duty(double tank_c) {
@@ -265,12 +386,13 @@ tuner::PanelView view() {
         if (g_tuner->faults().latched(tuner::Fault(i))) v.latched_c |= uint16_t(1u << i);
         if (g_tuner->faults().unacked(tuner::Fault(i))) v.unacked_b |= uint16_t(1u << i);
     }
+    v.bit_failed = g_bit_failed;
     v.over_temp = g_sensors.over_temp();
     v.bypass = g_sensors.iox(iox::BYPASS_KEY);
     const tuner::Band* b = tuner::band_of(v.mhz);
     v.cal_valid = b && g_auth.bridge[b - tuner::kBands].valid;
     v.cal_have = g_cal.have(v.mhz);
-    v.note = g_note && millis() - g_note_ms < 4000 ? g_note : nullptr;
+    v.note = g_note && millis() - g_note_ms < 4000 ? g_note : g_bit.running() ? "self-test running" : nullptr;
     v.card = g_store.present() ? (g_store.foreign() ? -1 : 1) : 0;
     v.q_tunes = g_qual.tunes;
     v.q_bands = g_qual.band_count();
@@ -295,6 +417,7 @@ void panel_request() {
         case tuner::PanelAction::CalSave: cal_save(); break;
         case tuner::PanelAction::Jog: jog(r.arg, r.detents * hw::kJogTurns); break;
         case tuner::PanelAction::Inspected: inspected(); break;
+        case tuner::PanelAction::SelfTest: selftest(); break;
     }
 }
 
@@ -304,6 +427,7 @@ void panel_request() {
 const char* preset(double mhz) {
     if (!(mhz > 0) || tuner::segment_of(mhz) < 0) return "preset: not on an amateur band";
     if (g_sensors.carrier()) return "preset: only while receiving";
+    if (g_bit.running()) return "preset: the self-test is running";
     if (g_path.path() != tuner::Path::Tune) return "preset: on the TUNE path only";
     if (g_sensors.iox(iox::BYPASS_KEY)) return "preset: the bypass is engaged";
     if (g_out.state != tuner::State::Idle || g_motion.busy()) return "preset: only in IDLE";
@@ -340,6 +464,7 @@ const char* link_command(const tuner::proto::Request& r) {
         case Cmd::CalSave: return cal_save();
         case Cmd::CalWatts: return cal_step(hw::Calibration::Step::Power, r.value);
         case Cmd::Preset: return preset(r.value);
+        case Cmd::SelfTest: return selftest();
         case Cmd::Net: return set_net(r);
         default: return "not on the link";
     }
@@ -370,6 +495,7 @@ void link_telemetry(tuner::proto::Telemetry& t) {
     t.fwd_w = g_sensors.forward_watts();
     t.at = g_motion.position();
     t.tank_c = g_sensors.tank_c();
+    t.over_temp = g_sensors.over_temp();
     for (unsigned i = 0; i < unsigned(tuner::Fault::Count); ++i) {
         if (g_tuner->faults().latched(tuner::Fault(i))) t.latched_c |= uint16_t(1u << i);
         if (g_tuner->faults().unacked(tuner::Fault(i))) t.unacked_b |= uint16_t(1u << i);
@@ -379,6 +505,8 @@ void link_telemetry(tuner::proto::Telemetry& t) {
     t.loss_w = g_derate.loss_w();
     t.limit_w = g_derate.limit_w();
     t.derate = g_derate.warning();
+    t.bit_failed = g_bit_failed;
+    t.bit_running = g_bit.running();
 }
 
 void status() {
@@ -389,15 +517,14 @@ void status() {
     if (g_net.link()) g_net.address(addr, sizeof addr);
     else std::snprintf(addr, sizeof addr, "no link");
     Serial.printf("%-9s %-4s %8.4f MHz %s  |G| %.3f /%5.1f deg  C1 %5.1f pF  C2 %5.1f pF  L %6.3f uH  tank %5.1f C  "
-                  "vote %d permit %d  iox %04X  lim %02X  C %04X B %04X  %s  card %s  net %s%s%s\n",
+                  "vote %d permit %d  iox %04X  lim %02X  C %04X B %04X  %s  card %s  net %s%s%s%s\n",
                   tuner::state_name(g_out.state), tuner::path_name(g_path.path()), g_sensors.mhz(),
                   g_sensors.carrier() ? "carrier" : "-      ", g_sensors.gamma().mag, g_sensors.gamma().theta_deg,
                   at.c1 * 1e12, at.c2 * 1e12, at.l * 1e6, g_sensors.tank_c(),
-                  g_out.mcu_permit && !g_path_out.hold_vote && !g_recovery,
-                  hw::permit(), g_sensors.iox_word(), hw::limits(), f.latched_c, f.unacked_b,
+                  vote(), hw::permit(), g_sensors.iox_word(), hw::limits(), f.latched_c, f.unacked_b,
                   mode_name(g_tuner->faults().mode()),
                   g_store.present() ? (g_store.foreign() ? "FOREIGN" : "ok") : "NONE", addr, g_recovery ? "  RECOVERY" : "",
-                  g_derate.warning() ? "  DERATE" : "");
+                  g_derate.warning() ? "  DERATE" : "", g_bit.running() ? "  SELFTEST" : "");
 }
 
 void command(const char* s) {
@@ -417,6 +544,7 @@ void command(const char* s) {
     else if (!std::strcmp(s, "cal save")) cal_save();
     else if (!std::strncmp(s, "cal watts ", 10)) cal_step(hw::Calibration::Step::Power, std::atof(s + 10));
     else if (!std::strcmp(s, "inspected")) inspected();
+    else if (!std::strcmp(s, "selftest")) selftest();
     else if (!std::strcmp(s, "qual"))
         Serial.printf("qualification: %lu/100 tunes, %d/4 bands, %.1f/50 h, inspected %s: %s\n",
                       static_cast<unsigned long>(g_qual.tunes), g_qual.band_count(), g_qual.hours(),
@@ -441,8 +569,9 @@ void command(const char* s) {
         else jog(axis, std::atof(a + (axis == 2 ? 2 : 3)));
     } else {
         Serial.println("commands: status, ack, clear, tune, mode commissioning|strict, path tune|aux|cal,");
-        Serial.println("          cal load|open|short|save, cal watts <W>, jog c1|c2|l <turns>, preset <MHz>, inspected, qual,");
-        Serial.println("          backups, restore <n>, adopt, net [mode=dhcp|static hostname= ip= netmask= gateway= dns=]");
+        Serial.println("          cal load|open|short|save, cal watts <W>, jog c1|c2|l <turns>, preset <MHz>, selftest,");
+        Serial.println("          inspected, qual, backups, restore <n>, adopt,");
+        Serial.println("          net [mode=dhcp|static hostname= ip= netmask= gateway= dns=]");
     }
 }
 
@@ -465,6 +594,7 @@ void console() {
 void tick(uint32_t now) {
     if (g_sensors.read_iox()) g_panel_hw.input(g_sensors.iox_word(), now, g_panel);
     if (!g_motion.busy()) g_motion.read_encoders();
+    if (g_sensors.carrier() || g_sensors.rf_now()) g_last_rf_ms = now;
 
     // The relay checks start once SELF-TEST is over, so that a coil reading wrong at power-up reaches
     // the state machine as a fault rather than during the one state that ignores it.
@@ -479,7 +609,22 @@ void tick(uint32_t now) {
         g_path_out = g_path.step(pin);
         if (g_path_out.canceled) note("path: keyed mid-change; retry");
     }
-    hw::set_relays(g_path_out.k1, g_path_out.k2);
+
+    // The built-in test (§8B.4h) asks for its jogs and path changes as the operator does. Only the latch
+    // check drives K1 itself, past the path switch, and only while the permit is up.
+    if (g_bit_due && now - g_boot_ms >= hw::kBitSettleMs) {
+        g_bit_due = false;
+        selftest();
+    }
+    bool bit_k1 = false;
+    if (g_bit.running()) {
+        const tuner::bit::Active::Out b = g_bit.step(bit_in(now));
+        if (b.jog_axis >= 0) jog(b.jog_axis, b.jog_turns, true);
+        if (b.path_request) set_path(b.path, true);
+        bit_k1 = b.drive_k1;
+        if (!g_bit.running()) bit_report();
+    }
+    hw::set_relays(g_path_out.k1 || bit_k1, g_path_out.k2);
 
     tuner::Inputs in;
     in.now_ms = now;
@@ -506,7 +651,9 @@ void tick(uint32_t now) {
     in.jog_target = g_jog_target;
     in.preset = g_preset;
     in.preset_mhz = g_preset_mhz;
+    in.raise = g_raise;
     g_tune = g_ack = g_clear = g_jog = g_preset = false;
+    g_raise = 0;
 
     g_out = g_tuner->step(in);
 
@@ -555,8 +702,20 @@ void tick(uint32_t now) {
         g_sensors.restart_bridge();
         g_motion.start(g_out.move_id, g_out.target, now);
     }
-    hw::set_permit(g_out.mcu_permit && !g_path_out.hold_vote && !g_recovery);
+    hw::set_permit(vote());
     hw::set_blower(g_out.blower_full ? 1.0 : blower_duty(g_sensors.tank_c()));
+
+    // The alarm (§8B.4i). A knob press at the box silences what is sounding; anything new sounds again.
+    tuner::Alarm::In al;
+    al.now_ms = now;
+    const tuner::FaultRecord fr = g_tuner->faults().persist();
+    al.latched_c = fr.latched_c;
+    al.unacked_b = fr.unacked_b;
+    al.over_temp = g_sensors.over_temp();
+    al.derate = g_derate.warning();
+    al.silence = g_panel.presses() != g_presses;
+    g_presses = g_panel.presses();
+    g_sensors.set_sounder(g_alarm.step(al) && hw::kSounder);
 
     if (g_motion.done_id() != g_finished && !g_motion.busy()) {   // a move finished: remember where
         g_finished = g_motion.done_id();
@@ -611,6 +770,11 @@ void setup() {
     const uint8_t lim = hw::limits();
     const bool permit = !hw::permit() || g_sensors.iox(iox::BYPASS_KEY);
     g_self_test = iox_ok && encoders && bridge && lim == 0 && permit;
+    using tuner::bit::Check;                               // each failure named (§8B.4h)
+    using tuner::bit::mask;
+    g_bit_failed = (iox_ok ? 0 : mask(Check::Expander)) | (encoders ? 0 : mask(Check::Encoders)) |
+                   (bridge ? 0 : mask(Check::BridgeRef)) | (lim == 0 ? 0 : mask(Check::Limits)) |
+                   (permit ? 0 : mask(Check::PermitStuck));
 
     // Step 3, what was persisted; the SELF-TEST state turns a latch or an unacknowledged B into FAULT.
     const hw::Loaded auth = hw::load(g_auth);
@@ -619,7 +783,10 @@ void setup() {
         Entropy.Initialize();
         g_auth.tuner_id = (uint64_t(Entropy.random()) << 32) | Entropy.random();
         g_restorable = true;                              // §8B.5.4b: a restore is offered, never automatic
-        if (auth == hw::Loaded::Corrupt) g_self_test = false;   // and a corrupt one is a fault first
+        if (auth == hw::Loaded::Corrupt) {               // and a corrupt one is a fault first
+            g_self_test = false;
+            g_bit_failed |= mask(Check::Record);
+        }
     }
     g_qual = g_auth.qual;
     tuner::Config cfg;
@@ -635,6 +802,8 @@ void setup() {
     g_cal.attach(&g_auth);
     g_panel_hw.begin();
     log_event(watchdog_reset ? tuner::EventKind::WatchdogReset : tuner::EventKind::Boot);
+    for (unsigned i = 0; i < unsigned(Check::Count); ++i)
+        if (g_bit_failed & (1u << i)) log_event(tuner::EventKind::SelfTest, uint8_t(i));
 
     // The SD card (§8B.5): /recovery.cfg once, if present (§8B.5.4c), and the restore offer.
     g_store.begin(g_auth.tuner_id);
@@ -677,7 +846,7 @@ void setup() {
     for (int i = 0; i < 3; ++i) g_conv.last_turns[i] = float(g_motion.turns(i));
     persist();
     hw::watchdog_feed();
-    g_last_tick = g_last_second = g_last_panel = millis();
+    g_last_tick = g_last_second = g_last_panel = g_boot_ms = millis();
 }
 
 void loop() {

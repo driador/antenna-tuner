@@ -6,18 +6,19 @@
 #include <cstdarg>
 #include <cstdio>
 
+#include "tuner/bit.hpp"
 #include "tuner/freq.hpp"
 
 namespace tuner {
 
 namespace {
 const char* const kMenu[] = {"Faults", "Tune now", "RF path", "Fault policy", "Calibrate this band",
-                             "Jog elements", "< back"};
+                             "Jog elements", "Self-test", "< back"};
 const char* const kModes[] = {"COMMISSIONING", "STRICT", "PERMISSIVE"};
 const char* const kPaths[] = {"TUNE", "AUX", "CAL"};
 const char* const kCalSteps[] = {"1 load: CAL, key ~10 W", "2 open at AUX, key", "3 short at AUX, key",
                                  "4 save this band"};
-constexpr int kMenuItems = 7, kChoices = 4, kPolicyItems = 7, kCalItems = 5, kJogItems = 4;
+constexpr int kMenuItems = 8, kChoices = 4, kPolicyItems = 7, kCalItems = 5, kJogItems = 4;
 constexpr int kMaxEntries = 2 * int(Fault::Count) + 1;   // every fault as C or B, and the over-temperature
 
 const char* explain(Fault f) {
@@ -30,6 +31,7 @@ const char* explain(Fault f) {
         case Fault::EncoderMismatch: return "check coupler, belt, magnet";
         case Fault::SelfTestFail: return "see the USB console report";
         case Fault::RelayMismatch: return "K1/K2 did not follow command";
+        case Fault::BuiltInTest: return "a detector is off at rest";
         default: return "";
     }
 }
@@ -113,6 +115,7 @@ void Panel::turn(int knob, int detents) {
 }
 
 void Panel::push(int knob) {
+    ++presses_;
     if (knob == 1) {                                   // right push: back
         open(screen_ == Screen::Menu || screen_ == Screen::Monitor ? Screen::Monitor : Screen::Menu);
         return;
@@ -123,8 +126,9 @@ void Panel::push(int knob) {
             break;
         case Screen::Menu: {
             static const Screen kTo[] = {Screen::Faults, Screen::Monitor, Screen::Path, Screen::Policy,
-                                         Screen::Cal, Screen::Jog, Screen::Monitor};
+                                         Screen::Cal, Screen::Jog, Screen::Monitor, Screen::Monitor};
             if (cursor_ == 1) request(PanelAction::Tune);
+            if (cursor_ == 6) request(PanelAction::SelfTest);   // §8B.4h, from the box
             open(kTo[cursor_]);
             break;
         }
@@ -208,8 +212,10 @@ void Panel::render(char rows[kRows][kCols + 1], int& highlight) const {
             Entry e[kMaxEntries];
             const int nf = entries(v, e);
             for (int i = 0; i < nf; ++i) {
+                char named[kCols + 1];
                 put(lines[n++], "%c  %s", e[i].cls, fault_name(e[i].f));
-                put(lines[n++], "   %s", explain(e[i].f));
+                put(lines[n++], "   %s", bit::names(bit::behind(v.bit_failed, e[i].f), named, sizeof named) ? named
+                                                                                                      : explain(e[i].f));
             }
             if (v.latched_c || v.unacked_b) {
                 const bool ready = deepest_ >= n - 1;

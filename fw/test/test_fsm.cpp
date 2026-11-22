@@ -55,6 +55,7 @@ struct Plant {
     bool mismatch = false, stall = false, self_test_ok = true;
     bool ack = false, local_clear = false, tune_request = false;   // one-tick pulses
     bool tune_path = true, relay_mismatch = false, jog = false;   // the last two one-tick
+    uint16_t raise = 0;                           // one-tick
     Setting jog_target;
     bool preset = false;                          // one-tick
     double preset_mhz = 0;
@@ -107,6 +108,7 @@ struct Plant {
         in.local_clear = local_clear;
         in.tune_path = tune_path;
         in.relay_mismatch = relay_mismatch;
+        in.raise = raise;
         in.jog = jog;
         in.jog_target = jog_target;
         in.preset = preset;
@@ -124,6 +126,7 @@ struct Plant {
 
         const Outputs o = tu.step(in);
         tune_request = ack = local_clear = relay_mismatch = jog = preset = false;
+        raise = 0;
         if (visited.empty() || visited.back() != o.state) {
             visited.push_back(o.state);
             if (trace) {
@@ -610,6 +613,25 @@ TEST(relay_mismatch_is_class_b) {
     Outputs o = p.tick(tu);
     CHECK(o.state == State::Fault && tu.faults().unacked(Fault::RelayMismatch) && !o.mcu_permit);
     p.ack = true;
+    CHECK(run_for(tu, p, 5).state == State::Idle);
+}
+
+TEST(built_in_test_faults_are_raised_here) {
+    // §8B.4h: what the Teensy layer's built-in test finds goes through the same policy and FAULT state.
+    Tuner tu(config());
+    Plant p;
+    p.carrier = false;
+    run_for(tu, p, 3);
+    p.raise = uint16_t(1u << unsigned(Fault::BuiltInTest));
+    Outputs o = p.tick(tu);
+    CHECK(o.state == State::Fault && tu.faults().unacked(Fault::BuiltInTest) && !o.mcu_permit);
+    p.ack = true;
+    CHECK(run_for(tu, p, 5).state == State::Idle);
+    p.raise = uint16_t(1u << unsigned(Fault::SelfTestFail));   // the hold latch: C, cleared only at the box
+    p.tick(tu);
+    p.ack = true;
+    CHECK(run_for(tu, p, 5).state == State::Fault && tu.faults().latched(Fault::SelfTestFail));
+    p.local_clear = true;
     CHECK(run_for(tu, p, 5).state == State::Idle);
 }
 
