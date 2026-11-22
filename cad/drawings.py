@@ -224,9 +224,10 @@ def near_vertex(view, pt, center):
     return "Vertex%d" % min(range(len(vs)), key=lambda k: (vs[k].x - tx) ** 2 + (-vs[k].y - ty) ** 2)
 
 
-def tag(doc, page, view, letter, pt, center, offset):
+def tag(doc, page, view, letter, pt, center, offset, kink=None):
     """Lettered balloon on `view`: leader from model point `pt` (in, view plane), bubble `offset` page mm away.
-    `center` is the model point (in) TechDraw centers the view on (its 2-D bounding-box center)."""
+    `center` is the model point (in) TechDraw centers the view on (its 2-D bounding-box center). kink: the
+    leader's horizontal shoulder, mm (0: none, so it cannot run under a neighboring bubble)."""
     b = doc.addObject("TechDraw::DrawViewBalloon", "Tag")
     b.SourceView = view
     page.addView(b)  # adding to the page resets the position, so set it afterwards
@@ -236,6 +237,8 @@ def tag(doc, page, view, letter, pt, center, offset):
     b.X, b.Y = ox + offset[0] * k, oy + offset[1] * k
     b.Text = letter
     b.BubbleShape = "Circular"
+    if kink is not None:
+        b.KinkLength = kink
     return b
 
 
@@ -257,18 +260,21 @@ def sheet_assembly(doc):
     ec = ((P["ASM_X"][0] + P["ASM_X"][1]) / 2,
           (P["SHAFT_Z"][0] + max(P["ROD_Z"][1], P["SHAFT_Z"][1])) / 2)
 
-    def at(item, x, z, bx, by):  # leader from model (x, z) to a bubble at page (bx, by)
+    def at(item, x, z, bx, by, kink=None):  # leader from model (x, z) to a bubble at page (bx, by)
         px, py = 95 + (x - ec[0]) * IN * 0.5, 150 + (z - ec[1]) * IN * 0.5
-        tag(doc, page, front, str(item), (x, z), ec, (bx - px, by - py))
+        tag(doc, page, front, str(item), (x, z), ec, (bx - px, by - py), kink)
 
     zA, zB = P["Z_PLATE_A"], P["Z_PLATE_B"]
+    # The top row: leaders straight out of their bubbles (a shoulder runs under the next bubble), 16 apart.
+    # 30, 9 and 8 all end on the bus-rod line (x 130 on the page): on each side of it the bubble further out
+    # takes the lower end, so no two leaders cross.
     top = 247
-    at(10, P["POST_XY"][0][0], 5.5, 88, top)                     # frame post, in front of the wiper
-    at(30, P["BUS_R"], (zA[1] + P["BUS_Z"][0]) / 2, 102, top)
-    at(8, P["BUS_R"], 5.0, 116, top)
+    at(10, P["POST_XY"][0][0], 5.5, 96, top, kink=0)             # frame post, in front of the wiper
+    at(30, P["BUS_R"], (zA[1] + P["BUS_Z"][0]) / 2, 112, top, kink=0)
     # guide rod sits directly behind the bus rod here; only its stub above plate B is visible
-    at(9, P["BUS_R"], zB[1] + 0.2, 130, top)
-    at(14, P["CARR_X"][1] - 0.05, P["WIPER_Z"], 144, top)
+    at(9, P["BUS_R"], zB[1] + 0.2, 128, top, kink=0)
+    at(8, P["BUS_R"], 5.0, 144, top, kink=0)
+    at(14, P["CARR_X"][1] - 0.05, P["WIPER_Z"], 160, top, kink=0)
     at(1, -1.8, (zB[0] + zB[1]) / 2, 34, 222)
     at(4, -2.5, P["Z_TOP_CAGE"] - 0.25, 34, 208)
     at(3, -2.0, 6.8, 34, 194)
@@ -280,8 +286,9 @@ def sheet_assembly(doc):
     # B-B cutting-plane markers on the elevation, at the wheel center
     z_lo, z_hi = P["SHAFT_Z"][0], max(P["ROD_Z"][1], P["SHAFT_Z"][1])
     y_b = 150 + (P["WIPER_Z"] - (z_lo + z_hi) / 2) * IN * 0.5
-    for x in (95 - 52, 95 + 48):
-        note(doc, page, ["B ——"], x, y_b, 4)
+    # the letters outside the part: the right one clear of the carriage, short of the height dimension
+    note(doc, page, ["B ——"], 95 - 52, y_b, 4)
+    note(doc, page, ["—— B"], 95 + 52, y_b, 4)
     # detail D: the wiper corner of B-B, pre-cut in roller.py (a TechDraw detail of B-B never finishes)
     wcut = load(doc, "roller-section-bb-wiper.step")
     d = view(doc, page, wcut, (0, 0, 1), 1.3, 335, 207, "DetailD", (1, 0, 0), coarse=True)

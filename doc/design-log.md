@@ -208,6 +208,34 @@ Source location: <https://github.com/driador/antenna-tuner>.
     - **Alarm:** sounds at the box and on the page, with one pattern for the worst fault sounding.
     - **Sounder:** a Floyd Bell TMC-86-530-W on the cassette face (E-202, G; §10.7), switched by Q5 from
       the MCP23017's GPA7 through J12 (§10.5).
+22. **Drawings dimensioned** (Appendix B):
+    - **Panel sheets (E-202 to E-208, E-218):**
+      - Every cutout's center is an ordinate on the view, measured from the lower-left corner (0) on
+        one baseline per edge.
+      - Every cutout is labeled beside it with its tag and size.
+      - The compound cutouts each have a detail with every size: the display window, the D-subs, the
+        IEC inlet and the RJ45.
+      - **Perimeter holes:** each row or column is an equal spread. Its two end holes carry the
+        ordinates, a label says how many and any position left out, and each sheet's fastener table
+        gives the row's FROM, TO, pitch and AT. The side panels' wall-flange bolt holes are tagged WF.
+    - **Bulkhead and partition:** on a sheet each. The partition moved from E-208 to the new
+      **TUNER-E-218**.
+    - **Small parts (E-209 and the new TUNER-E-219):** their flat faces carry ordinates and labels
+      like the panels.
+      - **E-209:** the motor axis bracket's top and motor plates, the sampler baseplate, and the choke
+        base disc and spider with their bolt circles called out.
+      - **E-219:** the cassette tray and rails (moved from E-209) and both legs of the wall flange.
+      - **New holes:** the axis bracket's four #10 screws to the shelf are now drilled in the model, in
+        the bracket and around each bushing hole in the shelf (C1, C2, R on E-207). The sampler
+        baseplate's six standoffs are SB1–SB6, in the plate and in the floor (E-206).
+      - **Wall flange:** its bolt holes moved 0.014″ onto the side panels' rear post line.
+      - **E-210:** the parts list adds the bracket and baseplate hardware.
+    - **Clips:** the bulkhead and partition clips' holes are now features, tagged W on the plates, the
+      floor and the shelf. Each plate's clip table says which hole mates which.
+    - **New sheet TUNER-E-217:** the clip itself, its holes dimensioned, and how it mounts.
+    - **E-201:** the corner clip's holes and legs are dimensioned, with a true view of one junction's
+      wall from inside.
+    - **L-100:** the balloon leaders no longer cross or start under a neighboring bubble.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -782,8 +810,8 @@ cracking 6061-T6 exhibits at tight radii.
 
 **Box:** 16.00″ W × 16.00″ D × **24.00″ H** (Rev 3.7c; §3.0 height closure), wall-mounted vertical
 stack. **Cut list, nesting and frame are on the drawings, not tabulated here:** **TUNER-E-201**
-(6061-T6 angle cut list), **E-202 to E-209** (panels with cutouts and fastener patterns, small
-parts), **E-210** (parts list and hardware counts) and **E-211** (nesting); stock quantities in
+(6061-T6 angle cut list), **E-202 to E-209** and **E-219** (panels with cutouts and fastener
+patterns, small parts), **E-210** (parts list and hardware counts) and **E-211** (nesting); stock quantities in
 §10.11. Confirm every panel height and stock quantity against the E-sheets regenerated for the
 24.00″ box (Rev 3.7c) before ordering.
 
@@ -799,7 +827,7 @@ thermal warping and oil-canning, and seal the RF bay behind a permanent wall.
   - **Faces:** outer faces stay flush for the panels and gasket.
   - **Cassette corners:** at the cassette rings' four front corners the clip's front leg stops at the
     post, because the tray slides past. Their 1/2″ front members ride on the floor and shelf screws.
-- **Bulkhead and partition mounting (TUNER-E-208, Rev 3.7c).**
+- **Bulkhead and partition mounting (TUNER-E-208, E-218 and E-217, Rev 3.7c).**
   - **Clips:** each 12 ga plate is held by eight 1/2 × 1/2 × 1/8 × 1.0″ clip angles, four at the floor
     and four at the shelf. Floor legs take 8-32 up through the floor and shelf legs 8-32 down from the
     RF bay, each with a nyloc on the clip.
@@ -807,9 +835,11 @@ thermal warping and oil-canning, and seal the RF bay behind a permanent wall.
     the control side and comes out the front without touching them.
   - **Partition (fixed):** floor clips on its motor side, shelf clips on its sampler side, through holes
     with nylocs.
-  - **Positions:** in E-208's table. They clear the axis modules, the connector plugs and harnesses,
-    the sampler baseplate and the driver board (interference-checked). Match-drill the plates, floor
-    and shelf through the clips.
+  - **Positions:** each clip's holes are dimensioned features: W1–W8 on each plate (bulkhead E-208,
+    partition E-218), on the floor (E-206) and on the shelf (E-207). Each plate's clip table says which
+    hole mates which. The clip itself and how it sits are on E-217. Every position clears the axis modules, the connector plugs
+    and harnesses, the sampler baseplate and the driver board (interference-checked). Drill the holes
+    to their drawings, or fix the clips and match-drill through them.
   - **No side clips:** the earlier "to floor, shelf and sides" dropped the sides. The lower side panels
     are removable, and between the rings there is no frame member to land on.
 - 8-32 stainless button-head screws into rivnuts in the frame flanges, pattern per **TUNER-E-210**
@@ -2120,7 +2150,7 @@ analog grade gives ~36 dB from the RC alone, before the D-sub's shell bond to th
 | Control → RF Tank | Filtered DE-9 J-E at the bulkhead, then discrete 0.01 µF feedthroughs FT1–FT4 in the shelf (all four used; item 16) |
 | **Motor → RF Tank** | **Insulated shaft only. No wires.** |
 
-### 7.3a Connector allocation *(Rev 3.7a — TUNER-E-208)*
+### 7.3a Connector allocation *(Rev 3.7a — TUNER-E-208, E-218)*
 
 All filtered D-subs are **Amphenol FCE17** (formerly FCC17), C-filter, solder cup, 0.120″ mounting
 holes; front-mount cutouts DB-25 **1.744 × 0.512″, holes 1.852″ apart**; DE-9 (J-E, J-F) per the
@@ -3819,7 +3849,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 26 | **Used vacuum variable acceptance test** — both caps, per §5.1b and `doc/vacuum-cap-testing.md` | **OPEN — bench test** |
 | 27 | **Homebuilt roller — R-1 = C decided (Rev 3.7b)** — build the 34 µH / 5.2″ / 22-turn roller, no series link (§5.3a); drawings TUNER-L-100 to L-109 regenerated for it (2026-11-16). Run the §5.3a commissioning checks. The Harris / 229-class roller in hand is a spare (§11.5) | **OPEN — blocks 160 m above ~145 W until built** |
 | 28 | ~~Roller orientation~~ — **RESOLVED Rev 3.7** by the vertical stack (§3.0): every element stands upright on a vertical shaft, so element length goes into height. The 34 µH roller at 5.2″ (11.547″ over the plates, §5.3a) and the 9.62″ CB-154 both fit in the 24.00″ box (§3.0 closure; 22.00″ until Rev 3.7c); no right-angle drive. Confirm in the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
-| 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 24″ tall since Rev 3.7c (22″ in 3.7b)**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one 36 × 48 of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Frame junctions detailed Rev 3.7c (E-201: corner clips, 60 flush #6 flat heads). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
+| 29 | ~~Enclosure re-derivation~~ — **Done Rev 3.7a, 24″ tall since Rev 3.7c (22″ in 3.7b)**: frame cut list (TUNER-E-201), every panel with cutouts and fastener pattern (E-202 to E-208), small parts (E-209, E-219), parts list with hardware counts (E-210), nesting — one 48 × 48 of 14 ga and one 36 × 48 of 12 ga (E-211). Supersedes the 16 × 16 × 12″ tables (now §11.2). Frame junctions detailed Rev 3.7c (E-201: corner clips, 60 flush #6 flat heads). Remaining: the mock-up (item 5) | **RESOLVED** (mock-up to confirm) |
 | 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay — the input choke under the deck is now part of that 200 W (Rev 3.7c, §6; its own key-down check is item 49); the run also gives the bay's thermal time constant, which the firmware's derate averaging assumes is ~2 min (§8B.6); (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
 | 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″) and Rev 3.7c (24.00″ — the box grew with the deck, so nothing above it moved):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
@@ -3833,7 +3863,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 40 | ~~Filtered bulkhead connectors~~ — **Resolved Rev 3.7a (§7.3a):** Amphenol FCE17 DB-25 1000 pF (J-A), DB-25 5600 pF (J-B, J-S), DE-9 5600 pF (J-E, Rev 3.7b; was DA-15); Spectrum Control 9910-381-6002 power feedthroughs; Tusonix 2499 discrete feedthroughs. Connectors moved to the +Y half, clear of the C1 axis module and the PSU; plug envelopes checked | **RESOLVED** |
 | 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout. *Rev 3.7c:* the Adafruit 6070 microSD extender's hole (1.00″) is likewise from its ~30 mm body. Also check its depth behind the face: the control board is 0.68″ back, and the model assumes 0.55″. The TMC-86-530-W sounder's hole (1.065″) is from Floyd Bell's drawing, and its depth (0.9″) is estimated: its bezel height is not dimensioned | **OPEN — check in hand** |
 | 42 | ~~Link coil has no RF-bay position~~ — **RESOLVED Rev 3.7b:** series link and pad deleted (§5.2, §5.4); the deck holds only C1, C2 and the roller. The imbalance CT rides the output conductors at the top feedthroughs and the tank thermal is a small probe — neither needs deck area. Original entry in §11.6 | **RESOLVED** |
-| 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-208, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
+| 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-218, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
 | 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly: the 28–31 MHz resonance must sit above ~30.5 MHz.** If it lands in-band: slimmer rib contact at the notches, or fewer idle turns | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
 | 45 | ~~Re-run `cap_demand.py` bare~~ — **RESOLVED Rev 3.7b** (`nec/cap_demand.py`, output `cap_demand_rev37b.out`): **27/27** with either 15 kV C1 (C1 25–286 pF, C2 up to 675 pF); V_C1 6.54 kV pk (1.38×), V_C2 2.41 kV pk (2.49×), **V_L 6.55 kV pk / 4.63 kV RMS**, I_L 18.4 A; 160 m derates **527 / 630 / 935 W** network only (§1.7.1; 502 / 600 / 882 W with the choke in the RF bay since Rev 3.7c); no other band derates (worst 138 W at Q = 150). **Inductance actually required: 22.3 µH** — the 31.70 µH figure was the lowest-current policy maxing L on 40 m. Prefer **CVDD-500-15S** for C1 (20 pF floor) | **RESOLVED** |
 | 47 | ~~Roller size~~ — **DECIDED Rev 3.7b: keep the 34 µH roller** (5.2″, 22 turns). Required L is ≤ 23.1 µH across feeder 39–42 ft / VF 0.93–0.97 (always at 1.800 MHz), so the drawn coil still covers if it winds up to ~30% under Wheeler (AB6WP saw 27%), and leaves headroom for other antennas or feeders on 160 m. A ~26 µH coil (5.2″ × 18 t) would save ~1.3″ of height but keep only ~8% worst-case margin. Item 44 (idle-turn SRF) is settled by the VNA sweep, not by shrinking | **DECIDED** |
@@ -4244,9 +4274,13 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | 16 | Corner clip | 1-1/2 × 1-1/2 × 1/8 6061-T6 × 7/8″, two Ø0.144″ holes per leg (4 with the front leg cut to 7/8″, one hole) — fabricate on a drill jig | Fabricate | E-201 |
 | 60 | Flat-head screw | **#6-32 × 1/2″, 82°, stainless** — frame junctions, countersunk flush in the frame legs | Part | E-201 |
 | 60 | Nyloc nut | #6-32 stainless — frame junctions, inside | Part | E-201 |
-| 16 | Bulkhead / partition clip | 1/2 × 1/2 × 1/8 6061-T6 × 1.0″, one hole per leg; bulkhead clips' plate legs tapped 8-32 (PEM CLS-832-1 alternative) | Fabricate | E-208 |
-| 32 | Machine screw | **8-32 stainless button head** — 16 × 1/2″ (floor / shelf legs), 8 × 3/8″ (partition), 8 × 1/4″ (bulkhead, into the tapped legs) | Part | E-208 |
-| 24 | Nyloc nut | 8-32 stainless — floor / shelf legs and the partition | Part | E-208 |
+| 16 | Bulkhead / partition clip | 1/2 × 1/2 × 1/8 6061-T6 × 1.0″, one hole per leg; bulkhead clips' plate legs tapped 8-32 (PEM CLS-832-1 alternative) | Fabricate | E-217 |
+| 32 | Machine screw | **8-32 stainless button head** — 16 × 1/2″ (floor / shelf legs), 8 × 3/8″ (partition), 8 × 1/4″ (bulkhead, into the tapped legs) | Part | E-217 |
+| 24 | Nyloc nut | 8-32 stainless — floor / shelf legs and the partition | Part | E-217 |
+| 12 | Machine screw | **#10-32 × 1/2″ stainless** — the three axis brackets to the shelf, down from the RF bay (shelf C1, C2, R patterns) | Part | E-209 |
+| 12 | Nyloc nut | #10-32 stainless — under the axis brackets' top plates, reached through their open sides | Part | E-209 |
+| 6 | Hex standoff | 1/4″ hex × 1/4″ long, 8-32 female both ends, aluminum — sampler baseplate to the floor (SB1–SB6) | Class | E-209 |
+| 12 | Machine screw | 8-32 stainless button head × 3/8″ — the baseplate standoffs, up through the floor and down through the plate | Part | E-209 |
 | 384 | Machine screw | **8-32 stainless button head**, 1/2″ — 344 panel holes (TUNER-E-210) + spares | Part | E-210 |
 | 384 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
 | ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
@@ -4374,7 +4408,7 @@ case. §9 item 14 requires **measuring** which regime the modified amplifier act
 before the opto-MOSFET and its cable are finalized.
 
 **G-1 · Gasket strategy — RESOLVED Rev 3.7a: conductive elastomer** on the frame flanges
-(TUNER-E-202 to E-208; §8E.6). *Options history in §11.7.*
+(TUNER-E-202 to E-208, E-218; §8E.6). *Options history in §11.7.*
 
 **L-1 · Choke turn count** — *resolved Rev 3.7c:* 15 turns of RG-400 on 5 × FT-240-61 (§6). The installed VNA sweep (§9 item 49) may take off a turn; 12 ft of RG-400 covers any outcome.
 
@@ -4405,7 +4439,7 @@ text was written.
 
 ### 11.1 Side-column enclosure (Rev 3.3–3.6)
 
-*Superseded by the Rev 3.7 vertical stack (§3.0; TUNER-E-200 to E-216).*
+*Superseded by the Rev 3.7 vertical stack (§3.0; TUNER-E-200 to E-219).*
 
 #### Rev 3.3–3.6 side-column layout *(SUPERSEDED by §3.0)*
 
@@ -5064,7 +5098,7 @@ after fabrication.
 
 #### From §10.14 — DECISION G-1 note
 
-**G-1 · Gasket strategy — RESOLVED Rev 3.7a: conductive elastomer** on the frame flanges (TUNER-E-202 to E-208). Original note:  — §8E.6: conductive elastomer (one part, both jobs, needs flange
+**G-1 · Gasket strategy — RESOLVED Rev 3.7a: conductive elastomer** on the frame flanges (TUNER-E-202 to E-208, E-218). Original note:  — §8E.6: conductive elastomer (one part, both jobs, needs flange
 flatness) **or** two gaskets in parallel channels (more machining, forgiving of flatness). §9 item
 19 makes this dependent on forming flanges first. **Expensive to revisit after fabrication.**
 
@@ -5361,7 +5395,7 @@ wiper geometry, which §5.3a specifies by function only, has been reviewed.
 <div class="drawing-sheet"><img src="sheets/L-109-install.svg" alt="TUNER-L-109 — Roller installation in the RF bay: stack section, plan, holes, clearances"/><p>TUNER-L-109 — Roller installation in the RF bay: stack section, plan, holes, clearances</p></div>
 
 
-## Appendix B — Enclosure Drawings (TUNER-E-200 to E-216)
+## Appendix B — Enclosure Drawings (TUNER-E-200 to E-219)
 
 Draft fabrication drawings for the wall-mounted, modular vertical-stack enclosure (§3.0 Rev 3.7a),
 generated from `cad/enclosure.py` by `cad/drawings_enclosure.py`. Every panel's
@@ -5385,9 +5419,9 @@ against the roller, caps, deck and drive trains. DRAFT — NOT FOR FABRICATION u
 
 <div class="drawing-sheet"><img src="sheets/E-207-shelf.svg" alt="TUNER-E-207 — Grounded shelf"/><p>TUNER-E-207 — Grounded shelf</p></div>
 
-<div class="drawing-sheet"><img src="sheets/E-208-bulkhead.svg" alt="TUNER-E-208 — Bulkhead (filtered connectors) and partition"/><p>TUNER-E-208 — Bulkhead (filtered connectors) and partition</p></div>
+<div class="drawing-sheet"><img src="sheets/E-208-bulkhead.svg" alt="TUNER-E-208 — Bulkhead: filtered connectors, clip holes and connector details"/><p>TUNER-E-208 — Bulkhead: filtered connectors, clip holes and connector details</p></div>
 
-<div class="drawing-sheet"><img src="sheets/E-209-small-parts.svg" alt="TUNER-E-209 — Cassette tray and rails, axis bracket, sampler baseplate, wall flange"/><p>TUNER-E-209 — Cassette tray and rails, axis bracket, sampler baseplate, wall flange</p></div>
+<div class="drawing-sheet"><img src="sheets/E-209-small-parts.svg" alt="TUNER-E-209 — Motor axis bracket, sampler baseplate, choke base and spider"/><p>TUNER-E-209 — Motor axis bracket, sampler baseplate, choke base and spider</p></div>
 
 <div class="drawing-sheet"><img src="sheets/E-210-exploded.svg" alt="TUNER-E-210 — Exploded view and parts list"/><p>TUNER-E-210 — Exploded view and parts list</p></div>
 
@@ -5402,6 +5436,12 @@ against the roller, caps, deck and drive trains. DRAFT — NOT FOR FABRICATION u
 <div class="drawing-sheet"><img src="sheets/E-215-wire-list.svg" alt="TUNER-E-215 — Wire list with cut lengths"/><p>TUNER-E-215 — Wire list with cut lengths</p></div>
 
 <div class="drawing-sheet"><img src="sheets/E-216-choke.svg" alt="TUNER-E-216 — Input choke assembly: half section, section at mid-winding, exploded view and parts list"/><p>TUNER-E-216 — Input choke assembly: half section, section at mid-winding, exploded view and parts list</p></div>
+
+<div class="drawing-sheet"><img src="sheets/E-217-wall-clips.svg" alt="TUNER-E-217 — Bulkhead and partition clips: the clip, its holes, and how it mounts at the floor and shelf"/><p>TUNER-E-217 — Bulkhead and partition clips: the clip, its holes, and how it mounts at the floor and shelf</p></div>
+
+<div class="drawing-sheet"><img src="sheets/E-218-partition.svg" alt="TUNER-E-218 — Motor / sampler partition: connectors, clip holes and connector detail"/><p>TUNER-E-218 — Motor / sampler partition: connectors, clip holes and connector detail</p></div>
+
+<div class="drawing-sheet"><img src="sheets/E-219-tray-flange.svg" alt="TUNER-E-219 — Cassette tray and rails, wall flange"/><p>TUNER-E-219 — Cassette tray and rails, wall flange</p></div>
 
 ## Appendix C — Control and Measurement Boards (KiCad)
 

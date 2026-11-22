@@ -47,6 +47,7 @@ X_PART = X_BULK + T12 + MOTOR_D                  # motor / sampler partition (fi
 AXES = {"C1": (R.CAP_X[0], R.CAP_Y), "C2": (R.CAP_X[1], R.CAP_Y), "ROLLER": (R.ROLLER_X, R.ROLLER_Y)}
 MOTOR_SQ, MOTOR_L = R.MOTOR_BODY                 # NEMA 23 body, length per DECISION M-2
 Z_MOTOR_FACE = R.Z_SHELF - 1.75                  # motor face: encoder pulley 0.6 + coupler A 1.0 + plate below the shelf
+BRK_PAT, BRK_SCREW = (2.10, 1.66), 0.201         # axis bracket to the shelf: 4 x #10 on this rectangle (Y x X)
 ENC_MODULE = {"C1": (+1, 1.20), "C2": (-1, 1.20), "ROLLER": (+1, 1.20)}   # side (+/-X) and length of each
                                                   # encoder / limit-cam module beside its bracket (7.1, 7.2)
 
@@ -119,6 +120,7 @@ BLOWER = dict(x=3.40, z=H - 5.0, hole=4.57, pitch=4.134, screw=0.18)   # 120 mm,
 # ---- wall flanges (L-brackets on the two rear corners) ----
 WF_LEG, WF_T, WF_Z = 2.0, 0.1875, (1.0, H - 2.0)   # 2 x 2 x 3/16 6061 angle, H - 3 long (21" at 24")
 WF_SLOTS = (2.5, H / 2 - 0.5, H - 3.5)           # lag slots up the wall leg (Z)
+WF_SLOT, WF_HOLE = (0.40, 0.75), 0.210           # slot across x along the leg; side-leg holes (8-32, with slop)
 
 
 def angle(origin, u, v, length, axis, a=ANG, b=ANG, t=ANG_T):
@@ -323,7 +325,8 @@ def _rot_z_to(o):
 class Panel:
     """A flat panel seen from outside: origin = lower-left corner on the outside face; U to the right,
     V up, n outward; thickness t inward. edges: inset of the fastener line from each edge, or None.
-    cutouts: (tag, kind, u, v, size, note) with kind rect | hole | conn | fan | dsub | dflat | ddflat | rect+ | hole+."""
+    cutouts: (tag, kind, u, v, size, note) with kind rect | hole | hole4 | conn | fan | dsub | dflat | ddflat | rect+ |
+    hole+."""
 
     def __init__(self, name, origin, U, V, n, L, Hh, t, edges, cutouts=(), rows=(), forced=(), gauge="14 GA",
                  notes=()):
@@ -342,8 +345,9 @@ class Panel:
                 if any(math.hypot(u - cu - du, v - cv - dv) <= d / 2 + KEEP_OUT for du, dv, d in size[1]):
                     return True
                 kind, size = kind[:-1], size[0]
-            if kind in ("rect", "dsub", "fan"):
-                w, h = (FAN_FRAME, FAN_FRAME) if kind == "fan" else size[:2]   # fan: its 120 mm square frame
+            if kind in ("rect", "dsub", "fan", "hole4"):
+                w, h = (FAN_FRAME, FAN_FRAME) if kind == "fan" else \
+                    (size[2] + size[1], size[3] + size[1]) if kind == "hole4" else size[:2]   # fan: its 120 mm frame
                 if abs(u - cu) <= w / 2 + KEEP_OUT and abs(v - cv) <= h / 2 + KEEP_OUT:
                     return True
             elif math.hypot(u - cu, v - cv) <= (size[0] if kind in ("dflat", "ddflat") else size) / 2 + KEEP_OUT:
@@ -401,6 +405,36 @@ class Panel:
             out.append((u, v))
         return out + list(self.forced)
 
+    def fastener_rows(self):
+        """The perimeter holes as the drawings give them: [(edge, horizontal, at, first, last, n, omitted)],
+        each an even spread from `first` to `last` along the edge (u for a horizontal row, v for a column)
+        at `at` across it, less the `omitted` positions (a cutout or a forced hole took them). The forced
+        holes are in self.forced."""
+        holes = {(round(u, 4), round(v, 4)) for u, v in self.fastener_holes()}
+        e = self.edges
+        out = []
+
+        def add(edge, horiz, at, a, b):
+            pts = self._spread(a, b)
+            if not pts:
+                return
+            gone = [x for x in pts if ((round(x, 4), round(at, 4)) if horiz else (round(at, 4), round(x, 4))) not in holes]
+            out.append((edge, horiz, at, pts[0], pts[-1], len(pts), gone))
+        if e.get("bottom") is not None:
+            add("BOTTOM", True, e["bottom"], CORNER_C, self.L - CORNER_C)
+        if e.get("top") is not None:
+            add("TOP", True, self.H - e["top"], CORNER_C, self.L - CORNER_C)
+        for v in self.rows:
+            add(f"ROW {v:.3f}", True, v, CORNER_C, self.L - CORNER_C)
+        lo = (e.get("bottom") or 0) + 0.9
+        hi = self.H - (e.get("top") or 0) - 0.9
+        for a_, b_ in self._post_segments(lo, hi):
+            if e.get("left") is not None:
+                add("LEFT", False, e["left"], a_, b_)
+            if e.get("right") is not None:
+                add("RIGHT", False, self.L - e["right"], a_, b_)
+        return out
+
     def edge_summary(self):
         """[(edge, count, pitch, inset)] for the drawing notes."""
         holes = self.fastener_holes()
@@ -441,7 +475,12 @@ class Panel:
                 for du, dv, d in size[1]:
                     p -= self._cut_hole(u + du, v + dv, d)
                 kind, size = kind[:-1], size[0]
-            if kind in ("rect", "dsub"):
+            if kind == "hole4":             # a hole with four around it on a centered rectangle: (dia, d, a, b)
+                p -= self._cut_hole(u, v, size[0])
+                for du in (-size[2] / 2, size[2] / 2):
+                    for dv in (-size[3] / 2, size[3] / 2):
+                        p -= self._cut_hole(u + du, v + dv, size[1])
+            elif kind in ("rect", "dsub"):
                 p -= self._cut_rect(u, v, *size[:2])
                 if kind == "dsub":
                     for du in (-size[2] / 2, size[2] / 2):
@@ -469,8 +508,9 @@ class Panel:
 
     def meta(self):
         return {"name": self.name, "L": self.L, "H": self.H, "t": self.t, "gauge": self.gauge,
-                "n": tuple(self.n), "U": tuple(self.U), "cutouts": self.cutouts,
+                "n": tuple(self.n), "U": tuple(self.U), "V": tuple(self.V), "o": tuple(self.o), "cutouts": self.cutouts,
                 "edges": self.edge_summary(), "fasteners": len(self.fastener_holes()),
+                "fastener_rows": self.fastener_rows(), "forced": list(self.forced),
                 "perimeter": 2 * (self.L + self.H), "notes": self.notes}
 
 
@@ -517,7 +557,7 @@ def panels():
             P.append(Panel(f"{side} {zone} panel", (ox, sy * W / 2, z0), U, (0, 0, 1), (0, sy, 0),
                            2 * F, z1 - z0, T14, dict(left=SIDE_E, right=SIDE_E, bottom=eb, top=et), cut,
                            forced=forced,
-                           notes=[f"WALL-FLANGE BOLTS AT THE REAR POST LINE ({', '.join(f'{z:.1f}' for z in FLANGE_Z if z0 < z < z1)} ABOVE THE FLOOR) USE LONGER SCREWS"]
+                           notes=[f"WF: WALL-FLANGE BOLTS AT THE REAR POST LINE ({', '.join(f'{z:.1f}' for z in FLANGE_Z if z0 < z < z1)} ABOVE THE FLOOR), LONGER SCREWS"]
                            if forced else []))
     top_cut = [(f"F{i + 1}", "hole", W / 2 - y, FT_X + D / 2, FT_HOLE,
                 ">= 10 kV CERAMIC OUTPUT FEEDTHROUGH (8D); INSULATING DUST COVER OVER BOTH (8D.6)")
@@ -526,10 +566,19 @@ def panels():
                    dict(left=E1, right=E1, bottom=E1, top=E1), top_cut, gauge="12 GA",
                    notes=["FIXED. FEEDTHROUGHS 6.03 APART, PARALLEL TO THE WALL"]))
     fl_cut = [(t, k, y + W / 2, x + D / 2, sz, nt) for t, k, x, y, sz, nt in FLOOR_IO]
+    fl_cut += [(f"W{i + 1}", "hole", y + W / 2, x + D / 2, WCLIP_HOLE,
+                f"{pl.upper()} FLOOR CLIP (E-208): 8-32 x 1/2 BUTTON HEAD UP, NYLOC ON THE CLIP")
+               for i, (pl, x, y) in enumerate(clip_leg_holes("floor"))]
+    fl_cut += [(f"SB{i + 1}", "hole", y + W / 2, x + D / 2, SCREW_D,
+                "SAMPLER BASEPLATE STANDOFF (E-209): 1/4 HEX 8-32 F-F, 8-32 x 3/8 BUTTON HEAD UP")
+               for i, (x, y) in enumerate(SAMP_SO)]
     P.append(Panel("floor", (-D / 2, -W / 2, 0), (0, 1, 0), (1, 0, 0), (0, 0, -1), W, D, T12,
                    dict(left=E1, right=E1, bottom=W / 2 - (F - SANG / 2), top=E1), fl_cut, gauge="12 GA",
                    notes=["SEEN FROM BELOW, REAR AT THE TOP. ALL LOW-VOLTAGE I/O"]))
-    sh_cut = [(t, "hole", F - y, x + F, d, nt) for t, x, y, d, nt in shelf_holes()]
+    sh_cut = [(t, "hole4" if isinstance(d, tuple) else "hole", F - y, x + F, d, nt) for t, x, y, d, nt in shelf_holes()]
+    sh_cut += [(f"W{i + 1}", "hole", F - y, x + F, WCLIP_HOLE,
+                f"{pl.upper()} SHELF CLIP (E-208): 8-32 x 1/2 DOWN FROM THE RF BAY, NYLOC UNDER THE CLIP")
+               for i, (pl, x, y) in enumerate(clip_leg_holes("shelf"))]
     nn = ANG + 0.03
     for i, (cu, cv) in enumerate(((nn / 2, nn / 2), (2 * F - nn / 2, nn / 2), (nn / 2, 2 * F - nn / 2),
                                   (2 * F - nn / 2, 2 * F - nn / 2))):
@@ -547,14 +596,22 @@ def panels():
               (ANG + 0.04, ANG_T + 0.02), "RING-LEG NOTCH")]
     bio = [(t, k, yh - y, z - Z_FLOOR, sz, nt) for t, k, y, z, sz, nt in BULKHEAD_IO]
     pio = [(t, k, yh - y, z - Z_FLOOR, sz, nt) for t, k, y, z, sz, nt in PARTITION_IO]
+    hp = Z_SH0 - Z_FLOOR
+
+    def plate_clips(plate, screw):               # each clip's plate-leg hole, as the plate sees it
+        return [(f"W{i + 1}", "hole", yh - y, WCLIP_MID if e == "floor" else hp - WCLIP_MID, WCLIP_HOLE,
+                 f"{e.upper()} CLIP: {screw}; MATCH-DRILL THROUGH THE CLIP")
+                for i, (e, _s, y) in enumerate(WALL_CLIPS[plate])]
+    bio += plate_clips("bulkhead", "8-32 x 1/4 FROM THE CONTROL SIDE INTO ITS TAPPED LEG")
+    pio += plate_clips("partition", "8-32 x 3/8 + NYLOC")
     P.append(Panel("bulkhead", (X_BULK, yh, Z_FLOOR), (0, -1, 0), (0, 0, 1), (-1, 0, 0), 2 * yh, Z_SH0 - Z_FLOOR,
                    T12, {}, bio + notch, gauge="12 GA",
                    notes=["REMOVABLE: 8 CLIP ANGLES ON ITS MOTOR SIDE (4 FLOOR, 4 SHELF); 8-32 FROM THE CONTROL SIDE",
-                          "INTO THE TAPPED CLIP LEGS. HOLES MATCH-DRILLED FROM THE CLIPS (CLIP TABLE). GASKETED"]))
+                          "INTO THE TAPPED CLIP LEGS (W1-W8: DRILL TO THE TABLE, OR MATCH-DRILL THROUGH THE CLIPS). GASKETED"]))
     P.append(Panel("motor/sampler partition", (X_PART, yh, Z_FLOOR), (0, -1, 0), (0, 0, 1), (-1, 0, 0), 2 * yh,
                    Z_SH0 - Z_FLOOR, T12, {}, pio + notch, gauge="12 GA",
-                   notes=["FIXED: 8 CLIP ANGLES (4 FLOOR ON THE MOTOR SIDE, 4 SHELF ON THE SAMPLER SIDE), 8-32 + NYLOC,",
-                          "MATCH-DRILLED FROM THE CLIPS (CLIP TABLE). SAMPLER LINES PER 7.3 / 9 ITEM 38"]))
+                   notes=["FIXED: 8 CLIP ANGLES (4 FLOOR ON THE MOTOR SIDE, 4 SHELF ON THE SAMPLER SIDE), 8-32 + NYLOC",
+                          "(W1-W8: DRILL TO THE TABLE, OR MATCH-DRILL THROUGH THE CLIPS). SAMPLER LINES PER 7.3 / 9 ITEM 38"]))
     return P
 
 
@@ -587,6 +644,17 @@ WALL_CLIPS = {  # plate: [(edge, side, y)]; side +1 = toward +X (bulkhead's moto
 }
 WCLIP = (SANG, ANG_T, 1.00)                      # leg, thickness, length
 WCLIP_HOLE, WCLIP_TAP = 0.177, 0.136             # 8-32 clearance; 8-32 tap drill (bulkhead plate legs)
+WCLIP_MID = WCLIP[1] + (WCLIP[0] - WCLIP[1]) / 2  # each leg's hole, from the heel: the middle of its flat
+
+
+def clip_leg_holes(edge):
+    """[(plate, x, y)]: the hole in each floor or shelf clip leg, bulkhead clips first (W1... on E-206 / E-207)."""
+    out = []
+    for plate, x0 in (("bulkhead", X_BULK), ("partition", X_PART)):
+        for e, s, y in WALL_CLIPS[plate]:
+            if e == edge:
+                out.append((plate, (x0 + T12 if s > 0 else x0) + s * WCLIP_MID, y))
+    return out
 
 SHELF_EXTRA = [  # (tag, x, y, dia, note) beyond the drive-axis bushings
     ("COAX", -4.0, R.CAP_Y + 2.4, 0.625, "COAX BULKHEAD, SAMPLER -> C1 (3.0); OVER THE MOTOR CHAMBER, NOT CONTROL"),
@@ -598,7 +666,8 @@ PANEL_SW_Y = -5.15     # RF service-panel reed sensor (FT4): centered between th
 def shelf_holes():
     rows = []
     for tag, (x, y) in AXES.items():
-        rows.append((tag if tag != "ROLLER" else "R", x, y, R.SHELF_HOLE, "G10 SHAFT BUSHING, FLANGED BRONZE 3/8 BORE"))
+        rows.append((tag if tag != "ROLLER" else "R", x, y, (R.SHELF_HOLE, BRK_SCREW, *BRK_PAT),
+                     "G10 SHAFT BUSHING, BRONZE 3/8 BORE; AXIS BRACKET (E-209): 4 x #10-32 DOWN, NYLOCS UNDER"))
     rows += SHELF_EXTRA
     for i, (x, y, d) in enumerate(SHELF_FT):
         rows.append((f"FT{i + 1}", x, y, d, "FEEDTHROUGH 0.01 uF 12-28, TUSONIX 2499-003-X5W0-103ZLF: THERMAL 1, CT 2, RETURN 3, PANEL SW 4"))
@@ -643,6 +712,9 @@ def axis_module(name, x, y):
     t = 0.125
     hx = MOTOR_SQ / 2 + 0.02                      # bracket no longer than the motor along X
     top = plate(x - hx, x + hx, y - 1.5, y + 1.5, Z_SH0 - t, Z_SH0) - Pos(x, y, Z_SH0) * Cylinder(0.75, 1)
+    for dx in (-BRK_PAT[1] / 2, BRK_PAT[1] / 2):    # 4 x #10 down from the RF bay, nylocs under this plate
+        for dy in (-BRK_PAT[0] / 2, BRK_PAT[0] / 2):
+            top -= Pos(x + dx, y + dy, Z_SH0) * Cylinder(BRK_SCREW / 2, 1)
     mp_z = Z_MOTOR_FACE
     mplate = plate(x - hx, x + hx, y - 1.5, y + 1.5, mp_z, mp_z + t) - Pos(x, y, mp_z) * Cylinder(0.76, 1)
     for dx in (-0.928, 0.928):
@@ -668,6 +740,8 @@ def axis_module(name, x, y):
 # 0.3 in off the partition, centered under J-S. Component side toward +X; seen from it the board's
 # left edge is at -Y and its top is up, so KiCad x runs along +Y and KiCad y down -Z.
 Z_SAMP_BASE = Z_FLOOR + 0.25 + T12               # top of the sampler baseplate
+# its standoffs (1/4 hex, 8-32 F-F): clear of the floor connectors' bodies, the parts on it and the bottom ring
+SAMP_SO = [(x, y) for x in (3.55, 6.60) for y in (-6.2, 0.0, 6.2)]
 MEAS_W, MEAS_H = 100 / 25.4, 74 / 25.4
 MEAS_X = X_PART + T12 + 0.4                      # board back face
 MEAS_Y0 = 3.2 - MEAS_W / 2                       # left (-Y) edge, centered on J-S
@@ -705,6 +779,8 @@ def sampler():
         if x > X_PART and t in FLOOR_BODY:
             _kind, wy, dx, _h = FLOOR_BODY[t]
             base -= plate(x - dx / 2 - 0.15, x + dx / 2 + 0.15, y - wy / 2 - 0.15, y + wy / 2 + 0.15, 0, 1)
+    for xs, ys in SAMP_SO:
+        base -= Pos(xs, ys, 0) * Cylinder(SCREW_D / 2, 60)
     zb = Z_SAMP_BASE
     # (the input choke left this chamber in Rev 3.7c: its deck side must not cross grounded bulkheads, see choke())
     # board, tallest part 0.45 in (the 100 uF); the J-S ribbon's IDC socket on J4; each edge SMA's plug
@@ -918,10 +994,57 @@ def wall_flanges():
         # one leg lies on the side panel (bolted through it into the corner post), the other in the
         # wall plane, flush with the rear panel and reaching past the side for the lag slots
         for z in WF_SLOTS:
-            ang -= Pos(W / 2 - WF_T / 2, sy * (W / 2 + WF_LEG * 0.6), z) * Box(1, 0.40, 0.75)
-        for z in FLANGE_Z:
-            ang -= Pos(W / 2 - 0.55, sy * W / 2, z) * Rot(90, 0, 0) * Cylinder(0.105, 1)
+            ang -= Pos(W / 2 - WF_T / 2, sy * (W / 2 + WF_LEG * 0.6), z) * Box(1, *WF_SLOT)
+        for z in FLANGE_Z:                          # on the side panels' rear post line (WF, E-203 / E-204)
+            ang -= Pos(F - SIDE_E, sy * W / 2, z) * Rot(90, 0, 0) * Cylinder(WF_HOLE / 2, 1)
         out.append(("wall flange", ang))
+    return out
+
+
+def part_faces():
+    """The small parts' flat faces for E-209 / E-219, each its own plate in its own (u, v) (u = X, v = Y, seen
+    from +Z) with a panel-like record, so they get the panels' ordinates and labels (ordinate.py): the axis
+    bracket's top and motor plates, the sampler baseplate, and the wall flange's two legs."""
+    out = []
+
+    def face(name, L, Hh, t, cutouts, holes, slots=()):
+        p = plate(0, L, 0, Hh, 0, t)
+        for u, v, d in holes:
+            p -= Pos(u, v, 0) * Cylinder(d / 2, 60)
+        for u, v, w, h in slots:
+            p -= Pos(u, v, 0) * Box(w, h, 60)
+        export_step(mm(p), str(OUT / f"enc-part-{name.replace(' ', '-')}.step"))
+        out.append({"name": name, "L": L, "H": Hh, "t": t, "cutouts": cutouts, "fastener_rows": [], "forced": []})
+
+    def four(u, v, d, a, b):
+        return [(u + sx * a / 2, v + sy * b / 2, d) for sx in (-1, 1) for sy in (-1, 1)]
+
+    hx = MOTOR_SQ / 2 + 0.02                     # the bracket's plates: 3.00 across (u, its Y) x 2 hx along (v, its X)
+    c = (1.5, hx)
+    face("axis bracket top plate", 3.0, 2 * hx, 0.125,
+         [("", "hole4", *c, (1.50, BRK_SCREW, *BRK_PAT), "")], [(*c, 1.50)] + four(*c, BRK_SCREW, *BRK_PAT))
+    face("axis bracket motor plate", 3.0, 2 * hx, 0.125,
+         [("", "hole4", *c, (1.52, 0.21, 1.856, 1.856), "")], [(*c, 1.52)] + four(*c, 0.21, 1.856, 1.856))
+    # the sampler baseplate seen from above, front (the partition side) at the bottom: u = 6.6 - y, v = x - x0
+    x0 = X_PART + T12 + 0.1
+    L, Hh = 13.2, X_IN - 0.15 - 0.15 - x0
+    cut, slots = [], []
+    for t, _k, x, y, _sz, _nt in FLOOR_IO:
+        if x > X_PART and t in FLOOR_BODY:
+            _kind, wy, dx, _h = FLOOR_BODY[t]
+            w, h = wy + 0.3, dx + 0.3
+            cut.append((t, "rect", 6.6 - y, x - x0, (w, h), f"CLEARS FLOOR {t}"))
+            slots.append((6.6 - y, x - x0, w, h))
+    so = [(f"SB{i + 1}", "hole", 6.6 - y, x - x0, SCREW_D, "STANDOFF") for i, (x, y) in enumerate(SAMP_SO)]
+    face("sampler baseplate", L, Hh, T12, cut + so, [(u, v, SCREW_D) for _t, _k, u, v, _s, _n in so], slots)
+    # the wall flange's legs, face-on, the heel at the bottom (v = 0) and its lower end at the left (u = 0)
+    n = WF_Z[1] - WF_Z[0]
+    face("wall flange wall leg", n, WF_LEG, WF_T,
+         [("", "rect", z - WF_Z[0], WF_LEG * 0.6, (WF_SLOT[1], WF_SLOT[0]), "SLOT") for z in WF_SLOTS], [],
+         [(z - WF_Z[0], WF_LEG * 0.6, WF_SLOT[1], WF_SLOT[0]) for z in WF_SLOTS])
+    hv = W / 2 - (F - SIDE_E)
+    face("wall flange side leg", n, WF_LEG, WF_T,
+         [("", "hole", z - WF_Z[0], hv, WF_HOLE, "") for z in FLANGE_Z], [(z - WF_Z[0], hv, WF_HOLE) for z in FLANGE_Z])
     return out
 
 
@@ -1246,7 +1369,7 @@ def main():
              ["wall flange (2 x 2 x 3/16)", 2, WF_Z[1] - WF_Z[0], WF_LEG],
              ["corner clip (1-1/2 x 1-1/2 x 1/8)", 16, CLIP_H, CLIP_LEG],
              ["bulkhead / partition clip (1/2 x 1/2 x 1/8)", 16, 1.0, SANG]]
-    meta = {"report": report, "panels": [p.meta() for p in P], "choke": choke_meta,
+    meta = {"report": report, "panels": [p.meta() for p in P], "choke": choke_meta, "parts": part_faces(),
             "frame_extra": extra,
             "nesting": {g: {"sheet": sh, "parts": pl, "area": a} for g, (sh, pl, a) in nest_res.items()},
             "flat_parts": flat_parts(),
