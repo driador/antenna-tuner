@@ -9,7 +9,7 @@ Inches throughout. Enclosure frame (shared with roller.py's installation sheet):
   Z = up from the underside of the floor
 Design basis: design log §3.0 (vertical stack), §3.2 (clearances), §4 (bolted 6061 angle frame,
 5052 panels), §8 (air path), §8D (output feedthroughs), §8E (sealing), Rev 3.7a decisions:
-split upper/lower side panels, conductive-elastomer gaskets (G-1), wall mount on L-bracket
+split upper/lower side panels, silicone foam gaskets (G-1), wall mount on L-bracket
 flanges, front service panels, control cassette, motor axis modules. Values marked ASSUMED are
 component envelopes or choices not yet fixed in the log.
 
@@ -57,6 +57,15 @@ Y_STRIP = 3.6                                    # tray stops here; the +Y strip
 Z_TRAY = Z_FLOOR + CASS_RAIL                     # tray underside
 CASS_CLEAR = (Z_SH0 - SANG) - (Z_TRAY + T12)     # component height that clears the front opening
 PSU = (7.64, 1.02, 2.17)                         # Mean Well UHP-200-24 on edge (W x D x H), 9 item 39
+# Its bracket (8A.1, E-219): 2 x 3 x 3/16 6061 angle, the 2 leg cut to 1.00 and the 3 leg upright against the
+# supply's base. The supply hangs on 4 x M3 through its base's corner notches (188 x 42 mm on its drawing),
+# PSU_LIFT above the flat leg so it clears the angle's inside fillet; the flat leg takes 2 x #8-32 down
+# through the tray, nylocs under, between the rails.
+PSU_BRK = (7.75, 1.0, 3.0, 0.1875)               # length, flat leg, upright, thickness
+PSU_LIFT = 0.25                                  # the supply's base edge above the flat leg
+PSU_HOLES = (3 / 25.4, 191 / 25.4, 6.5 / 25.4, 48.5 / 25.4)   # along the supply, then up its base, from its corner
+M3_TAP = 0.0984                                  # 2.5 mm tap drill
+NUT8 = (0.36, 0.25)                              # #8-32 nyloc and the screw's tail under the tray: dia, depth
 BOARD = (5.5, 0.75, 3.6)                         # ASSUMED control board on standoffs, upright
 DISPLAY = (3.957, 2.163, 0.55)                   # Nextion NX4832K035 board + standoffs (7.5)
 
@@ -525,12 +534,12 @@ def panels():
     P = []
     P.append(Panel("RF service panel", (-W / 2, D / 2, Z_SPLIT), (0, -1, 0), (0, 0, 1), (-1, 0, 0),
                    W, Z_TOP - Z_SPLIT, T14, dict(left=E1, right=E1, bottom=V_SPLIT_UP, top=ANG / 2),
-                   notes=["RF BAY SERVICE PANEL: CAPTIVE SCREWS, CONDUCTIVE-ELASTOMER GASKET ON THE FRAME"]))
+                   notes=["CAPTIVE SCREWS, SILICONE FOAM GASKET ON THE FRAME (G-1)."]))
     face_cut = [(t, k, xl, zb, sz, nt) for t, k, xl, zb, sz, nt in UI]
     P.append(Panel("cassette face", (-W / 2, D / 2, Z_FLOOR), (0, -1, 0), (0, 0, 1), (-1, 0, 0),
                    W, Z_SPLIT - Z_FLOOR, T14,
                    dict(left=E1, right=E1, bottom=SANG / 2, top=Z_SPLIT - (Z_SH0 - SANG / 2)), face_cut,
-                   notes=["CONTROL CASSETTE FACE: CARRIES THE UI; 100-MESH Cu SCREEN BONDED BEHIND THE DISPLAY (7.5)"]))
+                   notes=["CARRIES THE UI; 100-MESH Cu SCREEN BONDED BEHIND THE DISPLAY (7.5)."]))
     rear_rows = [Z_SH0 - ANG / 2 - Z_FLOOR, Z_SH1 + ANG / 2 - Z_FLOOR]
     P.append(Panel("rear panel", (W / 2, -D / 2, Z_FLOOR), (0, 1, 0), (0, 0, 1), (1, 0, 0),
                    W, Z_TOP - Z_FLOOR, T14, dict(left=E1, right=E1, bottom=ANG / 2, top=ANG / 2), rows=rear_rows,
@@ -548,7 +557,7 @@ def panels():
                 cut.append(("A", "rect", INTAKE["x"] + F, INTAKE["z"] - z0, (INTAKE["w"], INTAKE["h"]),
                             "INTAKE: FILTER + 1/8 HONEYCOMB + 30-40 MESH SCREEN OUTSIDE (8, 8E.3)"))
             if side == "left" and zone == "lower":     # blower lead enters at the control chamber
-                cut.append(("B", "dsub", F + FAN_ENTRY[0], FAN_ENTRY[1] - z0, DE9,
+                cut.append(("B", "dsub", F - FAN_ENTRY[0], FAN_ENTRY[1] - z0, DE9,
                             "FILTERED DE-9, 5600 pF: BLOWER +12 V / GND / TACH - FCE17-E09SM-290; LEAD IN FLEX CONDUIT"))
             if side == "left" and zone == "upper":
                 cut.append(("A", "fan", F - BLOWER["x"], BLOWER["z"] - z0, BLOWER["hole"],
@@ -616,7 +625,7 @@ def panels():
 
 
 DB25, DA15, DE9 = (1.744, 0.512, 1.852), (1.200, 0.512, 1.312), (0.875, 0.512, 0.984)   # cutout w x h, hole pitch
-FAN_ENTRY = (-6.0, 3.6)                          # (x, z) of the blower-lead DE-9 on the left lower panel
+FAN_ENTRY = (-5.6, 3.1)                          # (x, z) of the blower-lead DE-9 on the left lower panel, off the hole lines
 BULKHEAD_IO = [  # (tag, kind, y, z, size, note) on the control/motor bulkhead, world y / z: the +y half is clear of
     # the C1 axis module on the motor side and of the PSU on the control side; plugs mate from the control side
     ("A", "dsub", 4.0, 4.2, DB25, "FILTERED DB-25, 1000 pF: CONTROL -> MOTOR (STEP/DIR/EN, SPI, LIM) - FCE17-B25SM-250"),
@@ -681,17 +690,48 @@ def shelf_holes():
     return rows
 
 
+def psu_mount():
+    """Where the supply and its bracket sit on the tray (8A.1, E-219): the bracket's heel x, its -Y end, the
+    supply's box, its four M3 holes (y, z) and the two #8 holes through the flat leg and the tray (x, y)."""
+    x1 = X_BULK - 0.15
+    yw = F - ANG - 0.15
+    zc = Z_TRAY + T12
+    heel, y0 = x1 - 0.1, -yw + 0.3                # heel 0.1 off the tray's end; the supply's -Y end
+    L, flat, up, t = PSU_BRK
+    yb = y0 - (L - PSU[0]) / 2                    # the bracket, centered on the supply
+    xp1 = heel - t                                # the supply's base against the upright
+    z0 = zc + t + PSU_LIFT
+    box = (xp1 - PSU[1], xp1, y0, y0 + PSU[0], z0, z0 + PSU[2])
+    m3 = [(y0 + a, z0 + b) for a in PSU_HOLES[:2] for b in PSU_HOLES[2:]]
+    n8 = [(heel - 0.6, yb + 1.5), (heel - 0.6, yb + L - 1.5)]   # mid flat leg; clear of the -Y rail's band
+    return heel, yb, box, m3, n8
+
+
 def cassette():
-    """[(name, shape)]: face (front lower panel with the UI), tray, rails and component envelopes."""
+    """[(name, shape)]: face (front lower panel with the UI), tray, rails, the supply's bracket and component
+    envelopes."""
     out = []   # the face itself is a Panel (panels())
     x0, x1 = -X_IN + SANG + 0.02, X_BULK - 0.15   # behind the front 1/2 lip
     yw = F - ANG - 0.15                          # tray clears the side bottom-ring legs
-    out.append(("cassette tray", plate(x0, x1, -yw, Y_STRIP, Z_TRAY, Z_TRAY + T12)))
+    zc = Z_TRAY + T12
+    heel, yb, box, m3, n8 = psu_mount()
+    tray = plate(x0, x1, -yw, Y_STRIP, Z_TRAY, Z_TRAY + T12)
+    for x, y in n8:
+        tray -= Pos(x, y, Z_TRAY) * Cylinder(SCREW_D / 2, 1)
+    out.append(("cassette tray", tray))
     for sy, y in ((-1, -yw + 0.6), (1, Y_STRIP - 0.6)):
         out.append(("cassette rail", angle((x0, y, Z_FLOOR), (0, 0, 1), (0, -sy, 0),
                                            x1 - x0, (1, 0, 0), a=SANG, b=SANG)))
-    zc = Z_TRAY + T12
-    out.append(("PSU envelope", plate(x1 - PSU[1] - 0.1, x1 - 0.1, -yw + 0.3, -yw + 0.3 + PSU[0], zc, zc + PSU[2])))
+    L, flat, up, t = PSU_BRK
+    brk = angle((heel, yb, zc), (-1, 0, 0), (0, 0, 1), L, (0, 1, 0), a=flat, b=up, t=t)
+    for y, z in m3:
+        brk -= Pos(heel, y, z) * Rot(0, 90, 0) * Cylinder(M3_TAP / 2, 1)
+    for x, y in n8:
+        brk -= Pos(x, y, zc) * Cylinder(SCREW_D / 2, 1)
+    out.append(("PSU bracket", brk))
+    for x, y in n8:                               # the nylocs and screw tails under the tray, between the rails
+        out.append(("PSU bracket nut", Pos(x, y, Z_TRAY - NUT8[1] / 2) * Cylinder(NUT8[0] / 2, NUT8[1])))
+    out.append(("PSU envelope", plate(*box)))
     out.append(("control board envelope", plate(x1 - BOARD[1] - 1.5, x1 - 1.5, Y_STRIP - 0.1 - BOARD[0], Y_STRIP - 0.1, zc + 0.2,
                                                 zc + 0.2 + BOARD[2])))
     yd, zd = D / 2 - (UI[0][2] - DISPLAY_OFF), Z_FLOOR + UI[0][3]
@@ -928,7 +968,7 @@ def export_choke_detail():
     det = choke_detail()
     screws = Compound([s for i, _, s in det if i in (9, 10)])
     det = [(i, n, s - screws if n == "standoff" else s) for i, n, s in det]   # tapped: screws show engaged
-    stub = 2.3
+    stub = 2.0                                    # the shelf and deck either side, clear of the sheet's border
     shelf = plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, Z_SH0, Z_SH1)
     deck = plate(CHOKE_X - stub, CHOKE_X + stub, CHOKE_Y - stub, CHOKE_Y + stub, R.Z_DECK, R.Z_DECK + R.DECK_T)
     quarter = Pos(CHOKE_X + 5, CHOKE_Y - 5, 5) * Box(10, 10, 20)
@@ -1045,6 +1085,20 @@ def part_faces():
     hv = W / 2 - (F - SIDE_E)
     face("wall flange side leg", n, WF_LEG, WF_T,
          [("", "hole", z - WF_Z[0], hv, WF_HOLE, "") for z in FLANGE_Z], [(z - WF_Z[0], hv, WF_HOLE) for z in FLANGE_Z])
+    # the cassette tray from above, front (the cassette face) at the bottom: u = Y_STRIP - y, v = x - x0. Only the
+    # supply bracket's two holes are dimensioned; the board's and the DC-DCs' match the parts fitted (E-219).
+    tx0, tx1 = -X_IN + SANG + 0.02, X_BULK - 0.15
+    heel, yb, _box, m3, n8 = psu_mount()
+    th = [(f"PB{i + 1}", "hole", Y_STRIP - y, x - tx0, SCREW_D, "PSU BRACKET") for i, (x, y) in enumerate(n8)]
+    face("cassette tray", Y_STRIP + F - ANG - 0.15, tx1 - tx0, T12, th, [(u, v, d) for _t, _k, u, v, d, _n in th])
+    # the supply bracket's legs face-on, u along the bracket (both hole patterns are symmetric end to end): the
+    # upright with v from the flat leg's underside, the flat leg with v from its cut edge to the heel
+    L, flat, up, t = PSU_BRK
+    zc = Z_TRAY + T12
+    hu = [("", "hole", y - yb, z - zc, M3_TAP, "M3 TAP") for y, z in m3]
+    face("PSU bracket upright", L, up, t, hu, [(u, v, d) for _t, _k, u, v, d, _n in hu])
+    hf = [("", "hole", y - yb, flat - (heel - x), SCREW_D, "") for x, y in n8]
+    face("PSU bracket flat leg", L, flat, t, hf, [(u, v, d) for _t, _k, u, v, d, _n in hf])
     return out
 
 
@@ -1326,7 +1380,7 @@ def main():
     named = dict()
     for n, s in parts:
         named.setdefault(n, s)
-    for n in ("cassette tray", "cassette rail", "C1 axis bracket", "sampler baseplate", "wall flange"):
+    for n in ("cassette tray", "cassette rail", "C1 axis bracket", "sampler baseplate", "wall flange", "PSU bracket"):
         export_step(mm(named[n]), str(OUT / f"enc-{slug(n)}.step"))
     # input choke mount (E-209): base disc, spider, and the stack with shelf / deck stubs for the elevation
     export_step(mm(ch["choke base"]), str(OUT / "enc-choke-base.step"))
@@ -1337,7 +1391,7 @@ def main():
     export_step(mm(Compound([s for _, s in choke()] + ref)), str(OUT / "enc-choke-assembly.step"))
     choke_meta = export_choke_detail()
     explode = {"RF service panel": (-6, 0, 2), "cassette face": (-9, 0, -1), "cassette tray": (-9, 0, -1),
-               "cassette rail": (-9, 0, -1), "rear panel": (6, 0, 0), "top panel": (0, 0, 6), "floor": (0, 0, -6),
+               "cassette rail": (-9, 0, -1), "PSU bracket": (-9, 0, -1), "rear panel": (6, 0, 0), "top panel": (0, 0, 6), "floor": (0, 0, -6),
                "wall flange": (9, 0, 0), "bulkhead": (-5, 0, -1)}
     ex = []
     for n, s in parts:
@@ -1367,6 +1421,7 @@ def main():
     rails = X_BULK - 0.15 - (-X_IN + SANG + 0.02)
     extra = [["cassette rail (1/2 x 1/2 x 1/8)", 2, round(rails, 3), SANG],
              ["wall flange (2 x 2 x 3/16)", 2, WF_Z[1] - WF_Z[0], WF_LEG],
+             ["PSU bracket (2 x 3 x 3/16)", 1, PSU_BRK[0], PSU_BRK[2], "2 LEG CUT TO 1.00 (E-219)"],
              ["corner clip (1-1/2 x 1-1/2 x 1/8)", 16, CLIP_H, CLIP_LEG],
              ["bulkhead / partition clip (1/2 x 1/2 x 1/8)", 16, 1.0, SANG]]
     meta = {"report": report, "panels": [p.meta() for p in P], "choke": choke_meta, "parts": part_faces(),

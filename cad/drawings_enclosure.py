@@ -56,10 +56,10 @@ def sheet_overview(doc):
     overall(doc, page, fr, y=False, gap=6)
     overall(doc, page, lf, gap=6)
     overall(doc, page, pl, gap=6)
-    label(doc, page, "FRONT  1:6.7", 62, 132)
-    label(doc, page, "LEFT SIDE (WALL AT LEFT)", 150, 132)
+    label(doc, page, "FRONT  1:6.7", 62, 125)
+    label(doc, page, "LEFT SIDE (WALL AT LEFT)", 150, 125)
     label(doc, page, "TOP (WALL AT TOP)", 238, 146)
-    label(doc, page, "CUTAWAY: RF + LEFT PANELS OFF", 345, 118)
+    label(doc, page, "CUTAWAY: RF + LEFT PANELS OFF", 345, 112)
     note(doc, page, [
         "LAYOUT (REV 3.7c):",
         "1. VERTICAL STACK 16 W x 16 D x 24 H, REAR FLUSH ON THE WALL ON TWO 2 x 2 L-FLANGES.",
@@ -69,7 +69,7 @@ def sheet_overview(doc):
         "4. FLOOR: ALL LOW-VOLTAGE I/O - MAINS, ETHERNET, POF, COAX IN, AUX, GROUND STUD.",
         "5. AIR: INTAKE LOW-FRONT ON THE RIGHT SIDE, 120 mm EXHAUST HIGH-REAR ON THE LEFT.",
         "6. SAMPLER FIXED AT THE REAR, SERVICED THROUGH THE LEFT LOWER PANEL.",
-        "7. SIDE PANELS SPLIT AT THE SHELF; CONDUCTIVE-ELASTOMER GASKETS (G-1).",
+        "7. SIDE PANELS SPLIT AT THE SHELF; SILICONE FOAM GASKETS (G-1).",
         f"8. CASSETTE PARTS <= {ENC['report']['cassette component height limit']:.2f} TALL TO PASS THE FRONT OPENING.",
         f"9. ALUMINUM ~{ENC['report']['aluminum weight, enclosure (lb)']:.0f} LB BEFORE ELECTRONICS.",
         DRAFT, UNITS,
@@ -82,7 +82,8 @@ STD_NOTES = [
     "VIEWS FROM OUTSIDE. ORDINATES TO EACH CENTER FROM THE LOWER-LEFT CORNER AS VIEWED (0).",
     "5052-H32 ALUMINUM. PERIMETER HOLES 8-32 CLEARANCE 0.177, EACH ROW AN EQUAL SPREAD (TABLE: FROM, TO, AT);",
     "CAPTIVE SCREWS ON SERVICE PANELS: THE RETAINER'S HOLE SIZE. MATCH-DRILL THE FRAME FROM THE PANELS, 8-32 RIVNUTS (4).",
-    "CONDUCTIVE-ELASTOMER GASKET ON EVERY FRAME FLANGE UNDER A PANEL (8E.6, G-1). DEBURR, BREAK EDGES.",
+    "SILICONE FOAM GASKET ON EVERY FRAME FLANGE UNDER A PANEL, OUTBOARD OF THE RIVNUTS (8E.6, G-1);",
+    "FLANGE FACES AND PANEL EDGE BANDS BARE (MASK FROM POWDER COAT). DEBURR, BREAK EDGES.",
 ]
 
 
@@ -134,12 +135,13 @@ def panel_view(doc, page, name, x, y, scale, vname):
     return view(doc, page, src, tuple(pm["n"]), scale, x, y, vname, tuple(pm["U"])), pm
 
 
-def panel_overall(doc, page, v, gap=6, gap_x=None, gap_y=None):
+def panel_overall(doc, page, v, gap=6, gap_x=None, gap_y=None, width=True):
     """Overall width and height from the outermost edges (robust to notched corners). gap_x / gap_y push
     the width / height dimension out past whatever sits between it and the panel."""
     from drawings import bbox, dim, extreme
     x0, x1, y0, y1 = bbox(v)
-    dim(doc, page, v, "DistanceX", [extreme(v, -1, 0), extreme(v, 1, 0)], (x0 + x1) / 2, y0 - (gap_x or gap))
+    if width:
+        dim(doc, page, v, "DistanceX", [extreme(v, -1, 0), extreme(v, 1, 0)], (x0 + x1) / 2, y0 - (gap_x or gap))
     dim(doc, page, v, "DistanceY", [extreme(v, 0, -1), extreme(v, 0, 1)], x1 + (gap_y or gap), (y0 + y1) / 2)
 
 
@@ -240,6 +242,7 @@ def cutout_detail(doc, page, pm, tags, kind, size, x, y, scale=1.0):
     if rect:
         w, h = rect
         pts.update({"tl": (u - w / 2, vv + h / 2), "tr": (u + w / 2, vv + h / 2), "bl": (u - w / 2, vv - h / 2),
+                    "br": (u + w / 2, vv - h / 2),
                     "eL": (u - w / 2, vv + TL[1]), "eB": (u + BL[0], vv - h / 2)})
     else:
         pts.update({"cL": (u, vv + TL[1]), "cB": (u + BL[0], vv)})
@@ -249,8 +252,11 @@ def cutout_detail(doc, page, pm, tags, kind, size, x, y, scale=1.0):
         return ((pts[a][axis] + pts[b][axis]) / 2 - (u, vv)[axis]) * k
 
     up, dn, lf, rt = hy * k, -hy * k, -hx * k, hx * k
-    if rect:                                          # the opening
-        pdim(doc, page, v, "DistanceX", q["tl"], q["tr"], mid("tl", "tr", 0), up + 5, small=False)
+    if rect:                                          # the opening; its width below it where its holes sit over
+        if R[0] - L[0] < 1e-6:                        # and under it, clear of their offset's extension line
+            pdim(doc, page, v, "DistanceX", q["bl"], q["br"], mid("bl", "br", 0), dn - 5, small=False)
+        else:
+            pdim(doc, page, v, "DistanceX", q["tl"], q["tr"], mid("tl", "tr", 0), up + 5, small=False)
         pdim(doc, page, v, "DistanceY", q["bl"], q["tl"], lf - 5, mid("bl", "tl", 1), small=False)
     else:                                             # the main hole
         r = round(main / 2 * IN, 2)
@@ -291,7 +297,7 @@ def _circle_near(v, r_model_mm, at):
 
 
 def panel_sheet(doc, pid, title, dwg, no, entries, details=(), cut_xy=(318, None), fas_xy=None,
-                notes_xy=(318, 100), skip=(), extra_notes=(), note_size=2.1):
+                notes_xy=(318, 100), skip=(), extra_notes=(), note_size=2.1, join=False):
     """entries: [(panel name, x, y, scale)]. Each view carries its features' positions as ordinate
     dimensions and their sizes in labels (ordinate.py), and its overall size. A compound cutout gets a
     detail, placed at the next of `details` [(x, y) or (x, y, scale)]. The table says what goes in each cutout."""
@@ -354,10 +360,10 @@ def panel_sheet(doc, pid, title, dwg, no, entries, details=(), cut_xy=(318, None
         fx, fy = fas_xy if fas_xy else (tx - 20, (ty if len(cut_rows) > 1 else 257) - len(cut_rows) * 3.7 / 2
                                          - 6 - nf * 3.7 / 2)
         table(doc, page, f"{pid}Fas", fas_rows, fas_w, fx, fy, size=6.5, row_px=14)
-    notes = []
+    notes = []                                       # join: a panel's size line and its notes as one line
     for _v, pm, *_ in views:
-        notes += [f"{pm['name'].upper()}: {pm['gauge']}, {pm['L']:.3f} x {pm['H']:.3f}, {pm['fasteners']} FASTENER HOLES."]
-        notes += pm["notes"]
+        head = [f"{pm['name'].upper()}: {pm['gauge']}, {pm['L']:.3f} x {pm['H']:.3f}, {pm['fasteners']} FASTENER HOLES."]
+        notes += [" ".join(head + pm["notes"])] if join else head + pm["notes"]
     note(doc, page, ["NOTES:"] + notes + list(extra_notes) + STD_NOTES + [DRAFT, UNITS], notes_xy[0], notes_xy[1],
          note_size)
     return page, views
@@ -366,7 +372,8 @@ def panel_sheet(doc, pid, title, dwg, no, entries, details=(), cut_xy=(318, None
 def sheet_front(doc):
     panel_sheet(doc, "E202", "FRONT PANELS", "TUNER-E-202", 3,
                 [("cassette face", 145, 196, 0.5), ("RF service panel", 345, 216, 0.10)],
-                details=[(98, 83, 1.0)], cut_xy=(244, 85), fas_xy=(355, 161.5), notes_xy=(340, 122), note_size=1.8)
+                details=[(103, 83, 1.0)], cut_xy=(244, 85), fas_xy=(355, 161.5), notes_xy=(330, 124.5), note_size=1.8,
+                join=True)
 
 
 def sheet_left(doc):
@@ -383,12 +390,12 @@ def sheet_right(doc):
 
 def sheet_top_rear(doc):
     panel_sheet(doc, "E205", "TOP AND REAR PANELS", "TUNER-E-205", 6,
-                [("top panel", 78, 186, 0.18), ("rear panel", 178, 150, 0.18)])
+                [("top panel", 78, 186, 0.18), ("rear panel", 184, 150, 0.18)])
 
 
 def sheet_floor(doc):
     panel_sheet(doc, "E206", "FLOOR - LOW-VOLTAGE I/O", "TUNER-E-206", 7, [("floor", 122, 142, 0.38)],
-                details=[(276, 116, 0.75), (348, 116, 0.75)], skip=("W", "SB"), cut_xy=(338, None), fas_xy=(360, 160),
+                details=[(270, 113.5, 0.75), (354, 113.5, 0.75)], skip=("W", "SB"), cut_xy=(338, None), fas_xy=(360, 157.5),
                 notes_xy=(338, 188.5), note_size=1.8,
                 extra_notes=["W1-W8: THE BULKHEAD AND PARTITION CLIP HOLES (E-208, E-218, E-217).",
                              "SB1-SB6: THE SAMPLER BASEPLATE'S STANDOFFS (E-209)."])
@@ -412,7 +419,7 @@ def plate_sheet(doc, pname, plate, pid, title, dwg, no):
     clip_note = ["CLIPS (E-217): EACH CLIP'S HOLES LINE UP WITH ITS PLATE HOLE (W) AND ITS FLOOR OR SHELF HOLE",
                  "(E-206 / E-207, CLIP TABLE). DRILL ALL THREE TO THEIR POSITIONS, OR FIX THE CLIPS AND MATCH-DRILL."]
     page, _views = panel_sheet(doc, pid, title, dwg, no, [(pname, 150, 192, 0.5)],
-                               details=[(72, 74, 1.0), (178, 74, 1.0)], skip=("W",), cut_xy=(322, 104),
+                               details=[(77, 74, 1.0), (183, 74, 1.0)], skip=("W",), cut_xy=(322, 104),
                                notes_xy=(346, 196), note_size=1.7, extra_notes=clip_note)
     side = {("bulkhead", 1): "MOTOR SIDE", ("bulkhead", -1): "CONTROL SIDE",
             ("partition", 1): "SAMPLER SIDE", ("partition", -1): "MOTOR SIDE"}
@@ -485,7 +492,7 @@ def sheet_wall_clips(doc):
         q = points(doc, v, {"face": (t12, z0 - zs * 0.7), "leg": (t12 + mid, z0 + zs * 0.04),
                             "edge": (-0.6, z0), "plate": (-0.05, z0 - zs * mid)}, c)
         y_top = (z0 - zs * 0.7 - c[1]) * kd
-        pdim(doc, page, v, "DistanceX", q["face"], q["leg"], (t12 + mid / 2 - c[0]) * kd,
+        pdim(doc, page, v, "DistanceX", q["face"], q["leg"], (t12 + mid + 0.3 - c[0]) * kd,
              y_top + (9 if lo else -9), fmt="%.4f", small=False)
         pdim(doc, page, v, "DistanceY", q["edge"], q["plate"], (-0.7 - c[0]) * kd - 6, (z0 - zs * mid / 2 - c[1]) * kd,
              fmt="%.4f", small=False)
@@ -524,8 +531,8 @@ def sheet_frame(doc):
     jt = vw(doc, page, load(doc, "enc-frame-joint.step"), JISO, 0.6, 152, 190, "JointIso")
     jx = vw(doc, page, load(doc, "enc-frame-joint-exploded.step"), JISO, 0.4, 152, 124, "JointExploded")
     clip = load(doc, "enc-corner-clip.step")
-    cp = vw(doc, page, clip, CPLAN, 1.0, 44, 62, "ClipPlan")
-    cf = vw(doc, page, clip, CFACE, 1.0, 100, 60, "ClipFace")
+    cp = vw(doc, page, clip, CPLAN, 1.0, 50, 62, "ClipPlan")
+    cf = vw(doc, page, clip, CFACE, 1.0, 106, 60, "ClipFace")
     jw = vw(doc, page, load(doc, "enc-frame-joint.step"), JWALL, 0.5, 192, 56, "JointWall")
     doc.recompute()
     settle([fr, jt, jx, cp, cf, jw])
@@ -547,7 +554,7 @@ def sheet_frame(doc):
     pdim(doc, page, cf, "DistanceX", pf["heel"], pf["h2"], (-cleg / 2 + h2 / 2) * k, ch / 2 * k + 9)
     pdim(doc, page, cf, "DistanceY", pf["heel"], pf["h1"], -cleg / 2 * k - 5, 0, fmt="%.4f")
     from drawings import circles, dim
-    label(doc, page, f"2X ⌀{p['CLIP_SCREW']:.3f}", 100, 40)
+    label(doc, page, f"2X ⌀{p['CLIP_SCREW']:.3f}", 106, 34.5)
     # placement: one junction's wall from inside, true size. The clip's heel in the post's inside corner,
     # its edge on the ring's flange; the screws at CLIP_HOLES from the frame's outer corner, mid-band.
     zm = (ct + 1.0) / 2
@@ -556,14 +563,15 @@ def sheet_frame(doc):
                           "clip_lo": (-ct - 1.5 - 0.05, ct), "clip_hi": (-ct - 1.5 - 0.05, 1.0)}, jc)
     kj = IN * 0.5
     y_lo = (0 - jc[1]) * kj
-    pdim(doc, page, jw, "DistanceX", pj["corner"], pj["s1"], (-p["CLIP_HOLES"][0] / 2 - jc[0]) * kj, y_lo - 5)
-    pdim(doc, page, jw, "DistanceX", pj["corner"], pj["s2"], (-p["CLIP_HOLES"][1] / 2 - jc[0]) * kj, y_lo - 10)
+    # the values outside their extension lines, which run too close together for them at 0.5:1
+    pdim(doc, page, jw, "DistanceX", pj["corner"], pj["s1"], (1.4 - jc[0]) * kj, y_lo - 5)
+    pdim(doc, page, jw, "DistanceX", pj["corner"], pj["s2"], (-p["CLIP_HOLES"][1] - 0.6 - jc[0]) * kj, y_lo - 10)
     pdim(doc, page, jw, "DistanceY", pj["corner"], pj["s1"], (0 - jc[0]) * kj + 6, (zm / 2 - jc[1]) * kj, fmt="%.4f")
     pdim(doc, page, jw, "DistanceY", pj["clip_lo"], pj["clip_hi"], (-ct - 1.55 - jc[0]) * kj - 5,
          ((ct + 1.0) / 2 - jc[1]) * kj)
     label(doc, page, "JUNCTION (16), FROM INSIDE  0.6:1", 152, 151)
     label(doc, page, "JUNCTION, EXPLODED  0.4:1", 152, 97)
-    label(doc, page, "CORNER CLIP (16): PLAN, LEG  1:1", 72, 28)
+    label(doc, page, "CORNER CLIP (16): PLAN, LEG  1:1", 78, 27)
     label(doc, page, "JUNCTION WALL  0.5:1", 190, 81)
     rows = [("MEMBER", "QTY", "STOCK", "LENGTH", "NOTE")]
     total = {}
@@ -575,11 +583,11 @@ def sheet_frame(doc):
                  "bottom ring": "ON THE FLOOR; 1/2 AT FRONT FOR THE CASSETTE"}.get(name, "")
         rows.append((name.upper(), str(q), stock + " 6061-T6", f"{length:.3f}", note_))
         total[stock] = total.get(stock, 0) + q * (length + 0.125)
-    for name, q, length, leg in ENC["frame_extra"]:
-        rows.append((name.upper(), str(q), "6061-T6", f"{length:.3f}", ""))
+    for name, q, length, leg, *nt in ENC["frame_extra"]:
+        rows.append((name.upper(), str(q), "6061-T6", f"{length:.3f}", nt[0] if nt else ""))
         st = name[name.index("(") + 1:name.index(")")]
         total[st] = total.get(st, 0) + q * (length + 0.125)
-    table(doc, page, "FrameCut", rows, (62, 10, 40, 16, 70), 300, 200, size=6.5, row_px=15)
+    table(doc, page, "FrameCut", rows, (62, 10, 40, 16, 70), 300, 206, size=6.5, row_px=15)
     buy = [f"{k}: {v / 12:.1f} FT INCL. KERF" for k, v in sorted(total.items())]
     p = ENC["p"]
     n_screw = ENC["report"]["junction screws"]
@@ -615,12 +623,12 @@ def sheet_small_parts(doc):
     br_src = load(doc, "enc-C1-axis-bracket.step")
     br_iso = vw(doc, page, br_src, ISO, 0.45, 56, 230, "BracketIso")
     br_side = vw(doc, page, br_src, FRONT, 0.75, 140, 232, "BracketSide")
-    faces = [part_face(doc, page, "axis bracket top plate", 62, 156, 0.75, "BracketTop") + (62, 156, 0.75),
-             part_face(doc, page, "axis bracket motor plate", 172, 156, 0.75, "BracketMotor") + (172, 156, 0.75),
-             part_face(doc, page, "sampler baseplate", 118, 76, 0.45, "Baseplate") + (118, 76, 0.45)]
+    faces = [part_face(doc, page, "axis bracket top plate", 70, 160, 0.75, "BracketTop") + (70, 160, 0.75),
+             part_face(doc, page, "axis bracket motor plate", 172, 160, 0.75, "BracketMotor") + (172, 160, 0.75),
+             part_face(doc, page, "sampler baseplate", 118, 81.7, 0.45, "Baseplate") + (118, 81.7, 0.45)]
     cb_src, cs_src = load(doc, "enc-choke-base.step"), load(doc, "enc-choke-spider.step")
     cb = vw(doc, page, cb_src, PLAN, 0.5, 236, 222, "ChokeBase")
-    cs = vw(doc, page, cs_src, PLAN, 0.5, 242, 150, "ChokeSpider")
+    cs = vw(doc, page, cs_src, PLAN, 0.5, 250, 150, "ChokeSpider")
     ca = vw(doc, page, load(doc, "enc-choke-assembly.step"), FRONT, 0.35, 386, 222, "ChokeAsm", hidden=True)
     doc.recompute()
     settle([br_iso, br_side, cb, cs, ca] + [f[0] for f in faces])
@@ -647,7 +655,7 @@ def sheet_small_parts(doc):
     spider = ordinate.Polar(0.5, tip / 2, [
         (tip, 0, 0.0, [f"3X ARM {arm:.3f} WIDE, R{arm / 2:.3f} END,", f"TIPS ON ⌀{tip:.3f}, MIDWAY", "BETWEEN THE STANDOFFS"]),
         (None, 300, rod / 2, [f"⌀{rod:.3f} (ROD)"])], off=off)
-    for name, ov, (x, y) in (("PolE209_base", base, (236, 222)), ("PolE209_spider", spider, (242, 150))):
+    for name, ov, (x, y) in (("PolE209_base", base, (236, 222)), ("PolE209_spider", spider, (250, 150))):
         sym = doc.addObject("TechDraw::DrawViewSymbol", name)
         sym.Symbol = ov.svg()
         page.addView(sym)
@@ -655,13 +663,13 @@ def sheet_small_parts(doc):
     top, mot = (ordinate.hole4_text(f[1]["cutouts"][0][4]) for f in faces[:2])
     label(doc, page, "MOTOR AXIS BRACKET (x3)", 56, 199)
     label(doc, page, "FRONT  0.75:1", 140, 199)
-    label(doc, page, "TOP PLATE, FROM ABOVE  0.75:1", 62, 120)
-    note(doc, page, [top], 62, 114, 2.6)
-    label(doc, page, "MOTOR PLATE, FROM BELOW  0.75:1", 172, 120)
-    note(doc, page, [mot], 172, 114, 2.6)
-    label(doc, page, "SAMPLER BASEPLATE (12 GA), FROM ABOVE  0.45:1", 118, 108)
+    label(doc, page, "TOP PLATE, FROM ABOVE  0.75:1", 70, 121)
+    note(doc, page, [top], 70, 115.5, 2.6)
+    label(doc, page, "MOTOR PLATE, FROM BELOW  0.75:1", 172, 121)
+    note(doc, page, [mot], 172, 115.5, 2.6)
+    label(doc, page, "SAMPLER BASEPLATE (12 GA), FROM ABOVE  0.45:1", 118, 110.7)
     label(doc, page, "CHOKE BASE (G10 1/4)  0.5:1", 236, 190)
-    label(doc, page, "CHOKE SPIDER (G10 1/8)  0.5:1", 242, 124)
+    label(doc, page, "CHOKE SPIDER (G10 1/8)  0.5:1", 250, 124)
     label(doc, page, "CHOKE MOUNT  0.35:1", 386, 190)
     rep = ENC["report"]
     note(doc, page, ["NOTES:",
@@ -680,36 +688,47 @@ def sheet_small_parts(doc):
         f"   BASE HOLES CLOCKED TO CH1-CH3. ROD 1/2-13 FIBERGLASS x {rep['choke rod length']:.2f}, FRP NUTS. WINDING (15 t",
         f"   RG-400, 5 x FT-240-61) ON 1/16 SILICONE PADS: {rep['choke winding above the shelf']:.2f} ABOVE THE SHELF, "
         f"{rep['choke winding below the deck']:.2f} BELOW THE DECK.",
-        DRAFT, UNITS], 341, 107, 1.9)
+        DRAFT, UNITS], 345, 107, 1.9)
 
 
 def sheet_tray_flange(doc):
-    """TUNER-E-219: the cassette tray and its rails, and the wall flange (both legs face-on, dimensioned like the
-    panels, and its end)."""
-    page = D.new_page(doc, "E219", "CASSETTE TRAY, RAILS, WALL FLANGE", "TUNER-E-219", 20)
-    tray = vw(doc, page, load(doc, "enc-cassette-tray.step"), PLAN, 0.3, 80, 222, "Tray")
-    rail = vw(doc, page, load(doc, "enc-cassette-rail.step"), FRONT, 1.0, 170, 222, "RailEnd")
+    """TUNER-E-219: the cassette tray and its rails, the 24 V supply's bracket, and the wall flange (both legs
+    face-on, dimensioned like the panels, and its end)."""
+    page = D.new_page(doc, "E219", "TRAY, PSU BRACKET, WALL FLANGE", "TUNER-E-219", 20)
+    rail = vw(doc, page, load(doc, "enc-cassette-rail.step"), FRONT, 2.0, 170, 222, "RailEnd")
     fl_end = vw(doc, page, load(doc, "enc-wall-flange.step"), ((0, 0, 1), (0, -1, 0)), 1.0, 250, 222, "FlangeEnd")
-    faces = [part_face(doc, page, "wall flange wall leg", 120, 140, 0.32, "FlangeWall") + (120, 140, 0.32),
-             part_face(doc, page, "wall flange side leg", 120, 66, 0.32, "FlangeSide") + (120, 66, 0.32)]
+    brk_end = vw(doc, page, load(doc, "enc-PSU-bracket.step"), ((0, -1, 0), (1, 0, 0)), 0.5, 297, 196, "BracketEnd")
+    faces = [part_face(doc, page, "cassette tray", 80, 222, 0.3, "Tray") + (80, 222, 0.3),
+             part_face(doc, page, "wall flange wall leg", 126, 140, 0.32, "FlangeWall") + (126, 140, 0.32),
+             part_face(doc, page, "wall flange side leg", 126, 66, 0.32, "FlangeSide") + (126, 66, 0.32),
+             part_face(doc, page, "PSU bracket upright", 360, 226, 0.3, "BracketUp") + (360, 226, 0.3),
+             part_face(doc, page, "PSU bracket flat leg", 360, 182, 0.3, "BracketFlat") + (360, 182, 0.3)]
     doc.recompute()
-    settle([tray, rail, fl_end] + [f[0] for f in faces])
-    for v in (tray, rail):
-        overall(doc, page, v, gap=5)
+    settle([rail, fl_end, brk_end] + [f[0] for f in faces])
+    overall(doc, page, rail, gap=5)
     panel_overall(doc, page, fl_end, gap=5)
+    panel_overall(doc, page, brk_end, gap=4, width=False)
     for i, (v, pm, x, y, sc) in enumerate(faces):
         ordinates(doc, page, v, pm, sc, x, y, f"OrdE219_{i}")
     label(doc, page, "CASSETTE TRAY (12 GA), FROM ABOVE  0.3:1", 80, 196)
-    label(doc, page, "RAIL END (x2)  1:1", 170, 196)
-    label(doc, page, "WALL FLANGE, END  1:1", 250, 182)
-    label(doc, page, "WALL FLANGE (x2): WALL LEG  0.32:1", 120, 112)
-    label(doc, page, "WALL FLANGE: SIDE LEG  0.32:1", 120, 80)
+    label(doc, page, "PSU BRACKET, END  0.5:1", 297, 160)
+    label(doc, page, "PSU BRACKET: UPRIGHT  0.3:1", 360, 197)
+    note(doc, page, ["SEEN FROM THE SUPPLY SIDE"], 360, 190, 2.6)
+    label(doc, page, "PSU BRACKET: FLAT LEG  0.3:1", 360, 144.5)
+    label(doc, page, "RAIL END (x2)  2:1", 170, 192.5)
+    label(doc, page, "WALL FLANGE, END  1:1", 250, 180)
+    label(doc, page, "WALL FLANGE (x2): WALL LEG  0.32:1", 126, 112)
+    label(doc, page, "WALL FLANGE: SIDE LEG  0.32:1", 126, 80)
     rails = ENC["p"]["X_BULK"] - 0.15 - (-ENC["p"]["X_IN"] + ENC["p"]["SANG"] + 0.02)
     note(doc, page, ["NOTES:",
         "1. CASSETTE TRAY: 12 GA 5052, RIDES TWO 1/2 x 1/2 x 1/8 RAILS ON THE FLOOR, BEHIND THE FRONT LIP.",
-        f"   RAILS: 6061 ANGLE x {rails:.3f}. COMPONENT HOLES MATCH THE PARTS FITTED: PSU (ON EDGE), CONTROL",
-        f"   BOARD, DC-DCs. EVERYTHING ON THE TRAY <= {ENC['report']['cassette component height limit']:.2f} TALL TO PASS THE OPENING.",
-        "2. WALL FLANGE (2, ONE A SIDE): 2 x 2 x 3/16 6061 x 21, HEEL ON THE REAR CORNER. THE SIDE LEG BOLTS",
+        f"   RAILS: 6061 ANGLE x {rails:.3f}. PB1-PB2 TAKE THE PSU BRACKET; THE CONTROL BOARD'S AND DC-DCs' HOLES",
+        f"   MATCH THE PARTS FITTED. EVERYTHING ON THE TRAY <= {ENC['report']['cassette component height limit']:.2f} TALL TO PASS THE OPENING.",
+        "2. PSU BRACKET: 2 x 3 x 3/16 6061 ANGLE x 7.75, THE 2 LEG CUT TO 1.00, HEEL 0.10 OFF THE TRAY'S REAR",
+        "   EDGE. MEAN WELL UHP-200-24 ON EDGE: 4 x M3 x 8 SS THROUGH ITS BASE'S CORNER NOTCHES INTO THE",
+        "   TAPPED UPRIGHT, BASE OVER THERMAL GREASE, HUNG 0.25 ABOVE THE FLAT LEG (CLEAR OF THE FILLET).",
+        "   FLAT LEG TO THE TRAY: 2 x 8-32 x 1/2 SS, NYLOCS UNDER, BETWEEN THE RAILS (DESIGN LOG 8A.1).",
+        "3. WALL FLANGE (2, ONE A SIDE): 2 x 2 x 3/16 6061 x 21, HEEL ON THE REAR CORNER. THE SIDE LEG BOLTS",
         "   THROUGH THE SIDE PANEL INTO THE REAR POST: 3 x 8-32, LONGER SCREWS, IN THE PANELS' WF HOLES",
         "   (E-203 / E-204). THE WALL LEG LIES FLUSH WITH THE REAR: 3 SLOTS FOR 3/8 LAGS INTO A 3/4 PLYWOOD",
         "   BACKER ACROSS THE STUDS. LEG VIEWS: HEEL AT THE BOTTOM, LOWER END AT THE LEFT.",
@@ -746,7 +765,7 @@ def sheet_exploded(doc):
         ("16", str(screws + 40), "8-32 SS BUTTON HEAD, 1/2", f"{screws} HOLES + SPARES", "-"),
         ("17", str(screws + 40), "8-32 RIVNUT, ALUMINUM", "IN THE FRAME FLANGES", "-"),
         ("18", str(capt), "8-32 CAPTIVE PANEL SCREW", "RF PANEL + CASSETTE FACE", "-"),
-        ("19", f"{gasket_ft:.0f} FT", "CONDUCTIVE-ELASTOMER GASKET", "G-1, ~0.25 WIDE", "-"),
+        ("19", f"{gasket_ft:.0f} FT", "SILICONE FOAM STRIP 1/16 x 1/4, ADHESIVE", "G-1: MCMASTER 93325K61", "-"),
         ("20", "6", "3/8 x 3 LAG + WASHER", "INTO 3/4 PLYWOOD BACKER", "-"),
         ("21", "1 + 1", "HONEYCOMB VENT: INTAKE 8 x 4, EXHAUST 4.7 SQ", "1/8 CELL x 1/2 Al", "-"),
         ("22", "2", "30-40 MESH SS SCREEN + INTAKE FILTER", "8E.3", "-"),
@@ -757,9 +776,11 @@ def sheet_exploded(doc):
         ("27", "24", "8-32 NYLOC NUT, SS", "BULKHEAD / PARTITION CLIPS", "E-208"),
         ("28", "12 + 12", "#10-32 x 1/2 SS SCREW + NYLOC", "AXIS BRACKETS TO THE SHELF", "E-209"),
         ("29", "6 + 12", "1/4 HEX STANDOFF 8-32 F-F + 8-32 x 3/8 BUTTON", "SAMPLER BASEPLATE TO FLOOR", "E-209"),
+        ("30", "1", "PSU BRACKET, 2 LEG CUT TO 1.00", "2 x 3 x 3/16 6061 x 7.75", "E-219"),
+        ("31", "4 + 2 + 2", "M3 x 8 SS PAN + 8-32 x 1/2 SS + NYLOC", "PSU TO BRACKET, BRACKET TO TRAY", "E-219"),
     ]
     rows += items
-    table(doc, page, "EncParts", rows, (10, 14, 66, 50, 18), 308, 170, size=6.5, row_px=14)
+    table(doc, page, "EncParts", rows, (10, 14, 66, 50, 18), 308, 178, size=6.5, row_px=14)
     note(doc, page, ["NOTES:",
         "1. EXPLODED IN SERVICE ORDER: RF SERVICE PANEL AND CASSETTE OUT THE FRONT, THEN THE BULKHEAD",
         "   AND THE MOTOR AXIS MODULES. TOP, FLOOR AND REAR STAY ON IN SERVICE.",
@@ -783,10 +804,10 @@ def sheet_nesting(doc):
         sw, sl = n["sheet"]
         k = IN * NEST_SC
         for name, x, y, w, h in n["parts"]:   # label each part at its center (view centered on the sheet)
-            note(doc, page, [name.upper().replace("MOTOR/SAMPLER PARTITION", "PARTITION")[:18]], xs[gauge] + (x + w / 2 - sw / 2) * k,
+            note(doc, page, [name.upper().replace("MOTOR/SAMPLER PARTITION", "PARTITION").replace("CASSETTE TRAY", "TRAY")[:18]], xs[gauge] + (x + w / 2 - sw / 2) * k,
                  165 + (y + h / 2 - sl / 2) * k, 1.6)
         label(doc, page, f"{gauge}: ONE {sw} x {sl} SHEET  ({n['area'] / (sw * sl) * 100:.0f}% USED)",
-              xs[gauge], 165 - sl / 2 * k - 14)
+              xs[gauge], 165 - sl / 2 * k - 17)
     note(doc, page, ["NOTES:",
         "1. 5052-H32. LONG SIDE OF EACH PART ACROSS THE SHEET; 0.125 KERF BETWEEN PARTS. SHEAR OR SAW,",
         "   THEN CUT HOLES PER E-202 TO E-209. A 48 x 96 SHEET OF EACH GAUGE COVERS BOTH WITH ROOM",
@@ -811,9 +832,9 @@ HJ = json.load(open(os.path.join(OUT, "harness.json"))) if os.path.exists(os.pat
 
 def sheet_populated(doc):
     page = D.new_page(doc, "E212", "POPULATED CABINET - FRONT, LEFT", "TUNER-E-212", 13)
-    symbol(doc, page, "svg-pop-front", 72, 152)
+    symbol(doc, page, "svg-pop-front", 78, 152)
     symbol(doc, page, "svg-pop-left", 188, 152)
-    label(doc, page, "FRONT, FRONT PANELS OFF 1:6", 72, 86)
+    label(doc, page, "FRONT, FRONT PANELS OFF 1:6", 78, 86)
     label(doc, page, "LEFT, LEFT PANELS OFF 1:6", 188, 86)
     rows = [("ITEM", "DESCRIPTION", "PART / REF")] + [(str(n), d, r) for n, d, r in SV.get("items", [])]
     table(doc, page, "PopItems", rows, (10, 66, 46), 349, 168, size=6.2, row_px=13)
@@ -822,7 +843,7 @@ def sheet_populated(doc):
         "2. ENVELOPES: CONTROL BOARD, DRIVER BOARD, C1 / C2 (REFERENCE), CHOKE + G10 MOUNT (RF BAY), RELAYS,",
         "   MEASUREMENT BOARD AND COUPLER BOX (SAMPLER). HARNESS: E-213 / E-214, WIRE LIST E-215.",
         "3. HIDDEN LINES OMITTED. GENERATED FROM enclosure.py + svgviews.py; INTERFERENCE-CHECKED WITH PLUG ENVELOPES AND RUNS.",
-        DRAFT], 128, 64, 2.1)
+        DRAFT], 134, 64, 2.1)
 
 
 def sheet_populated_plan(doc):
@@ -831,7 +852,7 @@ def sheet_populated_plan(doc):
     symbol(doc, page, "svg-har-plan", 285, 188)
     label(doc, page, "UTILITY LAYER, SHELF AND ABOVE OFF, REAR AT TOP 1:5", 98, 134)
     label(doc, page, "SAME VIEW, HARNESS RUNS 1:5", 285, 134)
-    symbol(doc, page, "svg-legend", 330, 100)
+    symbol(doc, page, "svg-legend", 350, 104)
     note(doc, page, ["NOTES:",
         "1. ITEM NUMBERS AS E-212. RUN IDs (W#) AND CUT LENGTHS ON E-215.",
         "2. THE CASSETTE RUNS (MAINS, DC, J-A/J-B/J-E PLUGS, ETHERNET, POF, BLOWER LEAD) END IN DISCONNECTS",

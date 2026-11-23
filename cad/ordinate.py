@@ -90,7 +90,8 @@ def label_forms(tag, kind, size, conn_pitch, blower, detail_of):
     first = label_lines(tag, kind, size, conn_pitch, blower, detail_of)
     if len(first) > 1:
         narrow = _wrap(_label_lines(tag, kind, size, conn_pitch, blower, detail_of), 14)
-        return [first] + ([narrow] if narrow != first else [])
+        # a connector's pattern may go by its tag alone where it is crowded: the cutout table sizes it
+        return [first] + ([narrow] if narrow != first else []) + ([[tag]] if tag else [])
     s = first[0]
     for sep in (" (", " ⌀", " "):
         if sep in s:
@@ -349,14 +350,14 @@ class Overlay:
                     c += 1e4 * overlap(bx, core[i]) + 50.0 * overlap(bx, s)
             for rb in rows:                             # nor on any perimeter hole
                 c += 1e4 * overlap(bx, (rb[0] + 0.6, rb[1] + 0.6, rb[2] - 0.6, rb[3] - 0.6)) + 50.0 * overlap(bx, rb)
-            for p0, p1 in leaders:
-                if through(p0, p1, bx):
-                    c += 2500.0
+            for p0, p1 in leaders:                      # a line through a label reads as a strike-out:
+                if through(p0, p1, bx):                 # a leader, or a place farther off, before that
+                    c += 6000.0
             for b in boxes:
                 c += 1e5 * overlap(bx, b)
             for s in self.segs:
                 if hits_seg(bx, s):
-                    c += 2500.0
+                    c += 6000.0
             inner = (x0 + band, y0 + band, x1 - band, y1 - band)
             out_area = (bx[2] - bx[0]) * (bx[3] - bx[1]) - overlap(bx, inner)
             c += 2.0 * max(0.0, out_area)
@@ -438,9 +439,9 @@ class Overlay:
                 w = max(len(s) for s in lines) * CHAR * TEXT + 1.0     # and a little room either side
                 h = len(lines) * TEXT * 1.25
                 # the fewest lines where they fit as well, and the tag alone only where nothing else does
-                tag_only = len(forms) > 2 and lines == forms[-1] and len(lines) == 1
+                tag_only = len(forms) > 1 and lines == forms[-1] == [f["tag"]] and forms[0] != lines
                 stack = (40.0 if tag_only else 2.0 * (len(lines) - len(forms[0]))) if len(forms) > 1 else 0.0
-                for d, i2 in ((d, i2) for d in (1.0, 2.5, 4.5, 7.0, 10.0, 14.0, 19.0) for i2 in around):
+                for d, i2 in ((d, i2) for d in (1.0, 2.5, 4.5, 7.0, 10.0, 14.0, 19.0, 24.0, 30.0) for i2 in around):
                     f2 = feats[i2]
                     cx, cy = self.px(f2["u"]), self.py(f2["v"])
                     rx, ry = f2["hx"] * k, f2["hy"] * k
@@ -469,7 +470,7 @@ class Overlay:
                         if d > 4.0:                     # it will need a leader: one that crosses lines or
                             nx, ny = min(max(cx, bx[0]), bx[2]), min(max(cy, bx[1]), bx[3])   # labels costs
                             c += 1500.0 * sum(1 for sg in self.segs if crosses((nx, ny), (cx, cy), sg))
-                            c += 1500.0 * sum(1 for b in boxes if through((nx, ny), (cx, cy), b, 0.4))
+                            c += 6000.0 * sum(1 for b in boxes if through((nx, ny), (cx, cy), b, 0.4))
                             c += 1500.0 * sum(1 for j, sb in enumerate(solid)
                                               if j != i2 and through((nx, ny), (cx, cy), sb))   # or holes
                             c += 1500.0 * sum(1 for sb in rows if through((nx, ny), (cx, cy), sb))

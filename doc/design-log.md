@@ -261,6 +261,18 @@ Source location: <https://github.com/driador/antenna-tuner>.
       action bands, §5.1's 160 m derate (502 W) and the capacitor test sheet's stress table are brought
       up to date.
     - **Decided:** a second, coax-fed antenna goes on AUX through its own commercial ATU (§6B.4).
+    - **The 24 V supply's bracket** (§8A.1, E-219): the UHP-200-24 hangs by its base on a 2 × 3 × 3/16
+      angle on the cassette tray. The old note to bolt its base to the tray didn't fit a supply on edge.
+    - **Gasket G-1** (§8E.6): closed-cell silicone foam (McMaster 93325K61) replaces the conductive
+      elastomer, about $108 against $570. The fasteners at 2″ carry the RF; the foam seals dust and
+      insects.
+    - **The blower lead's DE-9 (J-F) at the front** (TUNER-E-203): a sign error had put the left lower
+      panel's cutout at the rear, into the sampler chamber and under the wall flange. It now sits 2.34″
+      from the front edge, in the control chamber with its harness (W24, W25), off the perimeter holes'
+      lines.
+    - **Drawings cleaned up** (E-200 to E-219): captions, notes, tables and dimensions cleared of each
+      other and of the border. Where a connector's label has no clear place, it gives its tag alone; the
+      cutout table sizes it.
     - **§9:** items 55–58 (the output trip threshold, the pickups option, ALE mode, the derate from the
       measured Q); item 33 closed.
 
@@ -865,7 +877,7 @@ The roller shaft is at deck potential (§5.3a), so it needs only the deck's own 
 >   (Rev 3.7b, deck plan above).
 > - **I/O:** all low-voltage I/O through the **floor**; the balanced output leaves through the
 >   **fixed top**, feedthroughs parallel to the wall near the rear (§8D). Side panels split at
->   the shelf; conductive-elastomer gaskets (G-1).
+>   the shelf; closed-cell silicone foam gaskets (G-1, §8E.6).
 > - Cassette parts must be **≤ 3.92″ tall** to pass the front opening (§8A.1, §9 item 39).
 > - Aluminum ~28 lb before electronics (24.00″ box, Rev 3.7c).
 
@@ -961,10 +973,9 @@ thermal warping and oil-canning, and seal the RF bay behind a permanent wall.
     metal — the floor and top panels' corner holes used to fall in the 1″ corner squares with nothing
     behind them — and no rivnut sits behind a clip. `enclosure.py` checks both. The earlier rule of 1.75″ centers is far inside λ/20 at 30 MHz (19.7″), so the
   pattern is more than sufficient for HF RF tightness
-- **Conductive-elastomer gasket** on every frame flange under a panel and on both faces of the
-  shelf (G-1, §8E.6) — seals RF and dust in one part while keeping the RF bay serviceable
-- Shielding effectiveness: confirm for the chosen elastomer; the >85 dB HF figure of earlier
-  revisions was stated for BeCu finger stock (§11.2)
+- **Closed-cell silicone foam gasket** on every frame flange under a panel and on both faces of the
+  shelf (G-1, §8E.6, Rev 3.7c): it seals dust and insects. RF continuity is the fasteners' job, metal
+  to metal at every rivnut head, so the flange and panel contact faces stay bare.
 - Bolting also avoids the **40–50% HAZ strength loss** welded 6061-T6 suffers, preserving full T6 temper
 
 *If any welding is done on 5052 sheet: 5356 filler, pure argon, 4–5 s post-flow.*
@@ -2594,8 +2605,26 @@ considerably less from the supply than the per-phase current suggests.
 *Rev 3.7a:* the 24 V supply rides on the control cassette and must be **≤ 3.92″ tall as
 mounted** to pass the front opening. **Selected: Mean Well UHP-200-24** — 201.6 W, fanless, PFC,
 EN55032 **Class B**, 194 × 55 × 26 mm; on edge it stands **2.17″** tall and 1.02″ deep (§9 item 39
-resolved). Its rating assumes a conduction plate: bolt its base to the cassette's 12 ga tray, or
-derate (100 % to 50 °C without the plate). Low rails: **TRACO TSR 2-24120N** (24 → 12 V, 2 A) for the
+resolved).
+
+**Mounting** *(Rev 3.7c, TUNER-E-219)*. Mean Well rates the supply with its base on an aluminum
+plate (their reference is 300 × 300 × 3 mm), and the base carries its four M3 mounting notches,
+188 × 42 mm apart. On edge, that base faces sideways, so it bolts to an upright instead:
+- **The bracket:** a **2 × 3 × 3/16 6061 angle**, 7.75″ long, the 2″ leg cut to 1.00″, its heel 0.10″
+  off the tray's rear edge.
+- **The supply:** four M3 × 8 stainless screws through its base's notches into the tapped upright,
+  over thermal grease. It hangs on them 0.25″ above the flat leg, clear of the extrusion's inside
+  fillet, so its top stands 2.61″ over the tray. The 3.00″ upright is the tallest thing there, under
+  the 3.92″ limit.
+- **To the tray:** two 8-32 screws down through the flat leg and the tray, nylocs under, placed
+  between the rails so they slide clear. The 24 V runs to the board and the bulkhead cross over the
+  supply's top.
+- **Heat:** the angle spreads it into the 12 ga tray. The load is far below the rating anyway: 5 A
+  peak while the motors slew, and the drivers are off at idle.
+- **Stock:** Speedy Metals, 6061-T6 angle 3/16 × 2 × 3, $0.89 an inch cut to length or $16.06 for 12″
+  (2026-11-23). No ⅛″ angle has a leg tall enough to reach the upper notches.
+
+Low rails: **TRACO TSR 2-24120N** (24 → 12 V, 2 A) for the
 blower and **TRACO TSR 3-2450N** (24 → 5 V, 3 A, through-hole; give it an LC input filter and
 treat its ~300 kHz switching harmonics as a 160 m source). *Rev 3.7c:* both are SIP-3 78xx
 drop-ins on the control board. Each sits behind TRACO's reflected-ripple filter: 220 µF low-ESR,
@@ -4266,13 +4295,34 @@ an answer.
 
 ### 8E.6 Gasketing a scratch-built box
 
-**Decided (G-1): conductive-elastomer gasket** on every frame flange under a panel and on both faces
-of the shelf (TUNER-E-202 to E-208). It does both jobs — RF and dust/moisture — in one part, but needs
-a flat face to compress evenly: the bolted angle frame gives every panel a 1″ flange to seal against,
-which removes the flatness objection. **Check each flange with a straightedge before fitting the
-gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
+**Decided (G-1, Rev 3.7c): closed-cell silicone foam** on every frame flange under a panel and on both
+faces of the shelf (TUNER-E-202 to E-208). **McMaster-Carr 93325K61**: fiberglass-reinforced silicone
+foam strip, 1/16″ × 1/4″ with an acrylic adhesive back, soft (15 psi for 25 % compression), −100 to
++500 °F, rated outdoors. It sits on the flange's 1/4″ land outboard of the rivnuts. $54.21 for a 30 ft
+roll, next-day delivery (2026-11-23); the 56 ft takes two rolls.
 
-*BeCu finger stock and the two-gasket option are superseded — see §11.7.*
+The gasket's job is now dust and insects, not RF:
+- **RF is the fasteners'.** The panels are screwed into rivnuts about 2″ apart, far inside λ/20 at
+  30 MHz (19.7″, §4). Standard flat-head rivnuts hold each panel about 0.03″ off its flange, so the
+  seam is metal to metal at every screw, with short thin slots between. A 2″ slot is about λ/200 at
+  30 MHz, roughly 40–50 dB before the 1″ flange overlap adds more. A box a few feet from an antenna
+  radiating 1500 W needs no more at HF. The electronics are protected by the filtered crossings
+  (§7.3, §7.3a), not by the seams.
+- **Dust:** the sampler, control and motor chambers are sealed to IP5X (§8E.4).
+- **Insects:** the 0.03″ (0.76 mm) panel gap is wider than the 0.4–0.6 mm screen on every opening
+  (§8E.3), so the ventilated RF bay is sealed too.
+- **Compression:** the 1/16″ foam squeezes to about half before the panel lands on the rivnut heads,
+  well within a soft closed-cell foam's range, and the landing keeps metal contact at every screw.
+
+Two rules carry the RF now:
+1. **Keep the contact faces bare:** mask the flange faces and the panels' edge bands from powder coat,
+   as for the filtered connectors (§7.3a).
+2. **Fit every screw, tight.** With a non-conductive gasket, they are the seam's only connection.
+
+**Check each flange with a straightedge before fitting the gasket** (fabrication QA): the soft foam
+takes up small waviness, but a bowed flange still leaves a gap.
+
+*The conductive elastomer, BeCu finger stock and the two-gasket option are superseded — see §11.7.*
 
 ---
 
@@ -4302,7 +4352,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 16 | ~~Crossings 6 and 7~~ — **Resolved Rev 3.7a, revised Rev 3.7b:** Control → RF tank row in §7.3; filtered DE-9 J-E (FCE17-E09SM-290) at the bulkhead, discrete 0.01 µF FT1–FT4 in the shelf (3 used + 1 spare; relay coils removed with the pad and link) (§7.3a) | **RESOLVED** |
 | 17 | **Amplifier T/R relay release time** — scope RF decay after permissive withdrawal; confirm the 30 ms blanking covers it (Section 7.4.5) | **OPEN — bench measurement** |
 | 18 | ~~Cold-start motion check~~ — **DOWNGRADED TO OPTIONAL**; garage is climate controlled (Section 8E.2). Worth one check only if left unconditioned over a winter | **OPTIONAL** |
-| 19 | ~~Flange flatness / gasket selection~~ — **RESOLVED (G-1, Rev 3.7a):** conductive elastomer on the angle-frame flanges (§8E.6). Fabrication QA: straightedge-check each flange before fitting the gasket | **RESOLVED** |
+| 19 | ~~Flange flatness / gasket selection~~ — **RESOLVED (G-1, Rev 3.7a; changed Rev 3.7c):** closed-cell silicone foam on the angle-frame flanges, RF through the fasteners (§8E.6); the Rev 3.7a conductive elastomer is in §11.7. Fabrication QA: straightedge-check each flange before fitting the gasket | **RESOLVED** |
 | 20 | **G10 shaft dielectric dissipation** — calculated ~1.25 W per shaft at 30 MHz / 4,191 V (Section 7.1a). First identified tank loss that is not the capacitors; scales as V². Confirm by touch after a long 10 m carrier run | **OPEN — commissioning check** |
 | 21 | **Oldham tongue/slot fit** — backlash is set entirely by this clearance. Measure total drive-train lash at the element with a dial indicator before trusting a stored profile (Section 7.1a) | **OPEN — fabrication QA** |
 | 22 | ~~Chamber layout dimensioning~~ — §4 sub-wall 5.37″ vs §6 bay depth 5.00″. Superseded by the §3.0 utility layer; the 5.00″ layer height vs NEMA 23 + takeoff (5.22″) carries on as item 30(b) | **SUPERSEDED** (item 29) |
@@ -4364,7 +4414,7 @@ network topology (plain T confirmed sufficient — switchable T/Pi not required 
 | 3 × single-shaft stepper (frame per DECISION M-2) + absolute encoder (DECISION M-1) | to buy | §10.6 |
 | 3 × aluminum zero-backlash helical coupler | to buy | motor side only (Section 7.1a) |
 | Delrin rod stock, ~1" dia | to buy | Oldham couplers, element side (7.1a) |
-| Sheet, angle, conductive-elastomer gasket, filtered D-subs, feedthroughs, blower | to buy | §10.11, §7.3a |
+| Sheet, angle, silicone foam gasket, filtered D-subs, feedthroughs, blower | to buy | §10.11, §7.3a |
 
 ## Section 10 — Consolidated Bill of Materials
 
@@ -4721,6 +4771,7 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | Qty | Item | Specification | Type | Ref |
 |--:|:--|:--|:--|:--|
 | 1 | Main supply | **Mean Well UHP-200-24** — 201.6 W, fanless, Class B, 2.17″ on edge | Part | §8A.1 |
+| 1 | Supply bracket | **2 × 3 × 3/16 6061 angle** × 7.75″, the 2″ leg cut to 1.00″; 4 × M3 × 8 SS into the tapped upright, 2 × 8-32 × ½ SS + nylocs to the tray | Fab | §8A.1, E-219 |
 | — | DC-DC converter | **TRACO TSR 2-24120N** — 24 → 12 V, 2 A, blower — on the control board, **counted in §10.5 (U2)** | Part | §8A.1 |
 | — | DC-DC converter | **TRACO TSR 3-2450N** — 24 → 5 V, 3 A, with an LC input filter — on the control board, **counted in §10.5 (U1)**. (The 5-SIP TSR 3-2450 is ~4× the price; Recom RPMB5.0-3.0 is on a 17-week lead) | Part | §8A.1 |
 | 2 | Common-mode choke | **Fair-Rite 2631803802** (31 material), 6–8 bifilar turns, on supply input **and** output leads | Part | §8A.1 |
@@ -4752,7 +4803,7 @@ Physically separate build (§8C.4b). No software in the E-STOP path.
 | 12 | Machine screw | 8-32 stainless button head × 3/8″ — the baseplate standoffs, up through the floor and down through the plate | Part | E-209 |
 | 384 | Machine screw | **8-32 stainless button head**, 1/2″ — 344 panel holes (TUNER-E-210) + spares | Part | E-210 |
 | 384 | Rivnut | 8-32, aluminum, in the frame flanges (match-drilled from the panels) | Part | E-210 |
-| ~56 ft | Conductive-elastomer gasket | **G-1 resolved Rev 3.7a** — on every frame flange under a panel, both faces of the shelf; replaces BeCu finger + separate elastomer | Part | §8E.6, E-210 |
+| ~56 ft (2 rolls) | Gasket | **G-1, Rev 3.7c: McMaster-Carr 93325K61**, closed-cell silicone foam strip, 1/16″ × 1/4″, adhesive back, 30 ft a roll, $54.21 (2026-11-23) — on every frame flange under a panel, both faces of the shelf; RF through the fasteners | Part | §8E.6, E-210 |
 | 60 | Captive panel screw | 8-32, RF service panel (38) and cassette face (22) | Class | §8E.6 |
 | 6 | Feedthrough capacitor | **Tusonix 2499-003-X5W0-103ZLF** — 0.01 µF, 500 V, 12-28 nut mount; shelf FT1–FT4 (all four used) + 2 spares | Part | §7.3a |
 | 1 | RF service-panel interlock | **Littelfuse 59140-1-S-02-A** reed sensor, SPST-NO, with leads ($3.76, 18,012 in stock, Digi-Key 2026-11-19), on the front shelf-ring flange; **Littelfuse 57140-000** magnet ($2.11, 5,208) bonded (VHB) to the panel's inner face above it | Part | §7.4, §9 item 51 |
@@ -4876,8 +4927,9 @@ does not degrade position the way a geared head would.
 case. §9 item 14 requires **measuring** which regime the modified amplifier actually presents
 before the opto-MOSFET and its cable are finalized.
 
-**G-1 · Gasket strategy — RESOLVED Rev 3.7a: conductive elastomer** on the frame flanges
-(TUNER-E-202 to E-208, E-218; §8E.6). *Options history in §11.7.*
+**G-1 · Gasket strategy — RESOLVED Rev 3.7a, changed Rev 3.7c: closed-cell silicone foam** on the frame
+flanges, with RF continuity through the fasteners (TUNER-E-202 to E-208, E-218; §8E.6). *Options history,
+and the conductive elastomer it replaced, in §11.7.*
 
 **L-1 · Choke turn count** — *resolved Rev 3.7c:* 15 turns of RG-400 on 5 × FT-240-61 (§6). The installed VNA sweep (§9 item 49) may take off a turn; 12 ft of RG-400 covers any outcome.
 
@@ -5000,7 +5052,7 @@ Sampler chamber in any orientation.
 
 ### 11.2 Materials, cut list, nesting and tallies for the 16 × 16 × 12″ box
 
-*Superseded by the vertical-stack drawings TUNER-E-201 (frame), E-210 (parts list, fastener holes) and E-211 (nesting), and by the G-1 conductive-elastomer gasket (§8E.6); current text in §4, §10.11 and §10.13.*
+*Superseded by the vertical-stack drawings TUNER-E-201 (frame), E-210 (parts list, fastener holes) and E-211 (nesting), and by the G-1 gasket (§8E.6); current text in §4, §10.11 and §10.13.*
 
 #### From §4 — cut list, nesting and frame (Rev 3.6 / 3.7 notes)
 
@@ -5513,7 +5565,7 @@ to **12.5 µH** so roller + link still reaches 31.70 µH. Winding method: W3JIP,
 
 ### 11.7 Bulkhead filtering and gasketing history
 
-*Superseded by the graded bulkhead filtering of §7.3 / §7.3a (Rev 3.7a, revised Rev 3.7b) and the G-1 conductive-elastomer gasket (§8E.6).*
+*Superseded by the graded bulkhead filtering of §7.3 / §7.3a (Rev 3.7a, revised Rev 3.7b) and the G-1 gasket (§8E.6).*
 
 #### From §7.3 — opening note (Rev 3.7a), with the single 0.01 µF rule
 
@@ -5564,6 +5616,15 @@ The binding constraint either way is **flange flatness**. On scratch-built 14 ga
 sheared edge will not seal. **Form a flange on the panel edges, or add a stiffener strip**, and
 check with a straightedge before committing to a gasket type — that decision is expensive to revisit
 after fabrication.
+
+#### From §8E.6 — the conductive elastomer (Rev 3.7a to 3.7c)
+
+*Rev 3.7a* chose a conductive elastomer for G-1, to seal RF and dust in one part. *Rev 3.7c* replaced it
+with closed-cell silicone foam and fastener contact for RF (§8E.6), on cost. The 56 ft of nickel-graphite
+silicone (the filler suited to aluminum flanges) came to about $570 as TE Kemtron 1210-SNG-0012 sheet
+($94.55 per 150 × 150 × 1.2 mm sheet at Digi-Key, 2026-11-23, six sheets cut into 1/4″ strips),
+against $108 for the foam. At HF the fasteners at 2″ already make the seams tight; the elastomer's
+extra shielding counts at VHF and above.
 
 #### From §10.14 — DECISION G-1 note
 
@@ -5910,7 +5971,7 @@ against the roller, caps, deck and drive trains. DRAFT — NOT FOR FABRICATION u
 
 <div class="drawing-sheet"><img src="sheets/E-218-partition.svg" alt="TUNER-E-218 — Motor / sampler partition: connectors, clip holes and connector detail"/><p>TUNER-E-218 — Motor / sampler partition: connectors, clip holes and connector detail</p></div>
 
-<div class="drawing-sheet"><img src="sheets/E-219-tray-flange.svg" alt="TUNER-E-219 — Cassette tray and rails, wall flange"/><p>TUNER-E-219 — Cassette tray and rails, wall flange</p></div>
+<div class="drawing-sheet"><img src="sheets/E-219-tray-flange.svg" alt="TUNER-E-219 — Cassette tray and rails, PSU bracket, wall flange"/><p>TUNER-E-219 — Cassette tray and rails, PSU bracket, wall flange</p></div>
 
 ## Appendix C — Control and Measurement Boards (KiCad)
 
