@@ -2,7 +2,8 @@
 ### Revision 3.7c — Vertical-Stack Architecture · Measured Parts · All-Band Band-Edge Basis
 
 **License.** © 2026 Reuben A. Popp, KF0OWR. This design is open hardware under the CERN-OHL-W v2
-and comes with no warranty; the firmware in `fw/` is GPL-3.0-or-later. `NOTICE` says what each
+and comes with no warranty; the firmware in `fw/` and the bench PC's tools in `host/` are
+GPL-3.0-or-later. `NOTICE` says what each
 license covers and lists the third-party exceptions.
 Source location: <https://github.com/driador/antenna-tuner>.
 
@@ -236,6 +237,32 @@ Source location: <https://github.com/driador/antenna-tuner>.
     - **E-201:** the corner clip's holes and legs are dimensioned, with a true view of one junction's
       wall from inside.
     - **L-100:** the balloon leaders no longer cross or start under a neighboring bubble.
+23. **From the comparison with commercial and DIY tuners** (2026-11-22):
+    - **Exciter awareness** (§8B.3b): moves only inside a 120 W tune window, a fault over 1,650 W, and
+      `want=1` when a TUNE waits for a carrier.
+    - **Fine recall memory** (§8B.3c): every proven match in 0.25 % bins, in LittleFS.
+    - **Firmware update over the network** (§8C.8): staged and checked in flash, installed only by a
+      push at the panel after comparing the CRC.
+    - **Bench meter** at `/meter` (§8C.4), and the web pages kept in flash (§8B.7).
+    - **Host tools** in `host/` (GPL, `NOTICE`): the CAT bridge with band-follow and one-button tune
+      (§8C.9) and an ALE mode (§8C.10), and `fwupdate.py`.
+    - **Motion lockout** (§7.4.6): STEP1–3 gated by the K1/K2 latch's enable (U14, SN74HC08), the BIT's
+      step-gate check (§8B.4h), and the firmware's wait after dropping its vote raised to 100 ms.
+    - **Output protection** (§8D.7): the over-voltage watch from the network model, and the arc and
+      imbalance trip on the CT as a fifth HARD_OK term, from spare gates, U12's spare half and RV2.
+    - **Teensy resources** (§8B.7): no PSRAM or second flash; the bank rule and its levers; `load` on the
+      console.
+    - **Bench tests** (`doc/bench-tests.md`): the roller, K1 and K2, the sign probe, and the decision if
+      Q is low.
+    - **General rating** (§1.7.3, `nec/rating.py`): the window at the output terminals for any load,
+      and the largest SWR matched at every phase, band by band.
+    - **Fixes found on the way:** subscribed telemetry was never sent (its buffer was too small, §8C.5);
+      item 34 now covers K2, whose NC contact is in the AUX path; the roller's acceptance, item 44's
+      action bands, §5.1's 160 m derate (502 W) and the capacitor test sheet's stress table are brought
+      up to date.
+    - **Decided:** a second, coax-fed antenna goes on AUX through its own commercial ATU (§6B.4).
+    - **§9:** items 55–58 (the output trip threshold, the pickups option, ALE mode, the derate from the
+      measured Q); item 33 closed.
 
 **Changes in Rev 3.7b**
 1. **New Section 11 — Superseded Designs and Decisions.** The side-column enclosure, the
@@ -470,8 +497,10 @@ garage interior — see Section 8E.
 ### 1.7 Network loss, efficiency, and bandwidth — derived
 
 The 200 W thermal figure inherited from Rev 3.2 was asserted, never derived. Computed here from
-the actual network solutions, with roller Q at 250 (clean contact) and 150 (realistic with
-contact resistance):
+the actual network solutions, with roller Q at 250 (clean contact) and 150 (realistic: tarnish,
+proximity effect and nearby metal). *Contact resistance alone cannot get to 150: from Q 250 to 150 at
+18.4 A is ≈ 0.67 Ω more, ≈ 227 W, where a 10 mΩ contact is ≈ 3.4 W (§5.3a). A low measured Q points
+to loss spread through the coil.*
 
 | Band | f (MHz) | L | I_roller | Loss @ Q=250 | Loss @ Q=150 | Efficiency | Q_loaded | 2:1 BW |
 |:--|--:|--:|--:|--:|--:|--:|--:|--:|
@@ -555,6 +584,90 @@ against ±57 kHz of available bandwidth. **The trigger is roughly 6× more conse
 necessary.** That is deliberate and harmless, but if tuning proves slow in service the window can
 be widened toward ±2% on the low bands without SWR penalty. Do not widen it above 20 m, where the
 solution windows in capacitance are narrow even though the SWR bandwidth is broad.
+
+#### 1.7.3 General rating *(Rev 3.7c)*
+
+*`nec/rating.py`, output `nec/rating.out`; about 105 s on 8 processes, needs numpy.* §1.7.1 rates
+the doublet. This rates the box for any load R + jX at its output terminals, as commercial tuners
+publish. The model and limits are those of §5:
+- the lossless network, with the CVDD-500-15S as C1 (20–500 pF, §9 item 45), C2 20–675 pF and the
+  roller 0.20–32.4 µH;
+- C1 9 kV and C2 6 kV peak, the roller 18.4 A and 9.3 kV peak (§10.1), and the output 10 kV peak
+  (the feedthroughs, §8D.1).
+
+Key-down adds the 200 W bay budget: roller loss at Q = 150 plus the choke's heat (§6). Each band is
+the worst of its two edges and its center. The script reproduces `cap_demand_rev37b.out` value for
+value (261 of 261) and the 502 / 600 / 882 W limits of §1.7.1, and every doublet band edge above
+160 m lands inside its window. Its search samples the network on C2 as well as L. Near the high-R
+edge every usable setting sits in 0.03–0.7 % of the roller's travel while C2 sweeps its whole range,
+which a grid on L alone misses.
+
+**1500 W key-down: the window at the output terminals (Ω)**
+
+| Band | R at X = 0 | X at R = 10 Ω | X at R = 50 Ω | X at R = 200 Ω | X at R = 1 kΩ |
+|:--|--:|--:|--:|--:|--:|
+| 160 m | 10 – 2,685 | +4 to +265 | −317 to +598 | −940 to +1,888 | −1,534 to +4,396 |
+| 80 m | 8.5 – 10,153 | −55 to +301 | −370 to +684 | −1,062 to +2,248 | −2,828 to +4,587 |
+| 60 m | 8.0 – 12,985 | −75 to +313 | −382 to +715 | −1,067 to +2,563 | −2,842 to +5,156 |
+| 40 m | 7.4 – 12,739 | −83 to +318 | −383 to +729 | −1,055 to +2,555 | −2,802 to +5,116 |
+| 30 m | 6.4 – 11,771 | −88 to +322 | −376 to +743 | −1,022 to +2,342 | −2,690 to +4,152 |
+| 20 m | 5.9 – 6,200 | −90 to +324 | −365 to +532 | −984 to +1,650 | −2,264 to +2,835 |
+| 17 m | 7.0 – 3,887 | −90 to +322 | −353 to +420 | −846 to +1,297 | −1,686 to +2,137 |
+| 15 m | 7.5 – 2,803 | −88 to +313 | −341 to +356 | −710 to +1,092 | −1,332 to +1,714 |
+| 12 m | 7.9 – 2,078 | −87 to +277 | −309 to +306 | −603 to +931 | −1,029 to +1,356 |
+| 10 m | 8.2 – 1,486 | −84 to +217 | −260 to +257 | −499 to +775 | −689 to +965 |
+
+*The firmware's over-voltage watch (§8D.7) faults a steady carrier above 5 kV peak at the output, the
+doublet's 4,191 V envelope and 20 %. At 1500 W key-down that bounds the window at |Z|²/R ≤ 8.3 kΩ: R
+at X = 0 stops at 8,333 Ω on 80–30 m, and at R = 10 / 50 / 200 / 1,000 Ω, |X| stops at 289 / 644 /
+1,275 / 2,708 Ω. SSB peaks and the SWR table below are not affected. A different antenna can raise the
+watch (`over_volts`, §8D.7), keeping margin to the 10 kV feedthroughs and the 1.5″ clearances.*
+
+| Region | What limits it |
+|:--|:--|
+| Low R, X near 0 | The roller's 18.4 A, at 6–9 Ω on 80–10 m. On 160 m the 200 W budget, at 10 Ω (the 18.4 A at 8.8 Ω for PEP) |
+| High R, X near 0 | The roller's maximum on 160 m and 80 m. The 200 W budget on 60–30 m, where the loaded Q reaches about 16. C1's 20 pF minimum on 20–10 m |
+| Capacitive (−X) | The 200 W budget at low R on every band, and up to 1 kΩ on 80–30 m. C2's and the roller's maxima from 200 Ω on 160 m. C1's minimum with C2's maximum toward high R on 20–10 m |
+| Inductive (+X) | C2's 6 kV at low R on 160–15 m, and at every R on 160 m. Elsewhere mostly C2's 20 pF minimum, paired with a C1 or roller end |
+| Never at 1500 W | C1's voltage, the roller's voltage, the output's 10 kV, the choke's share of the heat |
+
+The window is the main rating. A balanced tuner sees R + jX directly, so a modeled or measured load
+can be placed in it. The SWR table is the view commercial tuners publish. On every band its limit sits
+in the low-R corner: about 7–11 Ω at 1500 W and 2–3 Ω at 500 W, set by the roller's current or, on
+160 m, its heat. So it undersells the box for the high impedances of a doublet on ladder line. The
+600 Ω column covers those. Every phase on a 600 Ω circle is some length of 600 Ω line, so that column
+rates an antenna for every feeder length.
+
+**Largest SWR matched at every phase** (key-down unless PEP)
+
+| Band | 1500 W | 500 W | 100 W | 1500 W PEP | 1500 W, re 600 Ω |
+|:--|--:|--:|--:|--:|--:|
+| 160 m | 4.6:1 | 17:1 | > 50:1 | 5.7:1 | 4.5:1 |
+| 80 m | 5.9:1 | 23:1 | > 50:1 | 5.9:1 | 13:1 |
+| 60 m | 6.2:1 | 24:1 | > 50:1 | 6.2:1 | 13:1 |
+| 40 m | 6.5:1 | 24:1 | > 50:1 | 6.5:1 | 12:1 |
+| 30 m | 7.0:1 | 24:1 | > 50:1 | 7.0:1 | 12:1 |
+| 20 m | 7.5:1 | 25:1 | > 50:1 | 7.5:1 | 10:1 |
+| 17 m | 7.2:1 | 24:1 | > 50:1 | 7.2:1 | 6.5:1 |
+| 15 m | 6.7:1 | 24:1 | > 50:1 | 6.7:1 | 4.7:1 |
+| 12 m | 6.4:1 | 24:1 | 40:1 | 6.4:1 | 3.5:1 |
+| 10 m | 6.1:1 | 24:1 | 29:1 | 6.1:1 | 2.5:1 |
+
+At the 1500 W limits the roller burns 3–12 % of the power, and at the 500 W limits 8–39 %. At 100 W
+the lossless model allows up to 145:1 on 80–30 m, but the limiting load is then about 0.3 Ω, where
+the roller would burn most of the power, so the table stops at 50:1.
+
+- **C1.** With the UCSX-700-15S (25 pF) as C1, the high-R reach on 30–10 m falls by about a third: on
+  10 m, 969 Ω instead of 1,486 Ω at X = 0, and 1.6:1 instead of 2.5:1 re 600 Ω. On 160–40 m the
+  change is a few percent. This backs item 45's choice of the CVDD-500-15S.
+- **The firmware.** Its lowest-current setting reaches the rating within 2 W of the best setting, on
+  a grid of 720 loads.
+- **The roller.** If it installs at the NEC model's 30.0 µH (§9 item 44) rather than 32.4 µH, the
+  top R at X = 0 falls to about 2,300 Ω on 160 m and 8,700 Ω on 80 m.
+- **At 1.800 MHz** the doublet needs 18.43 A against the 18.4 A rating, so it is good for 1,495 W PEP
+  there. Key-down there is limited to 502 W anyway.
+- **Not modeled:** strays, the deck and choke shunt, and the idle-turn resonance at the top of 10 m
+  (§9 item 44).
 
 ## Section 2 — Topology and Antenna Balance
 
@@ -923,7 +1036,8 @@ not requirements (§11.3). **The real requirement is the smallest C2 that matche
 
 **Consequence of running bare (pad deleted, Rev 3.7b; §5.2).** At 160 m @ 1.800 MHz the roller
 carries 18.4 A and dissipates **≈ 341 W at Q = 250 (~568 W at Q = 150)**; the 1.800–1.850 MHz derate
-(§1.7.1) is **≈ 530 W**; C1 sees **6.54 kV pk**, **1.38×** against a 15 kV-class C1 (9 kV working);
+(§1.7.1) is **≈ 502 W** (Rev 3.7c, the input choke's heat included; 530 W from the network alone);
+C1 sees **6.54 kV pk**, **1.38×** against a 15 kV-class C1 (9 kV working);
 C2 sees 2.40 kV pk, **2.50×**. The pad would have saved ~8% of roller loss on 160 m only; the
 padded comparison is in §11.4.
 
@@ -1011,7 +1125,8 @@ loss (tan δ ~0.01–0.02), softens near 70 °C and gives off HCl if it scorches
 
 Wheeler's figure is for the coil end to end; AB6WP measured 27% under his calculation on his form.
 **Measure before cutting the wire to length**, measure the wound helix again before final assembly,
-and use the spare notches if short.
+and use the spare notches only if it measures short (below), since extra turns pull the idle-turn
+resonance down (§9 item 44).
 
 *Why #4 over 3/16″ tubing:* electrically equivalent (skin depth at 1.8 MHz is ~0.002″; #4 has ~8%
 less RF resistance from its larger surface). #4 has 2.2× the copper section to conduct heat away
@@ -1348,13 +1463,18 @@ What sets Q, in order of leverage for this design:
 **Commissioning checks (§9 item 27)**
 
 - Measure L end to end and at each turn on the LCR meter — **on the wound helix before final
-  assembly**, and again installed; confirm ≥ 34 µH free air (≥ 23 µH needed installed) and ≤ 0.46 µH
-  reachable. Use the spare notches if short.
+  assembly**, and again installed. The need is ≥ 23.1 µH installed (§9 item 47); accept ≥ 26 µH
+  installed (≈ 12 % over it) and ≤ 0.46 µH reachable. The NEC model gives ≈ 30.6 µH free air,
+  ≈ 30.0 installed, for 22 turns (§9 item 44), under Wheeler's 33.8, so the 34 µH of the build target
+  is not the test. Use the spare notches only below 26 µH: two more turns add ≈ 3.4 µH but pull the
+  idle-turn resonance down, so sweep it again after (next item).
 - VNA-sweep the finished roller at several wheel positions for idle-turn resonances (§9 item 44:
-  Medhurst estimate SRF ≈ 11 MHz for the full winding), and check for heating on a 10 m carrier.
+  the NEC model puts them at 13.2–15.6 and 28.4–30.2 MHz, which supersedes the Medhurst estimate of
+  ≈ 11 MHz for the full winding), and check for heating on a 10 m carrier.
 - Measure breakaway and running torque (feeds DECISION M-2; rotor inertia ≈ 30 lb·in², estimate).
-- Heat test on 160 m: key-down at 100 / 300 / 600 W, IR thermometer on the wheel contact, ribs
-  and notches. Ribs must stay cool to the touch; any warm rib means dielectric heating. Include
+- Heat test on 160 m: key-down at 100 / 300 / 600 W, temperature at the wheel contact, ribs
+  and notches. An IR thermometer reads bare silver and copper far too low: use a thermocouple, or a
+  dot of high-emissivity paint or Kapton tape to aim at (`doc/bench-tests.md` §1.4). Ribs must stay cool to the touch; any warm rib means dielectric heating. Include
   the shaft finger contact and collar.
 - Measure roller Q (§9 item 12) **installed in the bay, RF service panel on**, at the 160 m settings;
   accept at **≥ 300**. The 160 m derate in §1.7.1 depends on it.
@@ -1933,6 +2053,14 @@ capacitor is a 1 kV NP0 part or a short gimmick; at the load's 50 Ω it loads th
   (§8A.2 single-point ground, §8D.5).
 - The UI shows the mode at all times. The local panel and the web UI can select TUNE / AUX / CAL;
   like a band change, it is not a fault-policy action and is allowed remotely.
+- **A second antenna** *(decided Rev 3.7c, 2026-11-22)*: if a coax-fed antenna joins the doublet, it
+  goes on AUX through its own commercial coax ATU (a 1.5 kW auto tuner on the bench side of the
+  entry panel, or a remote one at the antenna), not through a tuned unbalanced output from this box.
+  A second tuned output would need switching at the network's output, where the voltages are the
+  §8D.1 kV figures. That brings back the HV relays Rev 3.7b took out of the tank (§5.2, §5.4), for a
+  job a commodity unit already does well. The ladder-line job is the one this box exists for. AUX
+  passes the tuner's metering and over-SWR trip through (§6B.2), so the external ATU still runs under
+  the permissive.
 
 ### 6B.5 Placement and wiring
 
@@ -2221,6 +2349,7 @@ contradicts Section 8C.6 — protection must never depend on the link.
    cal-load thermal (6B.3) -----+-- AND -------+     |                                |
    RF service-panel switch -----+                    |                                v
    any limit switch open -------+        10 kHz LMC555                    opto-isolated switch
+   output trip (8D.7, latched) -+
                                                                                       |
                                                            [ rig PTT ] -- E-STOP -----+- [ amp key in ]
 ```
@@ -2229,10 +2358,12 @@ contradicts Section 8C.6 — protection must never depend on the link.
   computed by firmware.
 - **The bypass key overrides exactly what §8B.4d says it defeats:** the over-SWR trip and the MCU's
   vote, which carries the relay sequencing. The cal-load window, the cal-load thermal switch, the RF
-  service-panel switch and the limits stay in force, so the key cannot defeat personnel or load
-  protection.
+  service-panel switch, the limits and the output trip (§8D.7) stay in force, so the key cannot
+  defeat personnel or load protection.
 - Every input fails toward inhibit. A broken switch lead reads as a trip; an unplugged sampler
   ribbon pulls the SWR term low; an open detector line reads 0 V and trips the window (§6B.3a). The
+  one exception is the output trip (§8D.7): a broken CT line reads no imbalance, so it fails toward
+  permit, and the SWR trip and the firmware's over-voltage watch remain. The
   RF service-panel switch uses shelf feedthrough FT4 (§7.3a). It is a reed sensor on the front shelf-ring
   flange, closed by a magnet on the panel (§9 item 51).
 - It drives an LED into a dedicated fiber strand — **not** the data link, no protocol, no software.
@@ -2327,6 +2458,32 @@ The 30 ms RF-decay blanking of Section 5.5 should comfortably cover a Heathkit r
 the permissive, and scope the RF envelope to measure actual decay-to-zero. If it exceeds 30 ms,
 lengthen the blanking — it costs nothing but tune time, and the consequence of getting it wrong is
 hot-switching K1/K2.
+
+#### 7.4.6 Motion lockout — nothing moves while the permissive is up *(Rev 3.7c)*
+
+The firmware steps a motor only after its vote has been down 100 ms (§8B.3). Until Rev 3.7c nothing
+else stood in the way: a firmware fault that stepped the roller with the amplifier keyed would drag
+the wheel contact along a live turn at up to 18.4 A (§5.3a). That is now a hardware property, made
+by the signal that already freezes K1 and K2 (§5.5).
+
+- **The gate.** Each STEP line passes an AND gate (U14, SN74HC08) with the latch's enable,
+  SWITCH_OK, before its 47 Ω and the J-A ribbon. A step reaches the drivers only once the permissive
+  has been down 39–67 ms. While it is up, the MCU can send all the pulses it likes and nothing turns.
+- **What stays on.** DIR and DRV_EN are not gated, so the motors keep their holding torque. A move the
+  gate cuts short ends as an encoder mismatch (§8B.3), graded like any other.
+- **The bypass.** The bypass key holds the permissive up (§8B.4d), so nothing moves while it is on.
+  The firmware already refuses moves then.
+- **Timing.** The firmware waits 100 ms after dropping its vote, as the path switch does (§5.5), which
+  covers the gate's 39–67 ms.
+- **Proof.** The built-in test checks the gate (§8B.4h). With the permit up, right after the hold
+  latch, it sends the roller 1/16 turn of steps. The encoder must not move. A gate that lets them
+  through latches SELF-TEST FAILURE, as a failed hold latch does.
+- **Cost.** One SN74HC08DR, the part U4 already is, and a 100 nF capacitor. Digi-Key, 2026-11-22:
+  38,627 in stock, $0.52 at qty 1. Stocked same-footprint alternates: onsemi MC74HC08ADR2G (26,047,
+  $0.43) and Diodes 74HC08S14-13 (3,150, $0.32).
+
+This sits in front of §7.2's limit layers, which act on the driver side of the ribbon: those stop
+travel at the ends, and this one stops it under power.
 
 ### 7.5 User interface — local panel plus remote head
 
@@ -2577,7 +2734,7 @@ filtered DC, plus one 29 kHz logic line on its own coax.
 
 | Teensy pins | Signal | Notes |
 |:--|:--|:--|
-| 0, 2, 4 · 1, 3, 7 · 8 | STEP1–3 · DIR1–3 · DRV_EN → J-A | 47 Ω series (§7.3) |
+| 0, 2, 4 · 1, 3, 7 · 8 | STEP1–3 · DIR1–3 · DRV_EN → J-A | 47 Ω series (§7.3); STEP through the motion lockout's gate (§7.4.6) |
 | 9 | ÷1024 frequency, from the SMA | FreqCount's fixed input |
 | 13, 11, 12 · 10, 5, 6 | Encoder SPI SCK, MOSI, MISO · CS1–3 → J-A | AS5048A; MOSI carries the command frames (diagnostics/AGC, error clear) |
 | 14–17, 20 | V_MAG, V_PHS, V_FWD, V_REF_DET, AD_VREF ← J-B | ADC; 1 kΩ + 10 nF |
@@ -2596,7 +2753,8 @@ filtered DC, plus one 29 kHz logic line on its own coax.
 - GPA0–2 and GPA3–5: encoder 1 and encoder 2 (A, B, push).
 - GPA6: the bypass key.
 - GPB0–6: SWR_OK, CALDET_OK, CALTH_OK, PANEL_OK, LIMIT_OK, HARD_OK and BYP_OK. The firmware can
-  therefore name which term dropped the permissive.
+  therefore name which term dropped the permissive. HARD_OK low while its four inputs read high is the
+  output trip (§8D.7), the one term with no input of its own.
 - GPA7: the alarm sounder's switch (§8B.4i). GPB7: unused. Both are output-only on current silicon.
 
 ### 8B.1 State machine
@@ -2657,7 +2815,7 @@ Do **not** initiate on SSB speech — see the carrier requirement in Section 6A.
 `nec/tune_time.py` turns the §5.1 solutions into shaft travel and time. Roller: 22 turns full
 travel, L per turn from the NEC sweep (§9 item 44). Capacitors: linear in turns, **~30 turns full range
 (ASSUMED — count the UCSX-740-10's turns)**. All three axes move together (8B.3), trapezoidal profile with a
-0.25 s ramp, at 1 kHz full steps. Overheads: PTT drop + 30 ms decay, settle + encoder verify, 0.30 s
+0.25 s ramp, at 1 kHz full steps. Overheads: PTT drop + 100 ms decay (§7.4.6), settle + encoder verify, 0.30 s
 measurement (200 ms frequency gate + bridge), 3-step bounded refine.
 
 | Case | M-2 A (NEMA 23 direct, 5 rev/s) | M-2 B (NEMA 17 + 3:1, 1.67 rev/s) |
@@ -2680,6 +2838,45 @@ network often has two solution branches and the lowest-current policy picks betw
 45 pF between 28.5 and 29.0 MHz). **Firmware should prefer the solution nearest the current element
 positions** when its loss is within a few percent — that removes most long moves and in-band jumps.
 The 1 kHz step rate is conservative; times scale inversely with it, within the lead screws' limits.
+
+### 8B.3b Exciter awareness — the tune window and the rating *(Rev 3.7c)*
+
+The permit holds off only the amplifier (§7.4). The exciter can still be transmitting when an element
+moves, and nothing in the hardware limits what the amplifier sends once the permit is up. Two
+firmware rules close both gaps, from the calibrated forward detector:
+
+- **Tune window.** An element moves only with the forward power at or under 120 W. A move that is due
+  waits, and the panel and telemetry say why (`hold=1`; "tune at under 100 W"). Still waiting after
+  2 s is a class B fault, TUNE POWER, and the vote stays down.
+- **Rating.** Forward power over 1,650 W (1,500 W and 10 % for the detector) for 300 ms, in any state
+  and on any path, is a class B fault, OVER POWER, raised once per excursion. The vote drops with it,
+  so the amplifier drops out.
+- **A TUNE waiting for a carrier** says so in telemetry (`want=1`) for 30 s, so a CAT bridge can key a
+  low-power carrier for it (§8C.9).
+
+The 120 W and 1,650 W are ASSUMED until the forward detector is calibrated on each band (§6A.8);
+until then the band reads as uncalibrated (`fwd=-`) and neither rule acts. They sit in front of the
+hardware: the permit still drops before any move (§5.5), and the step gate keeps the elements still
+while it is up (§7.4.6).
+
+### 8B.3c Fine recall memory *(Rev 3.7c)*
+
+The NEC priors (§8B.2) are one setting per 1 % segment, good enough to land near a match. The recall
+memory keeps what the tuner has actually proven:
+
+- **What it keeps.** Every converged match: the setting and its SWR, in bins of 0.25 % of frequency
+  on a log scale from 1.8 MHz, inside the bands only. That is 175 bins, and the memory holds 192, so it
+  never forgets a bin. A new match replaces the bin's old one.
+- **How it is used.** A TUNE first looks for its frequency's bin, then the nearest within two bins on
+  either side (0.5 %, §8B.2's validity window). A hit becomes the first move, then VERIFY. A miss falls
+  back to the prior and the full search. A PRESET (§8B.3a) uses the same lookup. A recalled setting is
+  only a starting point: the tune measures there and goes on, so a stale entry costs one move.
+- **Where it lives.** LittleFS on 256 KB at the top of program flash, below the core's reserved
+  area, written whole and renamed, 10 s after the last change, so a run of tunes is one write. A
+  firmware upload over USB leaves it in place (bootloader 1.07 and later), and so does an update over
+  the network (§8C.8). With no room for the area, the memory works from RAM alone.
+- **For ALE** (§8B.7, §9 item 57), the memory already acts as a channel table: tune each channel once
+  and its setting is there.
 
 ### 8B.4 Fault handling
 
@@ -3019,7 +3216,10 @@ console):
    If the permit falls meanwhile, K1 is let go before the latch can open, and the check goes untested.
 4. **The permit:** in IDLE, with the vote given, it must read high within 50 ms. If it does not, the
    first term reading low on the MCP23017 is named. COMMISSIONING withholds the vote, so there the
-   latch and the permit go untested, and the console says so.
+   latch, the permit and the step gate go untested, and the console says so.
+5. **The step gate** *(Rev 3.7c, §7.4.6)*: with the permit still up, the roller gets 1/16 turn of steps
+   straight from the Teensy, past the state machine. Its encoder must not move. If the permit falls
+   meanwhile, the gate would open within 39 ms, so the check goes untested rather than failed.
 
 It runs only with no carrier and no RF, the bypass off, nothing latched, the TUNE path in use and the
 RF service panel closed (PANEL_OK). If any of those changes it stops, and if the path is not TUNE it
@@ -3028,7 +3228,7 @@ the boot has settled (`kBitAtPowerUp`, on by default).
 
 | Check | Grade |
 |:--|:--|
-| The original passive checks, and the hold latch | **C**: SELF-TEST FAILURE, local clear |
+| The original passive checks, the hold latch and the step gate | **C**: SELF-TEST FAILURE, local clear |
 | An axis | As the mechanical policy grades an encoder mismatch (§8B.4a-1): **C** under STRICT |
 | A relay | **B**: RELAY MISMATCH |
 | A detector's idle level | **B**: BUILT-IN TEST |
@@ -3259,7 +3459,7 @@ The tests settled what §8B left open:
 | Starting far off | Above 5:1 a fraction of a dB moves the R estimate several-fold, so the tuner drives to the stored setting first. Solves from such readings are coarse moves: at most 3, outside the 3 attempts. A move that more than doubles the best SWR is undone |
 | Converged | 1.2:1. After the 3rd attempt a match under the 1.5:1 retune threshold is kept; above it, TUNE FAILED |
 | Over-SWR trip | A fault only once MATCHED. A tune starts from a mismatch, and the comparator holds the amplifier off meanwhile |
-| PTT and moves | The vote stays down through PROBE and MOVE, and until the motion layer reports stopped. A move goes out 30 ms after the vote drops. A move in progress finishes if the carrier ends; the bypass key stops it |
+| PTT and moves | The vote stays down through PROBE and MOVE, and until the motion layer reports stopped. A move goes out 100 ms after the vote drops: the RF's 30 ms and the step gate's 39–67 ms (§7.4.6). A move in progress finishes if the carrier ends; the bypass key stops it |
 | Encoder verify (§8B.3) | Done in the motion layer, in counts, and reported when the move completes. A move still running after 15 s is a position fault |
 
 **Tested envelope, and so the commissioning target** (§9 item 54):
@@ -3357,7 +3557,8 @@ not touch and which is now a firmware follow-up.
   - **When:** the boot checks now name what failed. The active run follows 3 s after power-up and on
     demand (the panel, the page, SELFTEST on the link, the console).
   - **How:** it asks for its jogs and path changes through the operator's routes, so the state machine
-    and the path switch grade what they find. Only the latch check drives K1 itself.
+    and the path switch grade what they find. Only the hold-latch and step-gate checks go past them,
+    with the permit up (§7.4.6).
   - **Results:** each failed check is graded as the table says, logged as its own event and named on
     the panel's fault screen. Telemetry carries the result as a word of check bits.
   - **ASSUMED:** the detector windows, until bring-up.
@@ -3369,6 +3570,68 @@ not touch and which is now a firmware follow-up.
   - Only the tuner's own subnet is served (§8C.7), which also refuses anything port-forwarded in.
   - mDNS answers `tuner.local`, and SNTP from `pool.ntp.org` sets the RTC for the logs. It believes only
     the server it asked, and it handles the NTP rollover in 2036.
+
+### 8B.7 Teensy 4.1 resources — and whether to add memory *(Rev 3.7c)*
+
+**Decision: add no PSRAM and no second flash chip.** Nothing here is short of memory or processor, ALE
+control included. The one constraint that bites is how the 4.1 splits its fast RAM, and that has a
+known margin and known levers. Figures are from `pio run` on the Rev 3.7c firmware (2026-11-22).
+
+| Resource | Size | Used | Free | Grows with |
+|:--|--:|--:|--:|:--|
+| Program flash | 7.75 MB (8 MB less the core's 256 KB) | 426 KB image; 256 KB recall memory (§8B.3c) | 7.1 MB, of which an update stages one more image (§8C.8) | Code, constants kept in flash |
+| RAM1, code (ITCM) | Taken from 512 KB in 32 KB banks | 292 KB in 10 banks (320 KB) | 28 KB to the 11th bank | Code not marked FLASHMEM |
+| RAM1, data and stack (DTCM) | The other 192 KB | 127 KB variables | 65 KB of stack; the deepest path is ~12 KB | Variables, constants not kept in flash |
+| RAM2 (OCRAM) | 512 KB | 83 KB: network buffers, DMA | 429 KB; the firmware has no heap | Large buffers marked DMAMEM |
+| EEPROM (emulated) | 4,284 B | 2,976 B: the authoritative record twice, the profiles once | 1,308 B | Persisted settings |
+| CPU | 600 MHz Cortex-M7, double-precision FPU | Estimated under 10 %: a 50 kHz step interrupt and a 10 ms tick | — | Measure with `load` |
+
+**The bank rule.** RAM1 is one 512 KB block shared between code and data in 32 KB banks. Code that
+crosses a bank boundary takes a whole bank from the data side at once. The firmware update (§8C.8)
+crossed one, and the free stack fell from 88 KB to 54 KB. Keeping the two web pages in flash rather
+than copying them into RAM at boot (§8C.4) won back 11 KB. The worst stack path is about 12 KB:
+restoring settings from the card, whose parser has a 6.9 KB frame (`-fstack-usage`). An 11th code bank
+would leave 33 KB of stack, still nearly three times that. A 12th would leave almost none, and that is
+the line not to cross.
+
+**Where the code goes.** Before link-time trimming, the tuner's own code is about a quarter of it: the
+core 34 KB and the Teensy layer 45 KB. The libraries are the rest:
+
+| Library | Code |
+|:--|--:|
+| QNEthernet with lwIP | 91 KB |
+| SdFat and SD | 63 KB |
+| LittleFS | 35 KB |
+| The Teensy core | 32 KB |
+| newlib's printf and strtod, and the maths | about 55 KB |
+
+**Levers, cheapest first, if that margin is ever needed:**
+1. More constants to flash with `TUNER_FLASH_DATA` (`fw/core/include/tuner/flashdata.hpp`), as the
+   pages are. Next would be the seed priors, at 2.8 KB.
+2. The two 6.5 KB settings documents in `main.cpp` share one buffer, or move to RAM2. That is 13 KB of
+   data. The recall store's 4 KB image moves to RAM2.
+3. Cold code to flash with FLASHMEM: `setup()`, the console, the card's restore. The cache makes it
+   fast enough. This never applies to code on a flash-writing path (the update, EEPROM, LittleFS),
+   because the flash cannot be read while it is being written.
+
+**Why PSRAM or a second flash would not help.** The 4.1 has pads underneath for an 8 MB PSRAM and a
+second QSPI flash. PSRAM is slow memory behind a cache, a place for large buffers. It is not RAM1, and
+nothing here needs large buffers. A second flash adds storage, but program flash is under a tenth used and
+the SD card holds the logs and backups. If a need does appear, such as recording the bridge at a high
+rate during commissioning, the Teensy sits on sockets with about 11 mm under it (§10.5). The chips can
+be soldered on later without touching the board.
+
+**Under ALE.** An ALE controller (MIL-STD-188-141) scans two to five channels a second and, on a
+call, transmits on whichever channel it chose. That asks nothing of memory or the processor: a
+channel table of a few hundred settings is a few KB, and a PRESET is a table lookup and a move plan,
+microseconds each. What ALE does test is the elements' speed. A band change takes 3.0–4.3 s on the M-2
+motors (§8B.3a), so the tuner cannot follow a receive scan. It has to position on the channel ALE
+settles on, within the controller's tune-time allowance, and the roller wears with every channel
+change. ALE mode (§8C.10) is built around that.
+
+**Measured at bring-up.** `load` on the USB console reports the tick's average and worst time against
+its 10 ms, the loop rate, and the deepest the stack has been since boot (the free stack is painted at
+power-up). These replace the estimates above once the boards run.
 
 ## Section 8C — Remote Head and Control Link
 
@@ -3491,6 +3754,18 @@ The UI provides:
 - Calibration data entry (Section 6A.8)
 - Current fault-policy mode — **read-only; mode changes are local (8B.4a-1)**
 
+**Bench meter** *(Rev 3.7c)*. `http://tuner.local/meter` is a second page for a tablet or an old phone
+left on at the bench, in place of the meters a desk unit would carry. It shows SWR and forward power as
+large numbers over bars, with ticks at SWR 1.5 and 2, the 1500 W rating, and the band's derate limit
+where it is lower (§1.7.1). A peak marker holds for 2 s. Below them are the state, frequency, path,
+permit and tank temperature; the faults, on a red banner that flashes for class C; what the tuner is
+waiting for (a carrier for a TUNE, drive under the tune window, §8B.3b) and the derate warning; and the
+last three events. It sends only TUNE and ACK. Its alarm follows the full page's (§8B.4i) once a tap
+allows sound, and a lost link covers the screen until the link is back. It uses the same WebSocket and
+protocol as the full page, so it needs nothing new at the tuner. Set the tablet to stay awake: browsers
+grant a page the screen wake lock only over HTTPS. Both pages stay in program flash on the Teensy
+rather than being copied into RAM (§8B.7).
+
 ### 8C.5 Protocol and telemetry
 
 Line-oriented text over TCP. Debuggable with `nc` or a terminal emulator from any machine on the
@@ -3505,8 +3780,10 @@ LAN, which matters when the thing is mounted on a garage wall.
 | Latency | < 100 ms end to end |
 | Bandwidth | A few hundred bytes/second against 100 Mbit/s — negligible |
 
-**Command set:** `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE`, `GET_LOG`. Deliberately absent: fault-policy
-mode changes, class C fault clears, and bypass — all local-only by design.
+**Command set** (`fw/core/include/tuner/proto.hpp`): `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE`, `GET_LOG`,
+`PATH`, `CAL`, `PRESET` (§8B.3a), `SELFTEST` (§8B.4h), `NET` (§8B.5.4) and `UPDATE` (§8C.8). Deliberately
+absent: fault-policy mode changes, class C fault clears, the bypass, jogging and installing new firmware —
+all local-only by design.
 
 **Bandwidth is a non-issue on Ethernet** — a 20 Hz telemetry record of ~40 bytes is 800 bytes/s
 against 100 Mbit/s. The point worth preserving from the serial design is that **fault events are
@@ -3553,6 +3830,133 @@ Exposure therefore applies to the tuner directly:
 - The practical risk is nuisance rather than danger: a spurious `TUNE` drops PTT before moving
   anything (Section 8B.3), so it cannot hot-switch a relay or move an element under power. It can
   waste a tuning cycle and some roller travel.
+- **Firmware** (§8C.8): anyone on the subnet can stage an image, but only a push at the box installs
+  it, after the CRC on the panel has been compared with the one the sender printed.
+
+### 8C.8 Firmware update over the network *(Rev 3.7c)*
+
+The tuner lives at the entry box (§1.6), and its USB port is inside the cassette. Without this, every
+firmware change means opening the box with a laptop beside it. Now the image goes over the link, and only
+the final yes is given at the box.
+
+**Sending.** `host/fwupdate.py firmware.hex` reads the `.hex` that PlatformIO writes and checks it: every
+record, and the Teensy 4.1's boot header. It then sends `UPDATE BEGIN`, the image as Intel HEX records
+of 32 bytes in address order, and `UPDATE END <bytes> <crc32>`. Each record carries its own checksum, so
+the tuner answers one only to refuse it. The first refusal ends the transfer, and the tool stops. `UPDATE`
+alone reports where an update stands; `UPDATE ABORT` discards one arriving or staged.
+
+**Staging.** The image is written to program flash between the running firmware (rounded up to a 4 KB
+sector) and the recall memory's 256 KB (§8B.3c): about 7 MB of room against a 416 KB image. Sectors are
+erased as the data reaches them, gaps included, so a gap reads as erased flash. The core's flash routines
+stop interrupts while the flash is busy, up to 45 ms typical for an erase (400 ms worst case), so the
+watchdog is fed before each erase.
+
+**Checks before anything is offered:**
+
+| Check | Catches |
+|:--|:--|
+| Each record's checksum | A damaged line |
+| Records in rising order, inside the staging area | A file that would write over what it already wrote, or past the room |
+| The end record, then the length and CRC-32 from `UPDATE END` against what arrived | Lost records, a damaged transfer |
+| The CRC read back from the staged flash | Flash that did not take the data |
+| The Teensy 4.1 boot header (FlexSPI configuration with 8 MB of flash; image vector table at 0x1000) | An image for another board, or not an image |
+
+**While it runs.** From `UPDATE BEGIN` until the image is installed or dropped, the MCU's vote is down,
+so nothing transmits through the tuner. Nothing moves either: TUNE, PRESET, jogs, path changes and the
+self-test are refused with a reason. An update starts only while receiving, with nothing running. A
+transfer with no record for 30 s, or whose connection closes, is dropped, and nothing has changed.
+
+**The yes, at the box.** The panel shows **FIRMWARE UPDATE READY**, with the size and the CRC-32, and
+nothing else until it is answered: the left knob's push installs, the right one's discards. Compare the
+CRC with the one `fwupdate.py` printed. That comparison stands in for a signature: anyone on the subnet
+can stage an image (§8C.7), but no one installs it without being at the box. `update install` on the
+USB console, also at the box, does the same. An image not installed within 10 minutes is discarded. A
+staged image never installs itself, not even after a restart.
+
+**The install.** The tuner logs the event and pushes it to the link. It saves now what it would
+otherwise save later: its fault, calibration and profile records, the recall memory and the SD card's
+event log. It shows **INSTALLING FIRMWARE** and lowers the permit and the stepper drivers. Then, from
+RAM with every interrupt source off, it copies the staged image over the running one a sector at a time:
+into RAM, erase, program, feed the watchdog. A 416 KB image is
+104 sectors, about 6 s. It then restarts. The copy works upward, so a new image long enough to reach the
+staging area only overwrites staged sectors already copied. The recall memory, the EEPROM area and the
+Teensy's restore program are above everything it writes.
+
+**If the power fails mid-install,** the board will not start. The Teensy's own loader, a separate chip
+the install never touches, still programs it over USB as at the first build, so the box has to be
+opened that once. Nothing else is at risk.
+
+**Events** (§8C.5): `event=update` with `update=begun|staged|failed|discarded|installing`. The restart's
+own boot event follows.
+
+**Firmware:** `fw/core/src/hexfile.cpp` (records, image, CRC, boot header; host-tested, and checked
+against a real build: 26,638 records, 425,984 bytes), `fw/teensy/update.cpp` (staging, checks, install),
+`fw/core/src/panel.cpp` (the two screens). The tool's tests (`host/test_fwupdate.py`) run it against a
+fake tuner. The tool and the core agree on the real build's length and CRC.
+
+### 8C.9 CAT bridge and one-button tune *(Rev 3.7c)*
+
+`host/catbridge.py` runs on the bench PC, between the rig's CAT control (Hamlib's `rigctld` or
+flrig) and the tuner's line port. It is a convenience, never part of the protection (§8C.6). Python
+3.8 or later, standard library only; usage, options and a systemd unit are in `host/README.md`.
+
+**Band-follow** (§8B.3a). It polls the rig's frequency every 0.5 s and sends PRESET on a band change,
+or on a move of more than 0.5 % from the last PRESET:
+- never while the rig transmits, and at most one every 2 s;
+- only once telemetry shows IDLE, no carrier, the TUNE path, the bypass off and no self-test, so a
+  PRESET that would be refused waits until it would be taken.
+
+**One-button tune.** When telemetry shows `want=1` on the TUNE path (a TUNE from the page, the panel
+or the bridge, waiting for a carrier, §8B.3b), it keys a low-power carrier:
+- RTTY at 20 W by default, never more than 50 W. The mode's name is looked up in the rig's own list
+  (RTTY, RTTY-L, FSK).
+- It reads the mode and power back before keying. It keys once per request, and never over the
+  operator's own transmission.
+- It unkeys at the first of: MATCHED or FAULT; a fall back to IDLE; a withdrawn request; `hold=1`; no
+  carrier seen within 3 s; its 15 s timeout (30 s at most); a dropped link; any error; SIGINT or
+  SIGTERM. Then it puts the rig's mode and power back.
+- If it is killed outright, the rig's own transmit time-out timer is the backstop.
+
+Tested against fake rigctld, flrig and tuner servers (`host/test_catbridge.py`, 51 tests), including
+the real program stopped by a signal while keyed: the rig ends unkeyed and as it was. Not yet run
+against a real rig: whether RTTY with PTT gives a steady carrier on every rig is typical (Icom, Yaesu,
+Kenwood) but not verified, and Elecraft depends on its data sub-mode.
+
+### 8C.10 ALE mode *(Rev 3.7c)*
+
+Under automatic link establishment (MIL-STD-188-141), an ALE controller owns the radio. It scans its
+channel list at two to five channels a second while receiving. On a call it stops on the channel, and
+it answers or calls on whichever channel it picks. The tuner cannot follow the scan: a band change
+takes 3.0–4.3 s (§8B.3a). It does not need to. What matters is being on the channel by the time the
+controller transmits.
+
+**The bridge** (`catbridge.py run --ale`):
+- It polls the rig every 0.25 s, and a frequency counts only once it has held for 1.5 s (`--dwell`),
+  against a scan's 0.2–0.5 s a channel. Then the band-follow rule sends PRESET as usual (§8C.9). A
+  received call holds the channel for seconds, so the elements are usually there before the reply.
+- It never keys the rig: one-button tune is off, and `tune` is refused. The tuner tunes on the
+  controller's own transmission instead. A barefoot ALE radio sits inside the 120 W tune window
+  (§8B.3b), and the permit keeps the amplifier out until the match.
+- It counts its PRESETs and warns above 60 an hour, because every channel change moves the elements
+  and wears the roller's wheel.
+
+**The tuner** needs nothing new. A PRESET recalls the channel's proven setting from the fine memory
+(§8B.3c), and the key-down that follows goes straight to VERIFY. Tune each channel once, at low power,
+before relying on ALE, so every channel has an entry.
+
+**Setting up the controller:**
+- **Tune time.** It must cover a move: about 5 s for a band change and 2 s within a band (§8B.3a),
+  less once PRESET-on-dwell has done the move during the call.
+- **Sounding.** Limit it to the channels in use, at long intervals. Every sounding on another band is
+  a move.
+- **Scan list.** Few bands. Channels in the same 0.25 % bin share one stored setting.
+
+**What ALE costs on receive.** The network stays where it was last set while the controller scans.
+Off-channel signals arrive through a network tuned elsewhere, which can cost many dB far from the
+channel it was set for. On 160–40 m, atmospheric noise usually sits well above the receiver's own, so
+signal and noise drop together and little is lost. On 15–10 m in a quiet band, the loss can reach the
+receiver's noise floor. A receive bypass relay would avoid it, but it would add switching to the RF
+path (§5.5) for a receive-only gain, so it is not planned.
 
 ---
 
@@ -3696,6 +4100,65 @@ collapses creepage.
 - Inspect and clean the feedthrough surfaces at the same interval as the roller contact
   (Section 5.3a). Both are surface-condition failures and both are invisible until they arc.
 
+### 8D.7 Output over-voltage and arc detection *(Rev 3.7c)*
+
+Two faults at the output may not show at the input at first, because the tuner matches whatever it
+sees:
+- an arc at a feedthrough or along the ladder line;
+- a load outside the envelope (a wet or broken feeder, an opened or shorted antenna), driving the
+  output past what the feedthroughs, C1 and the clearances were sized for.
+
+Two layers cover them.
+
+**1. The over-voltage watch (firmware).** It runs on every measurement once the network holds a
+setting (MATCHED, VERIFY):
+- the load, de-embedded from the bridge reading through the network (§6A.9);
+- the power entering it, the forward power less what is reflected;
+- from those, the network's stresses, which give the output's peak voltage, terminal to terminal.
+
+Over 5,000 V for two 200 ms gates in a row is a class B fault, OUTPUT OVER-VOLTAGE, once per excursion,
+and the vote drops with it. The 5,000 V is the 4,191 V envelope of §8D.1 and 20 %. It is set for this
+doublet: the box's own limits reach further at high impedance (§1.7.3), and `over_volts` in
+`fw/core/include/tuner/fsm.hpp` is where another antenna would raise it, keeping margin to the 10 kV
+feedthroughs and the 1.5″ clearances. The estimate is
+lossless, so it reads a little high, the safe way. The host tests check it:
+- at every band edge, the stresses at 1500 W are the solver's own;
+- the largest output is the envelope's 4,191 V;
+- in closed loop, the estimate is within 5 % of the true figure.
+
+Telemetry carries it (`vout=`) and the page shows it. It works from each gate's average power, so it
+judges steady carriers (key-down, FT8, RTTY, the tune). An SSB voice peak sits above the average, but
+the envelope was sized for the steady case (§1.2b).
+
+**2. The output trip (control board).** An arc to chassis, or a feeder fault that returns current on
+one leg, shows first as imbalance, which the bifilar CT sees at once (§2.2).
+- **The comparator.** U12's spare half compares the CT's detected level (CT_DC) with trimmer RV2.
+- **The term.** Its output is a fifth, never-bypassed term of HARD_OK (§7.4).
+- **The latch.** While the MCU's vote is up, the trip seals itself in through spare gates of U5 and
+  U4. So an arc that the dropped RF has put out cannot key the amplifier straight back.
+- **The firmware.** It sees HARD_OK low with its four other inputs high and raises OUTPUT TRIP
+  (class B). Its vote drops with the fault, and that releases the latch.
+- **A dead MCU** holds the latch clear, and the trip simply follows the CT.
+- **Cost.** No new crossing and no new IC: U12's second half, spare gates of U4, U5, U6 and U7, RV2 and
+  five passives. RV2 is RV1's part (Bourns 3296W-1-103LF, §10.5 BOM, checked 2026-11-19). A
+  re-check on 2026-11-22 stopped at the distributor's bot screen; check again when ordering.
+- **Threshold, set at commissioning** (ASSUMED until then):
+  1. Start with RV2 at its top, about 3.0 V, which the CT should never reach.
+  2. Key the full-power carrier into the antenna on each band and note the highest CT reading.
+  3. Set RV2 to three times that.
+- **Response.** The CT's detector, the 1 kΩ / 10 nF filter and the op-amp take well under a
+  millisecond to drop the LED. The amplifier's relay then takes its own 10–20 ms (§7.4.5).
+- **What it does not catch.** A series arc, in one conductor in line with the load, changes the load
+  rather than the balance. The SWR trip (§7.4) catches that, as it does any arc that moves the match.
+- **How it fails.** A broken CT line reads no imbalance, so this term fails toward permit, the one
+  exception to §7.4's rule. The watch above and the SWR trip remain.
+
+**3. Not built: capacitive voltage pickups at the feedthroughs.** They would need a fifth shelf
+feedthrough and a DE-9 pin (§7.3a). Their electrode sits near ground potential beside a 4 kV
+conductor, so it has to keep the 1.5″ clearance (§3.2). That leaves a fraction of a picofarad to work
+with, to be calibrated by measurement. The watch covers the steady case without hardware, and the trip
+covers arcs. §9 item 56 keeps the pickups as an option if commissioning shows a need.
+
 ---
 
 ## Section 8E — Environmental Protection
@@ -3796,7 +4259,7 @@ The tuner now dumps its dissipation into a space something is paying to cool:
 
 At typical operating power this is **negligible**. At the 200 W design point it is noticeable but
 minor. The ~400–568 W case occurs only on 160 m key-down at full power, which is already derated to
-≈ 530 W output by Section 1.7.1 — so the worst sustained case is bounded well below it.
+≈ 502 W output by Section 1.7.1 — so the worst sustained case is bounded well below it.
 
 No action required; recorded so that a future "why is the garage warm during contests" question has
 an answer.
@@ -3853,8 +4316,8 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 30 | **Vertical-stack checks** — (a) §8 thermal: confirm the reversed air path and that the shelf and utility layer stay below ~60 °C with 200 W in the RF bay — the input choke under the deck is now part of that 200 W (Rev 3.7c, §6; its own key-down check is item 49); the run also gives the bay's thermal time constant, which the firmware's derate averaging assumes is ~2 min (§8B.6); (b) ~~motor length~~ — settled by M-2 (23HS22, 2.20″ body, 1.05″ spare); (c) roller runs vertical: fixed R8 bearing at the bottom takes rotor weight and thrust (§5.3a); (d) capacitor mounts variable end down, clamped at the deck; consider a top steady bracket for the 3.6 lb CB-154 | **OPEN** |
 | 31 | ~~Top-panel clearance rule~~ — **Resolved Rev 3.7a, re-verified Rev 3.7b (box 22.00″) and Rev 3.7c (24.00″ — the box grew with the deck, so nothing above it moved):** every hot part of the roller keeps ≥ 2.25″ to the top panel (last turn 3.70″, bus rod 2.69″; plate B top 1.63″), so both the 1.5″ and the 2.25″ rules hold | **RESOLVED** |
 | 32 | ~~Upright roller Q~~ — estimated (§5.3a clearance table, Rev 3.7b): deck at 1.94″ costs ≈ 3–5% L and a similar share of Q, top panel at 3.70″ ≈ 1%. Accept, or add ~1″ of insulating spacer under plate A (≈ −1.7%). Confirm with the installed Q measurement (item 12) | **ESTIMATED — confirm at commissioning** |
-| 33 | **Teensy 4.1 row spacing** — verify 15.24 mm with calipers before ordering control boards (§10.5) | **OPEN — check** |
-| 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2 never carries more than 60 W — no issue. **K1 is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1. *Searched Rev 3.7c (2026-11-19):* no HF CW figure for the CX600N anywhere. Distributors give 1.5 kW PEP / 1.0 kW CW at 50 MHz and 1.0 kW CW at 150 MHz; an unattributed sheet's 2 kW at 30 MHz is not trusted. Tohtsu's 1.5 kW CW, DC–30 MHz part is the CX-210N, a manual panel switch and not usable as a relay. The CX-520D is 350 W. So the commissioning temperature test stands as the way to close this. | **OPEN — K1 rating (measure)** |
+| 33 | ~~Teensy 4.1 row spacing~~ — **CLOSED 2026-11-22** against PJRC's published dimensions: rows 0.6″ (15.24 mm) apart, 0.1″ pitch, 24 pins a row spanning 2.3″ (58.42 mm), body 2.4 × 0.7″ (60.96 × 17.78 mm). The A1 footprint (`kicad/tuner.pretty/Teensy4.1.kicad_mod`) matches every figure. The Ethernet kit's 2×3 header (2 mm pitch, centered between pins 20 and 21, its nearest pair 0.1″ inboard) goes on the Teensy's top side (§10.5); the USB host pins are unused | **CLOSED** |
+| 34 | **Coax relay CW rating** — *Rev 3.7a:* **Tohtsu CX600N-24 for both K1 and K2** (owner decision: cost and stock; auxiliary contacts replaced by the cal-load detector, 6B.3a). K2's NO contact (CAL) never carries more than 60 W, but its **NC contact is in the AUX path** (§6B.1), so in AUX at full power K2 carries what K1 does *(corrected 2026-11-22; this entry said K2 never carries more than 60 W)*. **The CX600N is published at 1 kW CW at 50 MHz only**, against 1.5 kW CW here; the rating should rise toward HF but no figure exists. Before running legal-limit key-down (tune, digital modes), either confirm with Tohtsu, measure K1's contact/connector temperature after a 10-minute 1.5 kW carrier into the AUX dummy load, or fit a factory-order high-power relay (Dow-Key 402A-280132, Ducommun 2NH6C31) or an open-frame vacuum SPDT (Gigavac GH1) as K1. *Searched Rev 3.7c (2026-11-19):* no HF CW figure for the CX600N anywhere. Distributors give 1.5 kW PEP / 1.0 kW CW at 50 MHz and 1.0 kW CW at 150 MHz; an unattributed sheet's 2 kW at 30 MHz is not trusted. Tohtsu's 1.5 kW CW, DC–30 MHz part is the CX-210N, a manual panel switch and not usable as a relay. The CX-520D is 350 W. So the commissioning temperature test stands as the way to close this, on both relays: K1 in TUNE, and K1 with K2 in AUX (`doc/bench-tests.md` §2). | **OPEN — K1 and K2 rating (measure)** |
 | 35 | **Boards for §6B.** *Control board — **done Rev 3.7c** (§10.5):* K1/K2 drivers with coil-current sense, the thermal-switch input, and the cal-load window comparator in the hardware permissive. The two drivers are the former RF-tank relay channels; those relays were deleted Rev 3.7b. *Measurement board — **done Rev 3.7c** (§10.4):* the cal-load detector (6B.3a), and the ÷1024 output on an edge SMA for the RG-316 run (W10) | **CLOSED** Rev 3.7c |
 | 36 | **CAL reference plane** — match the K1→choke and K1→load electrical lengths, or measure and store the offset, before trusting vector calibration (§6B.3) | **OPEN — commissioning** |
 | 37 | ~~Roller shaft-to-shelf creepage~~ — was 2.02″ vs the 2″ rule. **Resolved Rev 3.7a:** brass stub below the thrust collar cut from 1.0″ to 0.65″ (Oldham engagement 0.595″) → 2.37″; **4.37″ since the Rev 3.7c deck raise**. A longer Oldham hub would not help: the path is the axial tip-to-bushing distance (TUNER-L-109) | **RESOLVED** |
@@ -3864,7 +4327,7 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 41 | **Front-panel and floor cutouts** — **parts selected Rev 3.7a** and drawn to their datasheets (E-202, E-206): NX4832K035, Grayhill 62V15-02-080CH (Rev 3.7c, same cutout as the 62A15), KO128A2007, PV6F240SS, TE Corcom 3EGG1-2, EHRJ45P5E, Gore PMF100320, Heyco 2020, 83-798, 82-97, TTM G150N50W4E, Amphenol 172124 (partition). Remaining: check each against the part in hand before cutting; 82-97 panel hole (0.688″) from its body size, not a published cutout. *Rev 3.7c:* the Adafruit 6070 microSD extender's hole (1.00″) is likewise from its ~30 mm body. Also check its depth behind the face: the control board is 0.68″ back, and the model assumes 0.55″. The TMC-86-530-W sounder's hole (1.065″) is from Floyd Bell's drawing, and its depth (0.9″) is estimated: its bezel height is not dimensioned | **OPEN — check in hand** |
 | 42 | ~~Link coil has no RF-bay position~~ — **RESOLVED Rev 3.7b:** series link and pad deleted (§5.2, §5.4); the deck holds only C1, C2 and the roller. The imbalance CT rides the output conductors at the top feedthroughs and the tank thermal is a small probe — neither needs deck area. Original entry in §11.6 | **RESOLVED** |
 | 43 | ~~Partition coax adapter~~ — **Resolved Rev 3.7a: Amphenol RF (Connex) 172124**, N jack–jack bulkhead, PTFE insulator, brass body, gold-plated contacts, 5/8-24 jam nut with lock washer and silicone gasket (leave the gasket off or trim it so the body bonds to the bare partition). Cutout **Ø0.634″ with two flats 0.540″ apart** (TUNER-E-218, hole X), panels to 0.255″. Digi-Key ACX1170-ND, ~$13, 6,325 in stock (2026-11-16). No published voltage rating; N is routinely used at 1.5 kW CW to 30 MHz, and the line here is 50 Ω (≈ 390 V pk). Not the 83-1F SO-239 barrel — polystyrene | **RESOLVED** |
-| 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly: the 28–31 MHz resonance must sit above ~30.5 MHz.** If it lands in-band: slimmer rib contact at the notches, or fewer idle turns | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
+| 44 | **Roller idle-turn self-resonance** — *modeled Rev 3.7b* (`nec/roller_vna.py`, nec2++ wire model of the 22-turn, 5.2″, #4 helix with wheel, bus rod and lead; every wheel position 1–22, free space and over a PEC deck; `roller_bands.py` maps the band edges). Full winding **30.6 µH at 1 MHz** (≈ 10% under Wheeler; ≈ 30.0 over the deck — still > 23.1 µH needed). Port resonances from the idle turns sit at **13.2–15.6 MHz** and **28.4–30.2 MHz** for every wheel position. Every band edge 160–10 m lands off them (copper-only Q 855–2,170 at 160–12 m); the exception is the **top of 10 m: wheel ≈ 1 turn, idle resonance ≈ 30.1 MHz, only 1.3% above 29.7 MHz → Q ≈ 185, ~11 W at 29.7 MHz**. The model omits the Ultem ribs, whose dielectric pulls the resonance *down*. **VNA-sweep the wound roller, wheel at turns 1–3, before final assembly.** Above ~30.5 MHz: done. Between 29.7 and 30.5 MHz, which is where the model's own 30.1 MHz sits: acceptable, since the model gives Q ≈ 185 and ≈ 11 W at 29.7 MHz, but feel the idle turns after a 29.7 MHz key-down in the heat test (`doc/bench-tests.md` §1.2). Below 29.7 MHz, in band: fix it with slimmer rib contact at the notches, or fewer idle turns *(the action bands added 2026-11-22; before, only "must sit above ~30.5 MHz", which the model itself fails)* | **OPEN — bench check (modeled risk at 29.5–29.7 MHz)** |
 | 45 | ~~Re-run `cap_demand.py` bare~~ — **RESOLVED Rev 3.7b** (`nec/cap_demand.py`, output `cap_demand_rev37b.out`): **27/27** with either 15 kV C1 (C1 25–286 pF, C2 up to 675 pF); V_C1 6.54 kV pk (1.38×), V_C2 2.41 kV pk (2.49×), **V_L 6.55 kV pk / 4.63 kV RMS**, I_L 18.4 A; 160 m derates **527 / 630 / 935 W** network only (§1.7.1; 502 / 600 / 882 W with the choke in the RF bay since Rev 3.7c); no other band derates (worst 138 W at Q = 150). **Inductance actually required: 22.3 µH** — the 31.70 µH figure was the lowest-current policy maxing L on 40 m. Prefer **CVDD-500-15S** for C1 (20 pF floor) | **RESOLVED** |
 | 47 | ~~Roller size~~ — **DECIDED Rev 3.7b: keep the 34 µH roller** (5.2″, 22 turns). Required L is ≤ 23.1 µH across feeder 39–42 ft / VF 0.93–0.97 (always at 1.800 MHz), so the drawn coil still covers if it winds up to ~30% under Wheeler (AB6WP saw 27%), and leaves headroom for other antennas or feeders on 160 m. A ~26 µH coil (5.2″ × 18 t) would save ~1.3″ of height but keep only ~8% worst-case margin. Item 44 (idle-turn SRF) is settled by the VNA sweep, not by shrinking | **DECIDED** |
 | 46 | ~~Output DC path re-check~~ — **RESOLVED Rev 3.7b (§8D.5):** leg 1 (deck) is DC-grounded through the input choke's braid (≈ 0.15 Ω; ≈ 0.05 Ω for the Rev 3.7c RG-400 choke); leg 2 floats behind C2 — and always did: the old pad was in parallel with C2, so the "both legs behind series capacitors" claim was never true. Added a **100 MΩ / ≥ 10 kV bleed across C2** (≈ 0.03 W) to drain leg 2's static into the grounded node. Ohmmeter checks listed in §8D.5 for commissioning | **RESOLVED** (ohmmeter check at commissioning) |
@@ -3875,6 +4338,10 @@ gasket** (fabrication QA); a plain sheared edge on 14 ga sheet would not seal.
 | 52 | ~~Sampler cable pair count~~ — *Closed Rev 3.7c:* **Belden 8112**, 12.5 pairs of 24 AWG, overall foil + braid + drain, OD ≈ 0.44″ (fits the J-S plug's metal backshell). It carries the 11 pairs (5 detector lines, the cal-load detector, the SWR permissive and +5 V with grounds; K1, K2 and the thermostat as their own pairs), with one pair and the odd conductor spare. Cut to length at Nassau Electrical, $14.88/ft, in stock 2026-11-19; Digi-Key sells it only on 100 ft spools. About 2 ft for W8 | **CLOSED** Rev 3.7c |
 | 53 | **Coupler box in the model.** *Done Rev 3.7c:* the Hammond 1590A sits on the sampler baseplate between the coax input (floor G) and K1 (`enclosure.py`, E-212/E-213). W13 and W14 run to its SO-239s. W27/W28 are the FWD/REF RG-316 jumpers to the board's J1/J2, cut to one length. W9 is 16 conductors to J4. The board envelope is 100 × 74 mm plus its SMA plugs and the J4 socket. J3 moved to the top of the left edge, so its plug clears FT-P's solder-side envelope. No interference or harness clashes; E-212 to E-215 regenerated | **CLOSED** Rev 3.7c |
 | 54 | **Firmware tested bounds (§8B.6).** At commissioning, confirm: (a) each element's position-to-value curve is within ±3 % across its range (VNA against encoder counts); (b) the AD8302 residual after the §6A.8 calibration is within ±0.25 dB and ±2°, checked against known loads on each band; (c) the capacitors' turns over full range (§8B.3a, ASSUMED), which set move time. If any falls outside, rerun the `fw` tests with the measured values before trusting the 3-attempt budget | **OPEN — commissioning** |
+| 55 | **Output trip threshold (§8D.7).** Set RV2 at commissioning: from its top (≈ 3.0 V), key the full-power carrier into the antenna on each band, note the highest CT reading, and set the trip at three times it. Then prove the latch: with the J-E ribbon unplugged at the control board, touch about 3 V through 1 kΩ to J4 pin 3 (CT_DC_X) while transmitting at low power. The permit must drop and stay down until the firmware's OUTPUT TRIP drops the vote | **OPEN — commissioning** |
+| 56 | **Capacitive voltage pickups at the output feedthroughs (option, §8D.7).** Not built: they need a fifth shelf feedthrough and a DE-9 pin, and their electrode must keep the 1.5″ clearance, leaving a fraction of a pF to calibrate. The firmware's over-voltage watch covers the steady case. Revisit if commissioning shows over-voltage events the watch misses | **OPTION** |
+| 57 | **ALE mode (§8C.10, §8B.7).** *Built Rev 3.7c:* `catbridge.py run --ale` sends PRESET only once the scan dwells on a channel, never keys the rig, and warns above 60 channel changes an hour; the tuner needs nothing new (the recall memory holds the channels). Remaining: try it against a real ALE controller, and set its tune time and sounding as §8C.10 says. A roller-travel odometer in the firmware would put a number on the wear | **OPEN — field test** |
+| 58 | **The derate from the measured Q.** §1.7.1's 160 m limits (502 / 600 / 882 W) assume roller Q = 150, and `fw/core/src/derate.cpp` holds them as constants. Once the installed Q is measured (`doc/bench-tests.md` §1.5), re-run the §1.7.1 calculation with it and replace both. A Q of 250 would raise the 1.800–1.850 MHz limit by about 1.6× (the choke's fixed heat stays) | **OPEN — after the bench Q** |
 
 **Closed in this revision:** static drain and lightning protection (existing entry-box bonded
 baseplate and arrestors); capacitor adequacy (C2 position 2.50×; C1 needs a 15 kV-class part,
@@ -4063,7 +4530,7 @@ number are commodity: 1 %, X7R 50 V unless marked C0G.
   Ordered with the control board it ships in the same parcel.
 - **Stencil:** about $7, as for the control board.
 
-### 10.5 Control board — 171 components *(Rev 3.7c)*
+### 10.5 Control board — 179 components *(Rev 3.7c)*
 
 `kicad/control.kicad_sch` / `control.kicad_pcb`, generated by `kicad/board_control.py` and
 `kicad/route.sh`. *The Rev 3.4 board it replaces is in §11.13.*
@@ -4075,17 +4542,19 @@ number are commodity: 1 %, X7R 50 V unless marked C0G.
   - 0.6 / 0.3 mm vias.
   - Power nets 0.6 mm, logic supplies 0.4 mm.
 - **Routing:** freerouting, then DRC shows 0 unconnected and no electrical errors; only
-  silkscreen-overlap warnings remain. 2,558 tracks, 308 vias.
-- **Assembly:** sized for hot-air hand soldering. 145 SMD parts (1206 passives, SOIC, SOT-223,
-  SMA/SOD-123 diodes, 1812/2920 PTCs) and 26 through-hole (Teensy, connectors, DC-DCs,
-  electrolytics, inductors, trimmer, fiber transmitter).
+  silkscreen-overlap warnings remain. 2,820 tracks, 346 vias.
+- **Assembly:** sized for hot-air hand soldering. 152 SMD parts (1206 passives, SOIC, SOT-223,
+  SMA/SOD-123 diodes, 1812/2920 PTCs) and 27 through-hole (Teensy, connectors, DC-DCs,
+  electrolytics, inductors, two trimmers, fiber transmitter).
 - **Floor plan:**
   - The bulkhead ribbons, POF and blower lead are at the left end (cabinet +Y); the 24 V entry is at the
     right end.
   - The Teensy lies flat on two 1×24 socket strips, parallel to the board as usual. It is turned so
     its SD end sits at the board's top edge (§8B.5.6), which points up in the cassette. The socket
-    strips also let it come out; verify the 15.24 mm row spacing with calipers before ordering boards (§9 item 33),
-    and cut VUSB–VIN before programming in place (§8B.0.3).
+    strips also let it come out. The footprint matches PJRC's published dimensions (§9 item 33). Solder the
+    Ethernet kit's 2×3 header on the Teensy's top side, so the header and its ribbon plug face away from the
+    board: underneath, they would stand about 8 mm into the 11 mm between the Teensy and the board. Cut VUSB–VIN
+    before programming in place (§8B.0.3).
   - Every SMD ground pad has its own via to the In1 plane.
 - **Pin and connector map:** §8B.0.4. The J-A/J-B/J-E pinouts are in `board_control.py`.
 - **Rendered views:** 3D top and bottom, the silkscreen and each copper layer are in **Appendix C**.
@@ -4102,7 +4571,7 @@ Octopart). Passives with no part number are commodity: 1 %, X7R 50 V, any maker.
 | 1 | **TRACO TSR 3-2450N**, 24 → 5 V 3 A | SIP-3 | U1 | 8.38 |
 | 1 | **TRACO TSR 2-24120N**, 24 → 12 V 2 A | SIP-3 | U2 | 6.60 |
 | 1 | **AMS1117-3.3** | SOT-223 | U3 | — |
-| 1 each | **SN74HC08DR** · **SN74HC32DR** · **SN74HC21DR** · **SN74HC14DR** | SOIC-14 | U4 · U5 · U6 · U7 | 0.40–0.54 |
+| 1 each | **SN74HC08DR** (×2) · **SN74HC32DR** · **SN74HC21DR** · **SN74HC14DR** | SOIC-14 | U4, U14 · U5 · U6 · U7 | 0.40–0.54 |
 | 1 | **LMC555CMX/NOPB** (10 kHz interlock tone) | SOIC-8 | U8 | 1.15 |
 | 1 | **SN74HC373DWR** (K1/K2 hold latch) | SOIC-20W | U9 | 0.96 |
 | 1 | **MCP23017-E/SO** | SOIC-28W | U10 | 1.53 |
@@ -4126,7 +4595,7 @@ Octopart). Passives with no part number are commodity: 1 %, X7R 50 V, any maker.
 | 26 | 10 kΩ | 1206 | R20–R25, R34, R38–R40, R44, R46, R50, R53, R56, R60–R62, R65, R66, R68–R71, R78, R85 | — |
 | 16 | 100 Ω (7) · 100 kΩ (5) · 4.7 kΩ (2) · 10 MΩ, 1 MΩ, 560 kΩ, 56 kΩ, 6.8 kΩ, 3.9 kΩ | 1206 | R45, R49, R59, R63, R64, R77, R84 · R32, R37, R74, R82, R83 · R72, R73 · R36, R26, R81, R43, R76, R42 | — |
 | 3 | 1 Ω 1 W (coil sense) · 56 Ω 1 W (fiber LED) | 2512 | R47, R51 · R79 | — |
-| 1 | 10 kΩ multi-turn trimmer, **Bourns 3296W-1-103LF** (60 W trip) | 3296W | RV1 | 2.56 |
+| 2 | 10 kΩ multi-turn trimmer, **Bourns 3296W-1-103LF** (60 W trip; output trip, §8D.7) | 3296W | RV1, RV2 | 2.56 |
 | 1 | SMA jack, vertical, **Cinch 142-0701-201** (Amphenol 132134-11 is $17) | THT | J11 | 6.53 |
 | 1 | Terminal block 2-pos 5.08 mm, **Phoenix 1729128** (1715721 is out of stock) | THT | J1 | 0.95 |
 | 2 · 1 | Shrouded IDC header 2×13 · 2×5, **On Shore 302-S261 · 302-S101** | THT | J2, J3 · J4 | 0.37 · 0.27 |

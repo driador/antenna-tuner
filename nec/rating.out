@@ -1,0 +1,475 @@
+# SPDX-FileCopyrightText: 2026 Reuben A. Popp
+# SPDX-License-Identifier: CERN-OHL-W-2.0
+
+General load rating of the T network - nec/rating.py (design log §1.7, §1.7.1, §5, §6, §8D)
+
+Loads are R + jX at the balanced output terminals. 'Key-down' applies every limit, including the RF
+bay's 200 W (roller loss at Q 150 plus the input choke); 'PEP' drops only the 200 W budget. A band's
+figure is the worst of its two edges and its center (kBands, fw/core/src/freq.cpp).
+Limits: C1 9 kV pk, C2 6 kV pk, roller 18.4 A RMS and 9.3 kV pk, output 10 kV pk; ranges C2 20-675 pF,
+roller 0.20-32.4 uH, C1 per part below.
+Codes: VC1 = C1 voltage; VC2 = C2 voltage; IL = roller current; VL = roller voltage; Vout = output
+voltage; heat-L = 200 W budget, mostly roller loss; heat-ch = 200 W budget, mostly choke heat; C1min = C1
+minimum; C1max = C1 maximum; C2min = C2 minimum; C2max = C2 maximum; Lmin = roller minimum; Lmax = roller
+maximum; ranges = C and L ranges together.
+Self-check: vectorized choke heat against choke_screen.choke_loss, worst relative difference 9e-15.
+
+==============================================================================================================
+CHECK 1 - the doublet's 29 points (27 NEC band edges + 1.850 / 1.950 MHz), 40 ft of 600 ohm at VF 0.95,
+lowest-current setting on the 4000-point L grid, against nec/cap_demand_rev37b.out
+==============================================================================================================
+  C1 CVDD-500-15S: 261/261 printed values reproduced exactly
+  C1 UCSX-700-15S: 261/261 printed values reproduced exactly
+
+CHECK 2 - 160 m continuous limits (§1.7.1): worst point of each segment, key-down, every limit,
+  C1 CVDD-500-15S
+  segment MHz    fw setting,  fw setting,      log  choke_screen      best
+                network only   with choke   §1.7.1           .py   setting
+  1.800-1.850        526.8 W      501.9 W    502 W       501.9 W   502.1 W
+  1.850-1.950        629.6 W      599.8 W    600 W       599.8 W   600.2 W
+  1.950-2.000        934.9 W      882.3 W    882 W       882.3 W   883.2 W
+  The log's network-only limits (Rev 3.7b): 527 / 630 / 935 W.
+
+CHECK 3 - each doublet point: the most power within every limit (W), C1 CVDD-500-15S
+  band     MHz         Z at tuner  SWR50 | key-down   (fw) |    PEP   (fw) | limit
+  160m   1.800      8.9   -225.8j  120.1 |      502    502 |   1495   1495 | heat-L; PEP: IL
+  160m   1.850      9.8   -195.4j   83.4 |      600    600 |   1500   1500 | heat-L
+  160m   1.900     10.7   -164.4j   55.3 |      724    723 |   1500   1500 | heat-L
+  160m   1.950     11.8   -134.0j   34.9 |      883    882 |   1500   1500 | heat-L
+  160m   2.000     13.0   -102.8j   20.3 |     1095   1094 |   1500   1500 | heat-L
+  80m    3.500   2824.4  -2531.3j  101.9 |     1500   1500 |   1500   1500 | 
+  80m    3.750    521.1  -1471.9j   93.7 |     1500   1500 |   1500   1500 | 
+  80m    4.000    218.6   -906.6j   79.8 |     1500   1500 |   1500   1500 | 
+  60m    5.332     51.9    -84.9j    4.6 |     1500   1500 |   1500   1500 | 
+  60m    5.405     50.8    -60.0j    3.1 |     1500   1500 |   1500   1500 | 
+  40m    7.000     97.7   +650.1j   89.0 |     1500   1500 |   1500   1500 | 
+  40m    7.150    126.2   +798.5j  104.0 |     1500   1500 |   1500   1500 | 
+  40m    7.300    177.4  +1003.6j  117.4 |     1500   1500 |   1500   1500 | 
+  30m   10.100    203.5   +545.1j   33.5 |     1500   1500 |   1500   1500 | 
+  30m   10.150    216.2   +584.4j   36.1 |     1500   1500 |   1500   1500 | 
+  20m   14.000    111.8   +184.6j    8.7 |     1500   1500 |   1500   1500 | 
+  20m   14.175    143.9   +319.0j   17.3 |     1500   1500 |   1500   1500 | 
+  20m   14.350    206.6   +488.8j   27.5 |     1500   1500 |   1500   1500 | 
+  17m   18.068    121.3   +346.5j   22.6 |     1500   1500 |   1500   1500 | 
+  17m   18.168    130.3   +395.5j   27.0 |     1500   1500 |   1500   1500 | 
+  15m   21.000    167.7    +76.5j    4.1 |     1500   1500 |   1500   1500 | 
+  15m   21.225    180.9   +208.8j    8.6 |     1500   1500 |   1500   1500 | 
+  15m   21.450    209.4   +345.7j   15.8 |     1500   1500 |   1500   1500 | 
+  12m   24.890    132.5   -194.2j    8.6 |     1500   1500 |   1500   1500 | 
+  12m   24.990    129.2   -144.6j    6.0 |     1500   1500 |   1500   1500 | 
+  10m   28.000    175.2   -275.6j   12.4 |     1500   1500 |   1500   1500 | 
+  10m   28.500    134.6    -80.3j    3.8 |     1500   1500 |   1500   1500 | 
+  10m   29.000    128.1    +92.0j    4.0 |     1500   1500 |   1500   1500 | 
+  10m   29.700    168.8   +368.2j   19.7 |     1500   1500 |   1500   1500 | 
+  At 1.800 MHz the lowest roller current at 1500 W is 18.43 A, just over the 18.4 A rating, hence 1495 W PEP there.
+
+==============================================================================================================
+C1 = CVDD-500-15S (20-500 pF)  - preferred, §9 item 45
+==============================================================================================================
+
+TABLE 1 - 1500 W key-down: the R span at X = 0 (and at PEP), and the X span at four values of R
+(ohm). Each boundary is followed by what stops it and the frequency (MHz) where the band is tightest.
+  160m  R at X = 0  :      10 (heat-L, 1.8) to 2,685 (Lmax, 1.8)
+          PEP       :     8.8 (IL, 1.8) to 2,685 (Lmax, 1.8)
+        X at R = 10 :      +4 (heat-L, 1.8) to +265 (VC2, 1.8)
+        X at R = 50 :    -317 (heat-L, 1.8) to +598 (VC2, 1.8)
+        X at R = 200:    -940 (C2max/Lmax, 1.8) to +1,888 (VC2, 1.8)
+        X at R = 1,000:  -1,534 (C2max/Lmax, 1.8) to +4,396 (VC2, 1.8)
+        §8D.7 watch : X at R = 200: -940 to +1,275; X at R = 1,000: -1,534 to +2,708
+  80m   R at X = 0  :     8.5 (IL, 3.5) to 10,153 (Lmax, 3.5)
+          PEP       :     8.5 (IL, 3.5) to 10,153 (Lmax, 3.5)
+        X at R = 10 :     -55 (heat-L, 3.5) to +301 (VC2, 3.5)
+        X at R = 50 :    -370 (heat-L, 3.5) to +684 (VC2, 3.5)
+        X at R = 200:  -1,062 (heat-L, 3.5) to +2,248 (VC2, 3.5)
+        X at R = 1,000:  -2,828 (heat-L, 3.5) to +4,587 (C2min/Lmax, 3.5)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -55 to +289; X at R = 50: -370 to +644; X at R =
+                      200: -1,062 to +1,275; X at R = 1,000: -2,708 to +2,708
+  60m   R at X = 0  :     8.0 (IL, 5.33) to 12,985 (heat-L, 5.406)
+          PEP       :     8.0 (IL, 5.33) to 23,547 (Lmax, 5.33)
+        X at R = 10 :     -75 (heat-L, 5.33) to +313 (VC2, 5.33)
+        X at R = 50 :    -382 (heat-L, 5.33) to +715 (VC2, 5.33)
+        X at R = 200:  -1,067 (heat-L, 5.406) to +2,563 (C2min/Lmax, 5.406)
+        X at R = 1,000:  -2,842 (heat-L, 5.406) to +5,156 (C2min/Lmax, 5.33)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -75 to +289; X at R = 50: -382 to +644; X at R =
+                      200: -1,067 to +1,275; X at R = 1,000: -2,708 to +2,708
+  40m   R at X = 0  :     7.4 (IL, 7) to 12,739 (heat-L, 7.3)
+          PEP       :     7.4 (IL, 7) to 23,816 (C1min, 7.3)
+        X at R = 10 :     -83 (heat-L, 7) to +318 (VC2, 7)
+        X at R = 50 :    -383 (heat-L, 7.3) to +729 (VC2, 7)
+        X at R = 200:  -1,055 (heat-L, 7.3) to +2,555 (C2min/Lmax, 7)
+        X at R = 1,000:  -2,802 (heat-L, 7.3) to +5,116 (heat-L, 7.3)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -83 to +289; X at R = 50: -383 to +644; X at R =
+                      200: -1,055 to +1,275; X at R = 1,000: -2,708 to +2,708
+  30m   R at X = 0  :     6.4 (IL, 10.1) to 11,771 (heat-L, 10.15)
+          PEP       :     6.4 (IL, 10.1) to 12,344 (C1min, 10.15)
+        X at R = 10 :     -88 (heat-L, 10.1) to +322 (VC2, 10.1)
+        X at R = 50 :    -376 (heat-L, 10.15) to +743 (VC2, 10.1)
+        X at R = 200:  -1,022 (heat-L, 10.15) to +2,342 (C1min/C2min, 10.15)
+        X at R = 1,000:  -2,690 (heat-L, 10.15) to +4,152 (C1min/C2min, 10.15)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -88 to +289; X at R = 50: -376 to +644; X at R =
+                      200: -1,022 to +1,275; X at R = 1,000: -2,690 to +2,708
+  20m   R at X = 0  :     5.9 (IL, 14.35) to 6,200 (C1min, 14.35)
+          PEP       :     5.9 (IL, 14.35) to 6,200 (C1min, 14.35)
+        X at R = 10 :     -90 (heat-L, 14.175) to +324 (VC2, 14.35)
+        X at R = 50 :    -365 (heat-L, 14.35) to +532 (C1max/C2min, 14.35)
+        X at R = 200:    -984 (heat-L, 14.35) to +1,650 (C1min/C2min, 14.35)
+        X at R = 1,000:  -2,264 (C1min, 14.35) to +2,835 (C1min/C2min, 14.35)
+        §8D.7 watch : X at R = 10: -90 to +289; X at R = 200: -984 to +1,275; X at R = 1,000: -2,264 to
+                      +2,708
+  17m   R at X = 0  :     7.0 (IL, 18.168) to 3,887 (C1min, 18.168)
+          PEP       :     7.0 (IL, 18.168) to 3,887 (C1min, 18.168)
+        X at R = 10 :     -90 (heat-L, 18.168) to +322 (VC2, 18.168)
+        X at R = 50 :    -353 (heat-L, 18.168) to +420 (C1max/C2min, 18.168)
+        X at R = 200:    -846 (C1min/C2max, 18.168) to +1,297 (C1min/C2min, 18.168)
+        X at R = 1,000:  -1,686 (C1min, 18.168) to +2,137 (C1min/C2min, 18.168)
+        §8D.7 watch : X at R = 10: -90 to +289; X at R = 200: -846 to +1,275
+  15m   R at X = 0  :     7.5 (IL, 21.45) to 2,803 (C1min, 21.45)
+          PEP       :     7.5 (IL, 21.45) to 2,803 (C1min, 21.45)
+        X at R = 10 :     -88 (heat-L, 21.45) to +313 (VC2, 21.45)
+        X at R = 50 :    -341 (heat-L, 21.45) to +356 (C1max/C2min, 21.45)
+        X at R = 200:    -710 (C1min/C2max, 21.45) to +1,092 (C1min/C2min, 21.45)
+        X at R = 1,000:  -1,332 (C1min, 21.45) to +1,714 (C1min/C2min, 21.45)
+        §8D.7 watch : X at R = 10: -88 to +289
+  12m   R at X = 0  :     7.9 (IL, 24.99) to 2,078 (C1min, 24.99)
+          PEP       :     7.9 (IL, 24.99) to 2,078 (C1min, 24.99)
+        X at R = 10 :     -87 (heat-L, 24.99) to +277 (C2min/Lmin, 24.99)
+        X at R = 50 :    -309 (C1min/C2max, 24.99) to +306 (C1max/C2min, 24.99)
+        X at R = 200:    -603 (C1min/C2max, 24.99) to +931 (C1min/C2min, 24.99)
+        X at R = 1,000:  -1,029 (C1min, 24.99) to +1,356 (C1min/C2min, 24.99)
+        §8D.7 watch : no change
+  10m   R at X = 0  :     8.2 (IL, 29.7) to 1,486 (C1min, 29.7)
+          PEP       :     8.2 (IL, 29.7) to 1,486 (C1min, 29.7)
+        X at R = 10 :     -84 (heat-L, 29.7) to +217 (C2min/Lmin, 29.7)
+        X at R = 50 :    -260 (C1min/C2max, 29.7) to +257 (C1max/C2min, 29.7)
+        X at R = 200:    -499 (C1min/C2max, 29.7) to +775 (C1min/C2min, 29.7)
+        X at R = 1,000:    -689 (C1min/C2max, 29.7) to +965 (C1min/C2min, 29.7)
+        §8D.7 watch : no change
+
+TABLE 2 - the largest SWR that matches at every phase: re 50 ohm, key-down unless PEP; '1500 W/600'
+is re 600 ohm, where every phase is some length of lossless 600 ohm line. For each case: the
+limiting load at the band's tightest frequency, what limits it there, and the least roller loss
+(Q 150) of any setting there, as a share of the power.
+  band        1500 W       500 W       100 W  1500 W PEP  1500 W/600
+  160m         4.6:1        17:1        54:1       5.7:1       4.5:1
+          1500 W        4.6:1 at 1.8 MHz, load 11.3 - j10.4: heat-L, roller loss 12 %
+          500 W          17:1 at 1.8 MHz, load 3.0 - j10.3: heat-L, roller loss 39 %
+          100 W          54:1 at 1.8 MHz, load 2685.5 + j0.0: Lmax, roller loss 5 %
+          1500 W PEP    5.7:1 at 1.8 MHz, load 8.8 - j0.3: IL, roller loss 14 %
+          1500 W/600    4.5:1 at 1.8 MHz, load 2685.5 + j0.0: Lmax, roller loss 5 %
+  80m          5.9:1        23:1       144:1       5.9:1        13:1
+          1500 W        5.9:1 at 3.5 MHz, load 8.5 - j1.7: IL, roller loss 8 %
+          500 W          23:1 at 3.5 MHz, load 2.1 - j0.3: IL, roller loss 25 %
+          100 W         144:1 at 3.5 MHz, load 0.3 + j0.0: IL, roller loss 140 %
+          1500 W PEP    5.9:1 at 3.5 MHz, load 8.5 - j1.7: IL, roller loss 8 %
+          1500 W/600     13:1 at 3.5 MHz, load 158.6 - j904.5: heat-L, roller loss 11 %
+  60m          6.2:1        24:1       144:1       6.2:1        13:1
+          1500 W        6.2:1 at 5.33 MHz, load 8.1 - j4.5: IL, roller loss 5 %
+          500 W          24:1 at 5.33 MHz, load 2.1 - j0.9: IL, roller loss 17 %
+          100 W         144:1 at 5.33 MHz, load 0.3 + j0.0: IL, roller loss 92 %
+          1500 W PEP    6.2:1 at 5.33 MHz, load 8.1 - j4.5: IL, roller loss 5 %
+          1500 W/600     13:1 at 5.406 MHz, load 165.8 - j939.3: heat-L, roller loss 11 %
+  40m          6.5:1        24:1       144:1       6.5:1        12:1
+          1500 W        6.5:1 at 7 MHz, load 7.9 - j7.4: IL, roller loss 5 %
+          500 W          24:1 at 7 MHz, load 2.1 - j1.5: IL, roller loss 13 %
+          100 W         144:1 at 7 MHz, load 0.3 + j0.0: IL, roller loss 70 %
+          1500 W PEP    6.5:1 at 7 MHz, load 7.9 - j7.4: IL, roller loss 5 %
+          1500 W/600     12:1 at 7.3 MHz, load 171.4 - j950.5: heat-L, roller loss 11 %
+  30m          7.0:1        24:1       145:1       7.0:1        12:1
+          1500 W        7.0:1 at 10.1 MHz, load 7.5 - j11.0: IL, roller loss 4 %
+          500 W          24:1 at 10.1 MHz, load 2.1 - j3.5: IL, roller loss 10 %
+          100 W         145:1 at 10.1 MHz, load 0.3 - j0.3: IL, roller loss 49 %
+          1500 W PEP    7.0:1 at 10.1 MHz, load 7.5 - j11.0: IL, roller loss 4 %
+          1500 W/600     12:1 at 10.15 MHz, load 189.3 - j985.1: heat-L, roller loss 11 %
+  20m          7.5:1        25:1       112:1       7.5:1        10:1
+          1500 W        7.5:1 at 14 MHz, load 7.3 - j14.7: IL, roller loss 4 %
+          500 W          25:1 at 14.35 MHz, load 2.0 + j0.0: IL, roller loss 8 %
+          100 W         112:1 at 14.35 MHz, load 4.5 - j150.8: C1min/C2max, roller loss 32 %
+          1500 W PEP    7.5:1 at 14 MHz, load 7.3 - j14.7: IL, roller loss 4 %
+          1500 W/600     10:1 at 14.35 MHz, load 5687.6 - j1691.5: C1min, roller loss 8 %
+  17m          7.2:1        24:1        73:1       7.2:1       6.5:1
+          1500 W        7.2:1 at 18.168 MHz, load 7.0 + j0.0: IL, roller loss 3 %
+          500 W          24:1 at 18.168 MHz, load 2.1 + j0.0: IL, roller loss 10 %
+          100 W          73:1 at 18.168 MHz, load 10.7 - j190.5: C1min/C2max, roller loss 19 %
+          1500 W PEP    7.2:1 at 18.168 MHz, load 7.0 + j0.0: IL, roller loss 3 %
+          1500 W/600    6.5:1 at 18.168 MHz, load 3801.0 - j558.9: C1min, roller loss 6 %
+  15m          6.7:1        24:1        53:1       6.7:1       4.7:1
+          1500 W        6.7:1 at 21.45 MHz, load 7.5 + j0.0: IL, roller loss 4 %
+          500 W          24:1 at 21.45 MHz, load 2.1 + j0.0: IL, roller loss 12 %
+          100 W          53:1 at 21.45 MHz, load 20.3 - j226.9: C1min/C2max, roller loss 13 %
+          1500 W PEP    6.7:1 at 21.45 MHz, load 7.5 + j0.0: IL, roller loss 4 %
+          1500 W/600    4.7:1 at 21.45 MHz, load 2784.1 - j216.5: C1min, roller loss 5 %
+  12m          6.4:1        24:1        40:1       6.4:1       3.5:1
+          1500 W        6.4:1 at 24.99 MHz, load 7.9 + j0.0: IL, roller loss 5 %
+          500 W          24:1 at 24.99 MHz, load 2.1 + j0.0: IL, roller loss 14 %
+          100 W          40:1 at 24.89 MHz, load 50.2 + j307.7: C1max/C2min, roller loss 0 %
+          1500 W PEP    6.4:1 at 24.99 MHz, load 7.9 + j0.0: IL, roller loss 5 %
+          1500 W/600    3.5:1 at 24.99 MHz, load 2070.6 - j114.7: C1min, roller loss 4 %
+  10m          6.1:1        24:1        29:1       6.1:1       2.5:1
+          1500 W        6.1:1 at 29.7 MHz, load 8.2 + j0.0: IL, roller loss 6 %
+          500 W          24:1 at 29.7 MHz, load 2.1 + j0.0: IL, roller loss 17 %
+          100 W          29:1 at 29.7 MHz, load 67.3 - j301.0: C1min/C2max, roller loss 7 %
+          1500 W PEP    6.1:1 at 29.7 MHz, load 8.2 + j0.0: IL, roller loss 6 %
+          1500 W/600    2.5:1 at 29.7 MHz, load 1484.5 - j35.8: C1min, roller loss 4 %
+  §8D.7 watch (5 kV pk, steady carriers): bounds a circle at SWR V^2 / (2 P z0): 167:1 re 50 ohm and
+  13.9:1 re 600 ohm at 1500 W. No figure above changes.
+
+TABLE 3 - the most power at key-down for a grid of loads (W, at the band's tightest frequency),
+by the best setting, with what limits it when under 1500 W. Below each band: grid loads where the
+firmware's lowest-current setting (4000-point L grid) carries less.
+
+  160m R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges         Lmax   596 heat-L   853 heat-L  1461 heat-L         1500         1500      532 VC2      154 VC2
+          25       ranges   C2max/Lmax  1224 heat-L         1500         1500         1500         1500     1143 VC2      354 VC2
+          50       ranges  1065 heat-L         1500         1500         1500         1500         1500         1500      650 VC2
+         100       ranges         1500         1500         1500         1500         1500         1500         1500     1171 VC2
+         200         Lmax         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        firmware's setting: 10 + j0: 1460 W (best 1461 W); 25 - j200: 1222 W (best 1224 W)
+
+  80m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges   344 heat-L   727 heat-L  1132 heat-L         1500         1500         1500      605 VC2      165 VC2
+          25   373 heat-L   713 heat-L  1454 heat-L         1500         1500         1500         1500     1390 VC2      394 VC2
+          50   632 heat-L  1178 heat-L         1500         1500         1500         1500         1500         1500      756 VC2
+         100  1025 heat-L         1500         1500         1500         1500         1500         1500         1500         1500
+         200         1500         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+
+  60m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges   361 heat-L   783 heat-L  1267 heat-L         1500         1500         1500      633 VC2      169 VC2
+          25  C1min/C2max   740 heat-L         1500         1500         1500         1500         1500     1492 VC2      409 VC2
+          50   652 heat-L  1207 heat-L         1500         1500         1500         1500         1500         1500      801 VC2
+         100  1044 heat-L         1500         1500         1500         1500         1500         1500         1500         1500
+         200         1500         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+
+  40m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges        C1min   808 heat-L  1331 heat-L         1500         1500         1500      644 VC2      170 VC2
+          25       ranges   749 heat-L         1500         1500         1500         1500         1500         1500      415 VC2
+          50   657 heat-L  1210 heat-L         1500         1500         1500         1500         1500         1500      823 VC2
+         100  1044 heat-L         1500         1500         1500         1500         1500         1500         1500         1500
+         200         1500         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        firmware's setting: 50 - j500: 1209 W (best 1210 W); 100 - j1000: 1043 W (best 1044 W)
+
+  30m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges       ranges   826 heat-L  1384 heat-L         1500         1500         1500      654 VC2       ranges
+          25       ranges   747 heat-L         1500         1500         1500         1500         1500         1500       ranges
+          50       ranges  1197 heat-L         1500         1500         1500         1500         1500         1500       ranges
+         100  1027 heat-L         1500         1500         1500         1500         1500         1500         1500         1500
+         200         1500         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        firmware's setting: 10 - j100: 1383 W (best 1384 W)
+
+  20m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges       ranges   831 heat-L  1400 heat-L         1500         1500         1500      659 VC2       ranges
+          25       ranges       ranges         1500         1500         1500         1500         1500         1500       ranges
+          50       ranges  1176 heat-L         1500         1500         1500         1500         1500         1500       ranges
+         100       ranges         1500         1500         1500         1500         1500         1500         1500         1500
+         200  1481 heat-L         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+
+  17m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges       ranges        C1min  1394 heat-L         1500         1500         1500        C2min       ranges
+          25       ranges       ranges         1500         1500         1500         1500         1500        C2min       ranges
+          50       ranges        C1min         1500         1500         1500         1500         1500        C2min       ranges
+         100       ranges         1500         1500         1500         1500         1500         1500         1500         1500
+         200        C1min         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+
+  15m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges       ranges        C1min  1381 heat-L         1500         1500         1500       ranges       ranges
+          25       ranges       ranges  1486 heat-L         1500         1500         1500         1500       ranges       ranges
+          50       ranges       ranges         1500         1500         1500         1500         1500       ranges       ranges
+         100       ranges         1500         1500         1500         1500         1500         1500         1500  C1min/C2min
+         200       ranges         1500         1500         1500         1500         1500         1500         1500         1500
+         500         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        firmware's setting: 25 - j200: 1484 W (best 1486 W)
+
+  12m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges       ranges       ranges  1363 heat-L         1500         1500         1500       ranges       ranges
+          25       ranges       ranges  1453 heat-L         1500         1500         1500         1500       ranges       ranges
+          50       ranges       ranges         1500         1500         1500         1500         1500       ranges       ranges
+         100       ranges        C1min         1500         1500         1500         1500         1500         1500       ranges
+         200       ranges         1500         1500         1500         1500         1500         1500         1500  C1min/C2min
+         500        C1min         1500         1500         1500         1500         1500         1500         1500         1500
+        1000         1500         1500         1500         1500         1500         1500         1500         1500         1500
+        2000        C1min        C1min         1500         1500         1500         1500         1500         1500        C1min
+        firmware's setting: 10 - j100: 1362 W (best 1363 W)
+
+  10m  R \ X        -1000         -500         -200         -100            0          100          200          500         1000
+          10       ranges       ranges       ranges  1338 heat-L         1500         1500         1500       ranges       ranges
+          25       ranges       ranges        C1min         1500         1500         1500         1500       ranges       ranges
+          50       ranges       ranges         1500         1500         1500         1500         1500       ranges       ranges
+         100       ranges       ranges         1500         1500         1500         1500         1500         1500       ranges
+         200       ranges  C1min/C2max         1500         1500         1500         1500         1500         1500       ranges
+         500        C1min         1500         1500         1500         1500         1500         1500         1500  C1min/C2min
+        1000        C1min         1500         1500         1500         1500         1500         1500         1500  C1min/C2min
+        2000        C1min        C1min        C1min        C1min        C1min        C1min        C1min        C1min        C1min
+
+  The firmware's setting carries less than the best on 7 of 720 grid loads.
+
+==============================================================================================================
+C1 = UCSX-700-15S (25-700 pF)  - the firmware's Parts default
+==============================================================================================================
+
+TABLE 1 - 1500 W key-down: the R span at X = 0 (and at PEP), and the X span at four values of R
+(ohm). Each boundary is followed by what stops it and the frequency (MHz) where the band is tightest.
+  160m  R at X = 0  :      10 (heat-L, 1.8) to 2,685 (Lmax, 1.8)
+          PEP       :     8.8 (IL, 1.8) to 2,685 (Lmax, 1.8)
+        X at R = 10 :      +4 (heat-L, 1.8) to +286 (VC2, 1.8)
+        X at R = 50 :    -317 (heat-L, 1.8) to +648 (VC2, 1.8)
+        X at R = 200:    -940 (C2max/Lmax, 1.8) to +1,888 (VC2, 1.8)
+        X at R = 1,000:  -1,534 (C2max/Lmax, 1.8) to +4,396 (VC2, 1.8)
+        §8D.7 watch : X at R = 50: -317 to +644; X at R = 200: -940 to +1,275; X at R = 1,000: -1,534 to
+                      +2,708
+  80m   R at X = 0  :     8.5 (IL, 3.5) to 10,153 (Lmax, 3.5)
+          PEP       :     8.5 (IL, 3.5) to 10,153 (Lmax, 3.5)
+        X at R = 10 :     -55 (heat-L, 3.5) to +311 (VC2, 3.5)
+        X at R = 50 :    -370 (heat-L, 3.5) to +709 (VC2, 3.5)
+        X at R = 200:  -1,062 (heat-L, 3.5) to +2,248 (VC2, 3.5)
+        X at R = 1,000:  -2,828 (heat-L, 3.5) to +4,587 (C2min/Lmax, 3.5)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -55 to +289; X at R = 50: -370 to +644; X at R =
+                      200: -1,062 to +1,275; X at R = 1,000: -2,708 to +2,708
+  60m   R at X = 0  :     8.0 (IL, 5.33) to 12,985 (heat-L, 5.406)
+          PEP       :     8.0 (IL, 5.33) to 23,547 (Lmax, 5.33)
+        X at R = 10 :     -75 (heat-L, 5.33) to +319 (VC2, 5.33)
+        X at R = 50 :    -382 (heat-L, 5.33) to +732 (VC2, 5.33)
+        X at R = 200:  -1,067 (heat-L, 5.406) to +2,563 (C2min/Lmax, 5.406)
+        X at R = 1,000:  -2,842 (heat-L, 5.406) to +5,156 (C2min/Lmax, 5.33)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -75 to +289; X at R = 50: -382 to +644; X at R =
+                      200: -1,067 to +1,275; X at R = 1,000: -2,708 to +2,708
+  40m   R at X = 0  :     7.4 (IL, 7) to 12,739 (heat-L, 7.3)
+          PEP       :     7.4 (IL, 7) to 15,260 (C1min, 7.3)
+        X at R = 10 :     -83 (heat-L, 7) to +322 (VC2, 7)
+        X at R = 50 :    -383 (heat-L, 7.3) to +742 (VC2, 7)
+        X at R = 200:  -1,055 (heat-L, 7.3) to +2,555 (C2min/Lmax, 7)
+        X at R = 1,000:  -2,802 (heat-L, 7.3) to +4,864 (C1min/C2min, 7.3)
+        §8D.7 watch : R at X = 0 to 8,333; X at R = 10: -83 to +289; X at R = 50: -383 to +644; X at R =
+                      200: -1,055 to +1,275; X at R = 1,000: -2,708 to +2,708
+  30m   R at X = 0  :     6.4 (IL, 10.1) to 7,918 (C1min, 10.15)
+          PEP       :     6.4 (IL, 10.1) to 7,918 (C1min, 10.15)
+        X at R = 10 :     -88 (heat-L, 10.1) to +324 (VC2, 10.125)
+        X at R = 50 :    -376 (heat-L, 10.15) to +752 (VC2, 10.1)
+        X at R = 200:  -1,022 (heat-L, 10.15) to +2,026 (C1min/C2min, 10.15)
+        X at R = 1,000:  -2,607 (C1min, 10.15) to +3,414 (C1min/C2min, 10.15)
+        §8D.7 watch : X at R = 10: -88 to +289; X at R = 50: -376 to +644; X at R = 200: -1,022 to +1,275;
+                      X at R = 1,000: -2,607 to +2,708
+  20m   R at X = 0  :     5.9 (IL, 14.35) to 3,986 (C1min, 14.35)
+          PEP       :     5.9 (IL, 14.35) to 3,986 (C1min, 14.35)
+        X at R = 10 :     -90 (heat-L, 14.175) to +325 (VC2, 14)
+        X at R = 50 :    -365 (heat-L, 14.35) to +539 (C1max/C2min, 14.35)
+        X at R = 200:    -854 (C1min/C2max, 14.35) to +1,425 (C1min/C2min, 14.35)
+        X at R = 1,000:  -1,712 (C1min, 14.35) to +2,283 (C1min/C2min, 14.35)
+        §8D.7 watch : X at R = 10: -90 to +289; X at R = 200: -854 to +1,275
+  17m   R at X = 0  :     7.0 (IL, 18.168) to 2,506 (C1min, 18.168)
+          PEP       :     7.0 (IL, 18.168) to 2,506 (C1min, 18.168)
+        X at R = 10 :     -90 (heat-L, 18.168) to +326 (VC2, 18.068)
+        X at R = 50 :    -337 (C1min/C2max, 18.168) to +425 (C1max/C2min, 18.168)
+        X at R = 200:    -666 (C1min/C2max, 18.168) to +1,117 (C1min/C2min, 18.168)
+        X at R = 1,000:  -1,214 (C1min/C2max, 18.168) to +1,665 (C1min/C2min, 18.168)
+        §8D.7 watch : X at R = 10: -90 to +289
+  15m   R at X = 0  :     7.5 (IL, 21.45) to 1,812 (C1min, 21.45)
+          PEP       :     7.5 (IL, 21.45) to 1,812 (C1min, 21.45)
+        X at R = 10 :     -88 (heat-L, 21.45) to +313 (VC2, 21.45)
+        X at R = 50 :    -286 (C1min/C2max, 21.45) to +360 (C1max/C2min, 21.45)
+        X at R = 200:    -557 (C1min/C2max, 21.45) to +938 (C1min/C2min, 21.45)
+        X at R = 1,000:    -890 (C1min/C2max, 21.45) to +1,271 (C1min/C2min, 21.45)
+        §8D.7 watch : X at R = 10: -88 to +289
+  12m   R at X = 0  :     7.9 (IL, 24.99) to 1,348 (C1min, 24.99)
+          PEP       :     7.9 (IL, 24.99) to 1,348 (C1min, 24.99)
+        X at R = 10 :     -87 (heat-L, 24.99) to +277 (C2min/Lmin, 24.99)
+        X at R = 50 :    -245 (C1min/C2max, 24.99) to +309 (C1max/C2min, 24.99)
+        X at R = 200:    -470 (C1min/C2max, 24.99) to +797 (C1min/C2min, 24.99)
+        X at R = 1,000:    -580 (C1min/C2max, 24.99) to +908 (C1min/C2min, 24.99)
+        §8D.7 watch : no change
+  10m   R at X = 0  :     8.2 (IL, 29.7) to 969 (C1min, 29.7)
+          PEP       :     8.2 (IL, 29.7) to 969 (C1min, 29.7)
+        X at R = 10 :     -84 (heat-L, 29.7) to +217 (C2min/Lmin, 29.7)
+        X at R = 50 :    -206 (C1min/C2max, 29.7) to +260 (C1max/C2min, 29.7)
+        X at R = 200:    -384 (C1min/C2max, 29.7) to +660 (C1min/C2min, 29.7)
+        X at R = 1,000: 28: -281 (C1min/C2max) to +574 (C1min/C2min) | 28.85: -146 (C1min/C2max) to +430 (C1min/C2min) | 29.7: none
+        §8D.7 watch : no change
+
+TABLE 2 - the largest SWR that matches at every phase: re 50 ohm, key-down unless PEP; '1500 W/600'
+is re 600 ohm, where every phase is some length of lossless 600 ohm line. For each case: the
+limiting load at the band's tightest frequency, what limits it there, and the least roller loss
+(Q 150) of any setting there, as a share of the power.
+  band        1500 W       500 W       100 W  1500 W PEP  1500 W/600
+  160m         4.6:1        17:1        54:1       5.7:1       4.5:1
+          1500 W        4.6:1 at 1.8 MHz, load 11.3 - j10.4: heat-L, roller loss 12 %
+          500 W          17:1 at 1.8 MHz, load 3.0 - j10.3: heat-L, roller loss 39 %
+          100 W          54:1 at 1.8 MHz, load 2685.5 + j0.0: Lmax, roller loss 5 %
+          1500 W PEP    5.7:1 at 1.8 MHz, load 8.8 - j0.3: IL, roller loss 14 %
+          1500 W/600    4.5:1 at 1.8 MHz, load 2685.5 + j0.0: Lmax, roller loss 5 %
+  80m          5.9:1        23:1       144:1       5.9:1        13:1
+          1500 W        5.9:1 at 3.5 MHz, load 8.5 - j1.7: IL, roller loss 8 %
+          500 W          23:1 at 3.5 MHz, load 2.1 - j0.3: IL, roller loss 25 %
+          100 W         144:1 at 3.5 MHz, load 0.3 + j0.0: IL, roller loss 140 %
+          1500 W PEP    5.9:1 at 3.5 MHz, load 8.5 - j1.7: IL, roller loss 8 %
+          1500 W/600     13:1 at 3.5 MHz, load 158.6 - j904.5: heat-L, roller loss 11 %
+  60m          6.2:1        24:1       144:1       6.2:1        13:1
+          1500 W        6.2:1 at 5.33 MHz, load 8.1 - j4.5: IL, roller loss 5 %
+          500 W          24:1 at 5.33 MHz, load 2.1 - j0.9: IL, roller loss 17 %
+          100 W         144:1 at 5.33 MHz, load 0.3 + j0.0: IL, roller loss 92 %
+          1500 W PEP    6.2:1 at 5.33 MHz, load 8.1 - j4.5: IL, roller loss 5 %
+          1500 W/600     13:1 at 5.406 MHz, load 165.8 - j939.3: heat-L, roller loss 11 %
+  40m          6.5:1        24:1       144:1       6.5:1        12:1
+          1500 W        6.5:1 at 7 MHz, load 7.9 - j7.4: IL, roller loss 5 %
+          500 W          24:1 at 7 MHz, load 2.1 - j1.5: IL, roller loss 13 %
+          100 W         144:1 at 7 MHz, load 0.3 + j0.0: IL, roller loss 70 %
+          1500 W PEP    6.5:1 at 7 MHz, load 7.9 - j7.4: IL, roller loss 5 %
+          1500 W/600     12:1 at 7.3 MHz, load 171.4 - j950.5: heat-L, roller loss 11 %
+  30m          7.0:1        24:1       130:1       7.0:1        12:1
+          1500 W        7.0:1 at 10.1 MHz, load 7.5 - j11.0: IL, roller loss 4 %
+          500 W          24:1 at 10.1 MHz, load 2.1 - j3.5: IL, roller loss 10 %
+          100 W         130:1 at 10.15 MHz, load 2.1 - j105.6: C1min/C2max, roller loss 49 %
+          1500 W PEP    7.0:1 at 10.1 MHz, load 7.5 - j11.0: IL, roller loss 4 %
+          1500 W/600     12:1 at 10.15 MHz, load 189.3 - j985.1: heat-L, roller loss 11 %
+  20m          7.5:1        25:1        72:1       7.5:1       6.6:1
+          1500 W        7.5:1 at 14 MHz, load 7.3 - j14.7: IL, roller loss 4 %
+          500 W          25:1 at 14.35 MHz, load 2.0 + j0.0: IL, roller loss 8 %
+          100 W          72:1 at 14.35 MHz, load 7.0 - j150.6: C1min/C2max, roller loss 22 %
+          1500 W PEP    7.5:1 at 14 MHz, load 7.3 - j14.7: IL, roller loss 4 %
+          1500 W/600    6.6:1 at 14.35 MHz, load 3843.2 - j724.9: C1min, roller loss 6 %
+  17m          7.2:1        24:1        47:1       7.2:1       4.2:1
+          1500 W        7.2:1 at 18.168 MHz, load 7.0 + j0.0: IL, roller loss 3 %
+          500 W          24:1 at 18.168 MHz, load 2.1 + j0.0: IL, roller loss 10 %
+          100 W          47:1 at 18.168 MHz, load 16.5 - j189.7: C1min/C2max, roller loss 13 %
+          1500 W PEP    7.2:1 at 18.168 MHz, load 7.0 + j0.0: IL, roller loss 3 %
+          1500 W/600    4.2:1 at 18.168 MHz, load 2482.5 - j227.2: C1min, roller loss 5 %
+  15m          6.7:1        24:1        35:1       6.7:1       3.0:1
+          1500 W        6.7:1 at 21.45 MHz, load 7.5 + j0.0: IL, roller loss 4 %
+          500 W          24:1 at 21.45 MHz, load 2.1 + j0.0: IL, roller loss 12 %
+          100 W          35:1 at 21.45 MHz, load 31.2 - j224.6: C1min/C2max, roller loss 9 %
+          1500 W PEP    6.7:1 at 21.45 MHz, load 7.5 + j0.0: IL, roller loss 4 %
+          1500 W/600    3.0:1 at 21.45 MHz, load 1806.6 - j84.7: C1min, roller loss 4 %
+  12m          6.4:1        24:1        26:1       6.4:1       2.2:1
+          1500 W        6.4:1 at 24.99 MHz, load 7.9 + j0.0: IL, roller loss 5 %
+          500 W          24:1 at 24.99 MHz, load 2.1 + j0.0: IL, roller loss 14 %
+          100 W          26:1 at 24.99 MHz, load 53.8 - j254.5: C1min/C2max, roller loss 7 %
+          1500 W PEP    6.4:1 at 24.99 MHz, load 7.9 + j0.0: IL, roller loss 5 %
+          1500 W/600    2.2:1 at 24.99 MHz, load 1346.0 - j42.3: C1min, roller loss 3 %
+  10m          6.1:1        19:1        19:1       6.1:1       1.6:1
+          1500 W        6.1:1 at 29.7 MHz, load 8.2 + j0.0: IL, roller loss 6 %
+          500 W          19:1 at 29.7 MHz, load 97.3 - j283.2: C1min/C2max, roller loss 5 %
+          100 W          19:1 at 29.7 MHz, load 97.3 - j283.2: C1min/C2max, roller loss 5 %
+          1500 W PEP    6.1:1 at 29.7 MHz, load 8.2 + j0.0: IL, roller loss 6 %
+          1500 W/600    1.6:1 at 29.7 MHz, load 968.5 - j11.2: C1min, roller loss 3 %
+  §8D.7 watch (5 kV pk, steady carriers): bounds a circle at SWR V^2 / (2 P z0): 167:1 re 50 ohm and
+  13.9:1 re 600 ohm at 1500 W. No figure above changes.

@@ -13,15 +13,17 @@ repo paths.
 | `doc/design-log.md` | **Design log** (current revision in its header). §9 is the open-item list; §11 holds superseded designs |
 | `doc/design-review-rev3.2.md` | Independent design review of Rev 3.2 and its dispositions |
 | `doc/vacuum-cap-testing.md` | Bench procedure for the used vacuum capacitors |
+| `doc/bench-tests.md` | Bench tests that retire the build risks before the enclosure is cut: the roller (L, idle-turn resonance, torque, contact heat, Q), K1 and K2 at full power, the AD8302 sign probe, and the 160 m decision if Q is low |
 | `doc/diagrams/` | Graphviz sources (`*.dot`) and the rendered SVGs the log embeds |
 | `doc/*.pdf` | Built log and review PDFs, plus a reference worksheet |
 | `cad/` | build123d models (roller, enclosure, harness) and FreeCAD TechDraw sheet generators |
 | `cad/out/*.pdf` | Drawing sheets: `L-100…109` roller, `E-200…219` enclosure, populated cabinet and harness |
-| `nec/` | nec2++ and Python analyses: capacitor and inductor demand, roller and choke sweeps, tuning time |
+| `nec/` | nec2++ and Python analyses: capacitor and inductor demand, roller and choke sweeps, tuning time, the general rating |
 | `nec/out/*.csv`, `*.txt` | Analysis summaries the log quotes |
 | `nec/data/` | Fair-Rite #61 material data (complex permeability, Pv vs B); Fair-Rite's, not under the project licenses |
 | `kicad/` | Control and measurement boards, generated from Python (schematic → netlist → PCB → freerouting → DRC, `route.sh`); fab zip from `fab.sh` |
 | `fw/` | Firmware: the portable C++17 core (tuning state machine, solver, bridge math, fault policy, motion planning) with its closed-loop host tests, and the Teensy 4.1 layer (PlatformIO); see `fw/README.md` |
+| `host/` | The bench PC's tools: the CAT bridge (band-follow and one-button tune through Hamlib or flrig) and the firmware update over the network; see `host/README.md` |
 | `LICENSE`, `NOTICE` | The CERN-OHL-W v2 text for the hardware and design; what each license covers, the notices and the third-party files (the firmware's GPL text is `fw/LICENSE`) |
 | `archive/` | Early drafts and the Rev 3.3 / 3.4 log snapshots the log cites |
 
@@ -92,6 +94,6 @@ FreeCAD hanging under xvfb with an empty log. Re-render a diagram with
 ## License
 
 This is open hardware. The boards, CAD, drawings, NEC models and the design log are licensed under
-the [CERN-OHL-W v2](LICENSE), and the firmware in `fw/` under the
-[GPL v3 or later](fw/LICENSE). [`NOTICE`](NOTICE) has the details, including
+the [CERN-OHL-W v2](LICENSE), and the firmware in `fw/` and the bench PC's tools in `host/` under
+the [GPL v3 or later](fw/LICENSE). [`NOTICE`](NOTICE) has the details, including
 the third-party files. Source location: <https://github.com/driador/antenna-tuner>.

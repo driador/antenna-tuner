@@ -34,12 +34,15 @@ voltage is 60% of it: 6 kV for a -10 part, 9 kV for a -15. Margins below use wor
 | Minimum service life | 1,000 h | — |
 | Ambient / pressure | −60 to +125 °C; to 533 hPa | Fine |
 
-### Stress these caps will see (from design log rev 3.3, §1.3 / §5.1)
+### Stress these caps will see (design log Rev 3.7c, §5.1: bare network, band edges)
 
 | Position | C demanded | Peak V @ 1500 W | Peak V @ 1100 W (×0.856) |
 |:--|--:|--:|--:|
-| C1 (input) | 33–347 pF | 6,102 V | ~5,220 V |
-| C2 (output) | ≤ 270 pF needed to match; solver runs to 675–875 pF (design log §5.1, Rev 3.6) | 4,170 V | ~3,570 V |
+| C1 (input) | 33–347 pF | 6,540 V (1.800 MHz) | ~5,600 V |
+| C2 (output) | ≤ 270 pF needed to match; solver runs to 675–875 pF (design log §5.1, Rev 3.6) | 2,400 V | ~2,050 V |
+
+*Rev 3.3 gave 6,102 V and 4,170 V here, with the output pad and series link the design has since
+deleted (design log §11).*
 
 - **UCSX-740-10 (6 kV working) belongs in C2.** C2 worst case is 2.40 kV peak without the pad
   (1.86 kV with it): 2.50× margin. In C1 it would see 6.54 kV bare / 5.99 kV padded at 1.800 MHz,
