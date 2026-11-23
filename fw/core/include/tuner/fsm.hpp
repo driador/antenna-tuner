@@ -25,6 +25,10 @@
 // §8B.3a) and measures again. A solve from such a reading is a coarse move, not an attempt, and a move
 // that leaves a reading like that, much worse than the best so far, is undone.
 //
+// A converged setting is also kept in the fine recall memory (recall.hpp, §8B.3c). A tune near where one
+// was found goes there first, as a coarse move, and measures: usually that is the match, with no probe.
+// A preset goes there too when it can.
+//
 // With no prior (in practice, off the bands), a tune that would end in NO SOLUTION, its coarse moves
 // spent and still nothing to solve from, first makes a cold-start search. The elements step through
 // reference settings, each a match for a different likely load at the frequency (tnet.hpp), until one
@@ -36,6 +40,7 @@
 #include "tuner/bridge.hpp"
 #include "tuner/faults.hpp"
 #include "tuner/freq.hpp"
+#include "tuner/recall.hpp"
 #include "tuner/tnet.hpp"
 
 namespace tuner {
@@ -55,8 +60,19 @@ struct Config {
     int max_coarse = 3;            // coarse moves per tune, on top of the attempts
     int max_search = 6;            // reference settings a cold start may step through
     double gamma_ceiling = 0.98;   // |Gamma| is taken as at most this when de-embedding
-    uint32_t rf_decay_ms = 30;     // §5.5, §7.4.5: permit down this long before anything moves
+    uint32_t rf_decay_ms = 100;    // permit down this long before anything moves: the RF's 30 ms (§5.5, §7.4.5)
+                                   // and the step gate's 39-67 ms (§7.4.6), as the path switch waits
     uint32_t move_timeout_ms = 15000;   // a move still running after this is a position fault
+    // §8B.3b: an element moves only with the exciter's carrier inside the tune window, and the forward
+    // power must stay within the tuner's rating whenever it transmits. ASSUMED until bring-up.
+    double tune_max_w = 120;       // a move waits while the forward power is above this...
+    uint32_t tune_hold_ms = 2000;  // ...and faults if it is still above it after this long
+    double over_power_w = 1650;    // the 1500 W rating with 10 % for the detector's error
+    uint32_t over_power_ms = 300;  // above it this long, in any state: a fault, and the vote goes down
+    uint32_t want_ms = 30000;      // how long a TUNE with no carrier keeps asking for one (want_carrier)
+    // §8D.7: the output's voltage, estimated from the load the bridge sees through the network and the
+    // power going in. Over this, peak and terminal to terminal, for two gates in a row, is a fault.
+    double over_volts = 5000;      // the 4,191 V envelope (§8D.1) and 20 %
 };
 
 struct Measurement {               // one complete MEASURE: the 200 ms frequency gate plus the bridge
@@ -71,6 +87,7 @@ struct Inputs {
     bool self_test_ok = true;      // read in SELF-TEST only
     bool bypass = false;           // §8B.4d key: the permissive is held up, so nothing may move
     bool carrier = false;          // a steady count above threshold (§6A.10)
+    double fwd_w = -1;             // forward power, W; below zero: this band's power curve is not calibrated
     bool have_measurement = false;
     Measurement m;
     Setting position;              // the elements now, from the encoders through their calibration curves
@@ -79,6 +96,7 @@ struct Inputs {
     bool limit_hit = false;        // any limit switch open
     bool over_temp = false;        // with hysteresis applied
     bool swr_trip = false;         // the over-SWR term of the permissive is down
+    bool output_trip = false;      // the output's arc and imbalance trip holds HARD_OK down (§8D.7)
     bool tune_request = false;     // manual, from either end
     bool ack = false;              // either end
     bool local_clear = false;      // at the box (§8B.4f)
@@ -110,6 +128,11 @@ struct Outputs {
     bool blower_full = false;
     Fault fault = Fault::Count;    // the last fault raised, for the report
     int attempt = 0;
+    // A TUNE asked for with no carrier: IDLE on the TUNE path, nothing blocking, waiting for the rig to
+    // send one. A CAT bridge on the bench keys a low-power carrier when it sees this (§8C, one-button tune).
+    bool want_carrier = false;
+    bool power_hold = false;       // a move is waiting for the forward power to come into the tune window
+    double v_out = -1;             // the output's estimated peak volts (§8D.7); below zero: no estimate
 };
 
 struct Prior {
@@ -131,6 +154,8 @@ public:
     void set_prior(int segment, const Prior& p);
     bool prior(int segment, Prior& p) const;
     cplx load() const { return last_load_; }   // what the last SOLVE worked from, for the tuning monitor
+    Recall& recall() { return recall_; }        // the storage layer loads and saves it (§8B.3c)
+    const Recall& recall() const { return recall_; }
 
 private:
     void enter(State s);
@@ -139,6 +164,7 @@ private:
     bool run_move(const Inputs& in);
     cplx load_estimate(const Measurement& m, int sign, const Setting& at) const;
     bool prior_near(double mhz, Prior& p) const;
+    bool stored_setting(double mhz, Setting& s) const;
     int prior_sign(const Measurement& m, const Setting& at, const Prior& p);
     void start_probe();
     bool next_reference(const Setting& here);
@@ -174,8 +200,17 @@ private:
     bool permit_up_ = false;       // the vote as last output
     uint32_t permit_down_ms_ = 0;  // when it last went down
     bool limit_was_hit_ = false;
+    bool power_held_ = false;      // the move waiting to go out is held for the tune window, since...
+    uint32_t power_held_ms_ = 0;
+    bool over_ = false, over_raised_ = false;   // forward power over the rating, since...
+    uint32_t over_ms_ = 0;
+    int over_v_ = 0;               // gates in a row with the output over over_volts...
+    bool over_v_raised_ = false;   // ...and whether this excursion has raised its fault
+    double v_out_ = -1;
+    uint32_t request_ms_ = 0;      // when the last TUNE request came
     Prior prior_[kSegments];
     bool prior_ok_[kSegments] = {};
+    Recall recall_;
 };
 
 }  // namespace tuner

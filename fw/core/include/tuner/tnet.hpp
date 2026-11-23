@@ -57,4 +57,13 @@ int reference_settings(double f_hz, const Parts& p, Setting* out, int cap);
 cplx input_impedance(double f_hz, const Setting& s, cplx z_load);
 cplx load_from_input(double f_hz, const Setting& s, cplx z_in);
 
+// What the elements and the output carry when p_in_w enters the network at any setting, matched or
+// not: the over-voltage watch (§8D.7). Lossless, so a little high, which errs the safe way.
+struct Stress {
+    double v_out = 0;          // peak volts across the load: the balanced output, terminal to terminal
+    double v_c1 = 0, v_c2 = 0; // peak volts across each capacitor
+    double i_l = 0;            // roller current, A RMS
+};
+Stress stresses(double f_hz, const Setting& s, cplx z_load, double p_in_w);
+
 }  // namespace tuner

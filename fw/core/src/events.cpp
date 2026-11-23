@@ -12,12 +12,14 @@ namespace tuner {
 namespace {
 const char* const kKinds[] = {"boot", "watchdog_reset", "fault", "ack", "clear", "mode", "path",
                               "tuned", "cal_saved", "inspected", "card_in", "card_out", "restore", "recovery",
-                              "network", "derate", "selftest"};
+                              "network", "derate", "selftest", "update"};
 const char* const kFaults[] = {"over_temp", "carrier_lost", "no_solution", "tune_failed", "over_swr",
                                "limit_hit", "encoder_mismatch", "self_test_fail", "relay_mismatch",
-                               "built_in_test"};
+                               "built_in_test", "tune_power", "over_power", "over_voltage", "output_trip"};
 const char* const kModes[] = {"commissioning", "strict", "permissive"};
 const char* const kPaths[] = {"tune", "aux", "cal"};
+const char* const kUpdates[] = {"begun", "staged", "failed", "discarded", "installing"};
+static_assert(sizeof kKinds / sizeof kKinds[0] == unsigned(EventKind::Update) + 1, "a name for every kind");
 static_assert(sizeof kFaults / sizeof kFaults[0] == unsigned(Fault::Count), "a name for every fault");
 }  // namespace
 
@@ -63,6 +65,7 @@ size_t EventLog::format(const EventRecord& e, char* out, size_t cap) {
     else if (e.kind == EventKind::Mode && e.arg < 3) std::snprintf(what, sizeof what, " mode=%s", kModes[e.arg]);
     else if (e.kind == EventKind::Path && e.arg < 3) std::snprintf(what, sizeof what, " path=%s", kPaths[e.arg]);
     else if (e.kind == EventKind::Network) std::snprintf(what, sizeof what, " net=%s", e.arg ? "dhcp" : "static");
+    else if (e.kind == EventKind::Update && e.arg <= kUpdateInstalling) std::snprintf(what, sizeof what, " update=%s", kUpdates[e.arg]);
     else if (e.kind == EventKind::SelfTest && (e.arg == kSelfTestPassed || e.arg == kSelfTestStopped))
         std::snprintf(what, sizeof what, " result=%s", e.arg == kSelfTestPassed ? "passed" : "stopped");
     else if (e.kind == EventKind::SelfTest) {

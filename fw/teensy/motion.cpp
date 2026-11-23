@@ -188,9 +188,42 @@ void Motion::start(uint32_t id, const tuner::Setting& target, uint32_t now_ms) {
     phase_ms_ = now_ms;
 }
 
+void Motion::gate_test(int axis, uint32_t now_ms) {
+    if (busy() || axis < 0 || axis > 2) return;
+    gate_axis_ = axis;
+    gate_judged_ = read_encoders();
+    gate_from_ = turns_[axis];
+    const bool high_end = turns_[axis] < kAxes[axis].full_turns / 2;   // away from the nearer end
+    digitalWriteFast(pins::DIR[axis], (high_end == (kAxes[axis].dir_sign > 0)) ? HIGH : LOW);
+    set_drivers(true);
+    phase_ = Phase::GateWaking;
+    phase_ms_ = now_ms;
+}
+
 void Motion::service(uint32_t now_ms, bool enable) {
     switch (phase_) {
         case Phase::Idle:
+            break;
+        case Phase::GateWaking: {                              // the burst: 1/16 turn in 4 ms, the ISR idle
+            if (now_ms - phase_ms_ < kDriverWakeMs) break;
+            const uint32_t n = uint32_t(kStepsPerTurn / 16);
+            for (uint32_t i = 0; i < n; ++i) {
+                digitalWriteFast(pins::STEP[gate_axis_], HIGH);
+                delayMicroseconds(20);
+                digitalWriteFast(pins::STEP[gate_axis_], LOW);
+                delayMicroseconds(20);
+            }
+            phase_ = Phase::GateSettling;
+            phase_ms_ = now_ms;
+            break;
+        }
+        case Phase::GateSettling:                              // then the encoder: a held gate moved nothing
+            if (now_ms - phase_ms_ < kSettleMs) break;
+            gate_judged_ = read_encoders() && gate_judged_;
+            gate_moved_ = std::fabs(turns_[gate_axis_] - gate_from_) > 1.0 / 48;   // a third of the burst
+            set_drivers(false);
+            ++gate_runs_;
+            phase_ = Phase::Idle;
             break;
         case Phase::Waking:                                    // DIR is set; give the drivers time to energize
             if (!enable) finish(now_ms, false);

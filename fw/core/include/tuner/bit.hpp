@@ -4,7 +4,8 @@
 // The built-in test (§8B.4h), built from the failure-mode table of §8B.4g. The passive checks need only
 // readings. The active check is a sequencer the Teensy layer steps every tick: it asks for jogs and path
 // changes through the same routes as an operator, so the state machine and the path switch keep their
-// own rules and grade what they find, and it drives K1 directly only for the hold-latch check.
+// own rules and grade what they find. Only the two hardware holds are tested past them, both with the
+// permit up: it drives K1 for the hold latch, and steps the roller for the step gate (§7.4.6).
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -18,6 +19,7 @@ enum class Check : uint8_t {
     Expander, Encoders, BridgeRef, Limits, PermitStuck, Record,   // passive: the original §8B.4b step 2
     BridgeIdle, FwdIdle, CalIdle, Thermistor,                      // passive: the detectors at rest
     AxisC1, AxisC2, AxisL, RelayK1, RelayK2, Latch, PermitRise,    // active
+    StepGate,                                                      // active (Rev 3.7c, §7.4.6)
     Count
 };
 // C latches SELF-TEST FAILURE; B raises BUILT-IN TEST; Mechanical is graded by the policy, as the encoder
@@ -70,6 +72,9 @@ public:
         bool vote = false;          // the MCU's vote is up (the policy may withhold it)
         bool permit = false;        // the permit reads high
         Rest rest;                  // the detectors now: judged once, as the run starts
+        uint32_t gate_runs = 0;     // step-gate bursts finished so far; the last one's result:
+        bool gate_judged = false;   //   the encoders read before and after it
+        bool gate_moved = false;    //   and the roller moved, so the gate let its steps through
     };
     struct Out {
         int jog_axis = -1;          // a jog this tick: which axis...
@@ -77,11 +82,13 @@ public:
         bool path_request = false;  // a path change this tick
         Path path = Path::Tune;
         bool drive_k1 = false;      // drive K1 past the path switch: with the permit up, the latch holds it
+        bool gate_burst = false;    // step the roller past the state machine: with the permit up, the gate stops it
     };
     static constexpr double kTurns = 1.0;            // each axis's move, out and back
     static constexpr uint32_t kStartMs = 10000;      // a run that cannot start in this long does not
     static constexpr uint32_t kGraceMs = 500;        // a request that starts nothing in this long was refused
     static constexpr uint32_t kLatchMs = 50;         // K1 driven this long; also the permit's wait, and the let-go
+    static constexpr uint32_t kGateMs = 1000;        // a burst that has not reported in this long is not judged
 
     void start(uint32_t now_ms, const Windows& w = {});
     Out step(const In& in);
@@ -91,7 +98,7 @@ public:
     uint32_t untested() const { return untested_; }  // checks it could not judge: no vote, no latch test
 
 private:
-    enum class Phase : uint8_t { Idle, Wait, Axis, Relay, Latch, LatchOff, Restore };
+    enum class Phase : uint8_t { Idle, Wait, Axis, Relay, Latch, LatchOff, Gate, Restore };
     void end(bool completed);
     void stop(const In& in);
 
@@ -99,7 +106,7 @@ private:
     Windows windows_;
     int axis_ = 0, leg_ = 0, relay_ = 0, dir_ = +1;
     bool issued_ = false, busy_seen_ = false, completed_ = false, driving_ = false;
-    uint32_t t0_ = 0, failed_ = 0, untested_ = 0;
+    uint32_t t0_ = 0, failed_ = 0, untested_ = 0, gate_runs_ = 0;
 };
 
 }  // namespace tuner::bit

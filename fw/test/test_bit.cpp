@@ -26,6 +26,10 @@ struct Env {
     bool axis_fault = false, relay_fault = false;
     bool carrier = false, panel_ok = true, vote = true;
     bool stuck_axis[3] = {}, latch_transparent = false, permit_dead = false, refuse = false;
+    bool gate_open = false, gate_silent = false;   // the step gate passes steps; the burst never reports
+    uint32_t gate_runs = 0;
+    bool gate_moved = false;
+    int bursts = 0;
     Path broken_path = Path::Tune;      // a path whose relay never answers (TUNE: none)
     bit::Rest rest{0.9, 0.9, 0.0, 0.5, 22};
     bool drive_k1 = false;
@@ -51,10 +55,20 @@ struct Env {
         i.vote = vote;
         i.permit = vote && !permit_dead && now - path_done_ms >= permit_lag_ms;
         i.rest = rest;
+        i.gate_runs = gate_runs;
+        i.gate_judged = true;
+        i.gate_moved = gate_moved;
         return i;
     }
     void apply(const bit::Active::Out& o) {
         drive_k1 = o.drive_k1;
+        if (o.gate_burst) {                 // the Teensy layer: steps, settle, the encoders again
+            ++bursts;
+            const bool permit_up = vote && !permit_dead;
+            gate_moved = gate_open || !permit_up;   // with the permit down the gate is open anyway
+            if (gate_moved) turns[2] += 1.0 / 16;
+            if (!gate_silent) ++gate_runs;
+        }
         if (o.jog_axis >= 0) {
             asked.push_back("jog " + std::to_string(o.jog_axis) + (o.jog_turns > 0 ? " +" : " -"));
             if (!refuse && busy == 0) {
@@ -177,13 +191,33 @@ TEST(bit_failures_are_named) {
         Env e;
         e.permit_dead = true;                             // the vote is up but the permit never rises
         const bit::Active a = e.run();
-        CHECK(a.completed() && a.failed() == mask(Check::PermitRise) && a.untested() == mask(Check::Latch));
+        CHECK(a.completed() && a.failed() == mask(Check::PermitRise) &&
+              a.untested() == (mask(Check::Latch) | mask(Check::StepGate)) && e.bursts == 0);
     }
     {
         Env e;
         e.vote = false;                                   // COMMISSIONING withholds the vote: nothing to judge
         const bit::Active a = e.run();
-        CHECK(a.completed() && a.failed() == 0 && a.untested() == (mask(Check::Latch) | mask(Check::PermitRise)));
+        CHECK(a.completed() && a.failed() == 0 &&
+              a.untested() == (mask(Check::Latch) | mask(Check::PermitRise) | mask(Check::StepGate)));
+    }
+    {
+        Env e;                                            // the step gate passes steps with the permit up
+        e.gate_open = true;
+        const bit::Active a = e.run();
+        CHECK(a.completed() && a.failed() == mask(Check::StepGate) && a.untested() == 0 && e.bursts == 1);
+        CHECK(bit::grade(Check::StepGate) == bit::Grade::C && bit::fault_of(Check::StepGate) == Fault::SelfTestFail);
+    }
+    {
+        Env e;                                            // the gate holds: one burst, nothing moved
+        const bit::Active a = e.run();
+        CHECK(a.completed() && a.failed() == 0 && a.untested() == 0 && e.bursts == 1 && e.turns[2] == 5);
+    }
+    {
+        Env e;                                            // a burst that never reports is not judged
+        e.gate_silent = true;
+        const bit::Active a = e.run();
+        CHECK(a.completed() && a.failed() == 0 && a.untested() == mask(Check::StepGate));
     }
     {
         Env e;
@@ -219,7 +253,8 @@ TEST(bit_stops_safely) {
             e.apply(o);
             e.tick();
         }
-        CHECK(fell && a.completed() && a.failed() == 0 && a.untested() == mask(Check::Latch));
+        CHECK(fell && a.completed() && a.failed() == 0 && a.untested() == (mask(Check::Latch) | mask(Check::StepGate)) &&
+              e.bursts == 0);                             // no burst once the permit is down: the gate is open
     }
     {
         Env e;                                            // never safe to start: gives up, asks for nothing

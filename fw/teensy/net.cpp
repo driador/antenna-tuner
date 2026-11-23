@@ -48,9 +48,12 @@ volatile uint32_t g_ntp_server = 0;  // what it found, or 0
 uint32_t g_ntp_next = 0, g_ntp_since = 0;
 bool g_udp_bound = false;
 
+int who(const Session& s) { return int(&s - g_s); }
+
 void drop(Session& s) {
     s.c.close();                    // close(), never stop(): stop() waits for the peer
     s = Session{};
+    g_hooks.closed(who(s));
 }
 
 // §8C.7: the tuner's own subnet only, which also turns away anything port-forwarded in from outside.
@@ -62,7 +65,7 @@ bool local_peer(EthernetClient& c) {
 // One protocol line, whole or not at all: as text on the TCP port, as a text frame on the WebSocket.
 bool send_line(Session& s, const char* line, size_t n) {
     if (s.kind == Kind::Socket) {
-        uint8_t frame[260];
+        uint8_t frame[tuner::proto::kLineMax + 4];     // a 2- or 4-byte head
         const size_t m = tuner::web::text_frame(line, n, frame, sizeof frame);
         if (!m || s.c.availableForWrite() < int(m)) return false;
         return s.c.write(frame, m) == m;
@@ -80,7 +83,7 @@ void reply(Session& s, bool ok, const char* text) {
 void handle(Session& s, const char* line, uint32_t now_ms) {
     using tuner::proto::Cmd;
     const tuner::proto::Request r = tuner::proto::parse(line);
-    char out[256];
+    char out[tuner::proto::kLineMax];
     switch (r.cmd) {
         case Cmd::Query: {
             tuner::proto::Telemetry t;
@@ -111,6 +114,15 @@ void handle(Session& s, const char* line, uint32_t now_ms) {
             const uint8_t now[4] = {ip[0], ip[1], ip[2], ip[3]};
             const size_t n = tuner::proto::network(saved, !tuner::net::same(saved, g_running), now, out, sizeof out);
             if (n) send_line(s, out, n);
+            return;
+        }
+        case Cmd::UpdateStatus:
+        case Cmd::UpdateBegin:
+        case Cmd::UpdateEnd:
+        case Cmd::UpdateAbort:
+        case Cmd::UpdateRecord: {       // §8C.8: a record is answered only when it is refused
+            bool ok = false;
+            if (const char* text = g_hooks.update(r, who(s), ok)) reply(s, ok, text);
             return;
         }
         case Cmd::Invalid:
@@ -165,12 +177,16 @@ void read_http(Session& s, uint32_t now_ms) {
         s.next_event = g_log->next();          // new events from now on; GET_LOG for the past
         return;
     }
-    const bool page = !std::strcmp(req.method, "GET") && !std::strcmp(req.path, "/");
-    const size_t n = tuner::web::response_head(head, sizeof head, page ? 200 : 404, "text/html; charset=utf-8",
-                                               page ? tuner::web::kPageLength : 0);
+    const bool get = !std::strcmp(req.method, "GET");
+    const char* page = !get ? nullptr
+                       : !std::strcmp(req.path, "/")      ? tuner::web::kPage
+                       : !std::strcmp(req.path, "/meter") ? tuner::web::kMeter
+                                                          : nullptr;
+    const size_t len = page == tuner::web::kPage ? tuner::web::kPageLength : page ? tuner::web::kMeterLength : 0;
+    const size_t n = tuner::web::response_head(head, sizeof head, page ? 200 : 404, "text/html; charset=utf-8", len);
     if (!n || s.c.write(reinterpret_cast<const uint8_t*>(head), n) != n || !page) return drop(s);   // Connection: close
-    s.page = tuner::web::kPage;
-    s.page_left = tuner::web::kPageLength;
+    s.page = page;
+    s.page_left = len;
     s.n = 0;
 }
 
@@ -214,7 +230,7 @@ void read_frames(Session& s, uint32_t now_ms) {
 
 // Events go out as they happen, by sequence, so nothing is skipped while the window is full (§8C.5).
 void push(Session& s, uint32_t now_ms) {
-    char out[192];
+    char out[tuner::proto::kLineMax];                // a TLM line is over 200 bytes
     while (s.next_event < g_log->next()) {
         tuner::EventRecord e;
         if (g_log->since(s.next_event, &e, 1) != 1) break;

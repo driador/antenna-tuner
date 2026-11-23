@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Reuben A. Popp
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The web side of the link (§8C.4): GET / serves the page, GET /ws upgrades to a WebSocket that carries
-// the same lines as the TCP port (proto.hpp). Just enough HTTP/1.1 and RFC 6455 for that, without the
-// heap.
+// The web side of the link (§8C.4): GET / serves the page, GET /meter the bench meter, and GET /ws
+// upgrades to a WebSocket that carries the same lines as the TCP port (proto.hpp). Just enough HTTP/1.1
+// and RFC 6455 for that, without the heap.
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -43,5 +43,7 @@ Parse parse_frame(uint8_t* buf, size_t n, Frame& f);
 
 extern const char kPage[];         // the UI page, served at /
 extern const size_t kPageLength;
+extern const char kMeter[];        // the bench meter, served at /meter
+extern const size_t kMeterLength;
 
 }  // namespace tuner::web

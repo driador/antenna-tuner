@@ -43,6 +43,19 @@ bool number(const char* w, double& out) {
     out = std::strtod(w, &end);
     return end != w && *end == 0 && std::isfinite(out);
 }
+
+// One to eight hex digits, the whole word.
+bool hex32(const char* w, uint32_t& out) {
+    const size_t n = std::strlen(w);
+    if (n == 0 || n > 8) return false;
+    for (size_t i = 0; i < n; ++i)
+        if (!std::isxdigit(static_cast<unsigned char>(w[i]))) return false;
+    out = uint32_t(std::strtoul(w, nullptr, 16));
+    return true;
+}
+
+// A reading held to a width the line has room for: an open detector, say, can read SWR in the millions.
+double clip(double v, double lo, double hi) { return std::isnan(v) ? 0 : v < lo ? lo : v > hi ? hi : v; }
 }  // namespace
 
 uint8_t checksum(const char* s, size_t n) {
@@ -59,6 +72,11 @@ size_t seal(char* buf, size_t len, size_t cap) {
 
 Request parse(const char* line) {
     Request r;
+    if (line[0] == ':') {          // an Intel HEX record: its own checksum, and no "*HH" (§8C.8)
+        r.cmd = Cmd::UpdateRecord;
+        r.record = line;
+        return r;
+    }
     size_t n = std::strcspn(line, "\r\n");
     if (const char* star = static_cast<const char*>(std::memchr(line, '*', n))) {
         const size_t body = size_t(star - line);
@@ -130,6 +148,17 @@ Request parse(const char* line) {
         else if (is(1, "SAVE")) r.cmd = Cmd::CalSave;
         else if (is(1, "WATTS") && k > 2 && number(w[2], r.value)) r.cmd = Cmd::CalWatts;
         else r = refuse("CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>");
+    } else if (is(0, "UPDATE")) {
+        if (k == 1) r.cmd = Cmd::UpdateStatus;
+        else if (is(1, "BEGIN") && k == 2) r.cmd = Cmd::UpdateBegin;
+        else if (is(1, "ABORT") && k == 2) r.cmd = Cmd::UpdateAbort;
+        else if (is(1, "END") && k == 4 && number(w[2], r.value) && r.value >= 1 && r.value <= 0xFFFFFFFF &&
+                 r.value == std::floor(r.value) && hex32(w[3], r.crc)) {
+            r.cmd = Cmd::UpdateEnd;
+            r.bytes = uint32_t(r.value);
+        } else {
+            r = refuse("UPDATE [BEGIN | END <bytes> <crc32 hex> | ABORT]");
+        }
     } else if (is(0, "MODE") || is(0, "CLEAR") || is(0, "BYPASS") || is(0, "JOG") || is(0, "INSPECTED")) {
         r.cmd = Cmd::LocalOnly;
         r.why = "local only: at the box";
@@ -140,17 +169,21 @@ Request parse(const char* line) {
 }
 
 size_t telemetry(const Telemetry& t, char* out, size_t cap) {
-    char fwd[16];
-    if (t.fwd_w >= 0) std::snprintf(fwd, sizeof fwd, "%.0f", t.fwd_w);
+    char fwd[16], vout[16];
+    if (t.fwd_w >= 0) std::snprintf(fwd, sizeof fwd, "%.0f", clip(t.fwd_w, 0, 99999));
     else std::snprintf(fwd, sizeof fwd, "-");
+    if (t.v_out >= 0) std::snprintf(vout, sizeof vout, "%.0f", clip(t.v_out, 0, 99999));
+    else std::snprintf(vout, sizeof vout, "-");
     const int n = std::snprintf(out, cap,
                                 "TLM state=%s path=%s mode=%s mhz=%.4f carrier=%d swr=%.2f fwd=%s c1=%.1f c2=%.1f "
                                 "l=%.3f tank=%.1f hot=%d c=%04X b=%04X permit=%d bypass=%d loss=%.0f lim=%.0f derate=%d "
-                                "bit=%05lX bitrun=%d ev=%lu",
-                                state_name(t.state), path_name(t.path), kMode[unsigned(t.mode) % 3], t.mhz,
-                                t.carrier, t.swr, fwd, t.at.c1 * 1e12, t.at.c2 * 1e12, t.at.l * 1e6, t.tank_c,
-                                t.over_temp, t.latched_c, t.unacked_b, t.permit, t.bypass, t.loss_w, t.limit_w, t.derate,
-                                static_cast<unsigned long>(t.bit_failed), t.bit_running,
+                                "bit=%05lX bitrun=%d want=%d hold=%d vout=%s ev=%lu",
+                                state_name(t.state), path_name(t.path), kMode[unsigned(t.mode) % 3],
+                                clip(t.mhz, 0, 999.9999), t.carrier, clip(t.swr, 0, 99.99), fwd,
+                                clip(t.at.c1 * 1e12, 0, 9999.9), clip(t.at.c2 * 1e12, 0, 9999.9),
+                                clip(t.at.l * 1e6, 0, 999.999), clip(t.tank_c, -99.9, 999.9), t.over_temp, t.latched_c,
+                                t.unacked_b, t.permit, t.bypass, clip(t.loss_w, 0, 99999), clip(t.limit_w, 0, 99999), t.derate,
+                                static_cast<unsigned long>(t.bit_failed), t.bit_running, t.want, t.hold, vout,
                                 static_cast<unsigned long>(t.next_event));
     if (n < 0 || size_t(n) >= cap) return 0;
     return seal(out, size_t(n), cap);

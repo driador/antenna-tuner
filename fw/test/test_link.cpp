@@ -3,6 +3,7 @@
 
 // The link (§8C.4, §8C.5): the line protocol and what it refuses, the WebSocket handshake and frames,
 // the HTTP head, and the page.
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -60,6 +61,26 @@ TEST(protocol_commands_and_refusals) {
     CHECK(proto::parse("REBOOT").cmd == Cmd::Invalid && proto::parse("").cmd == Cmd::Invalid);
 }
 
+TEST(protocol_update_commands) {
+    // §8C.8: the update's commands, and its records passed through whole for hex::parse().
+    using proto::Cmd;
+    CHECK(proto::parse("UPDATE").cmd == Cmd::UpdateStatus);
+    CHECK(proto::parse("update begin").cmd == Cmd::UpdateBegin && proto::parse("UPDATE ABORT").cmd == Cmd::UpdateAbort);
+    proto::Request r = proto::parse("UPDATE END 419840 9c1a2b3d");
+    CHECK(r.cmd == Cmd::UpdateEnd && r.bytes == 419840 && r.crc == 0x9C1A2B3D);
+    char sealed[64] = "UPDATE END 1024 0";
+    CHECK(proto::seal(sealed, std::strlen(sealed), sizeof sealed) && proto::parse(sealed).cmd == Cmd::UpdateEnd);
+    for (const char* bad : {"UPDATE END", "UPDATE END 1024", "UPDATE END 0 1234", "UPDATE END 1.5 1234",
+                            "UPDATE END 1024 123456789", "UPDATE END 1024 -1", "UPDATE END 1024 12G4",
+                            "UPDATE END 99999999999 1", "UPDATE BEGIN NOW", "UPDATE INSTALL"}) {
+        r = proto::parse(bad);
+        CHECK(r.cmd == Cmd::Invalid && r.why != nullptr);
+    }
+    const char* rec = ":100000004643464200000156000000000101020084";
+    r = proto::parse(rec);
+    CHECK(r.cmd == Cmd::UpdateRecord && r.record == rec);
+}
+
 TEST(protocol_lines_carry_checksums) {
     proto::Telemetry t;
     t.state = State::Matched;
@@ -76,7 +97,7 @@ TEST(protocol_lines_carry_checksums) {
     CHECK(s.rfind("TLM state=MATCHED path=TUNE mode=STRICT mhz=14.2051 carrier=1 swr=1.12 fwd=- c1=123.4 c2=456.7 "
                   "l=5.123", 0) == 0);
     CHECK(s.find(" tank=0.0 hot=0 c=0020 ") != std::string::npos &&
-          s.find(" loss=0 lim=1500 derate=0 bit=00000 bitrun=0 ev=12*") != std::string::npos);
+          s.find(" loss=0 lim=1500 derate=0 bit=00000 bitrun=0 want=0 hold=0 vout=- ev=12*") != std::string::npos);
     CHECK(proto::parse(line).cmd == proto::Cmd::Invalid);              // a tuner line is not a command...
     CHECK(std::string(proto::parse(line).why) == "unknown command");   // ...but its checksum is good
     EventRecord e;
@@ -89,6 +110,9 @@ TEST(protocol_lines_carry_checksums) {
     CHECK(proto::event(e, ev, sizeof ev) > 0 && std::string(ev).find(" event=selftest check=hold_latch ") != std::string::npos);
     e.arg = kSelfTestPassed;
     CHECK(proto::event(e, ev, sizeof ev) > 0 && std::string(ev).find(" event=selftest result=passed ") != std::string::npos);
+    e.kind = EventKind::Update;                         // §8C.8
+    e.arg = kUpdateInstalling;
+    CHECK(proto::event(e, ev, sizeof ev) > 0 && std::string(ev).find(" event=update update=installing ") != std::string::npos);
     CHECK(proto::reply(false, "local only: at the box", ev, sizeof ev) > 0);
     CHECK(std::string(ev).rfind("ERR local only: at the box*", 0) == 0);
 }
@@ -238,3 +262,56 @@ TEST(page_names_every_check) {
     want += "]";
     CHECK(std::string(web::kPage).find(want) != std::string::npos);
 }
+
+TEST(pages_name_every_fault) {
+    // The page and the bench meter (§8C.4) decode TLM c= and b= with their own copies of the fault names:
+    // one per fault, and the same in both.
+    const auto names = [](const char* page) {
+        const std::string p(page);
+        const size_t at = p.find("const F=["), end = p.find("];", at);
+        return at == std::string::npos || end == std::string::npos ? std::string() : p.substr(at, end - at);
+    };
+    const std::string page = names(web::kPage), meter = names(web::kMeter);
+    CHECK(!page.empty() && page == meter);
+    size_t quotes = 0;
+    for (char c : page) quotes += c == '"';
+    CHECK(quotes == 2 * unsigned(Fault::Count));
+}
+
+TEST(meter_speaks_the_line_protocol) {
+    // The meter subscribes over the same WebSocket and sends only TUNE and ACK (§8C.4, §8C.5).
+    const std::string m(web::kMeter);
+    CHECK(m.size() == web::kMeterLength && m.find("/ws\"") != std::string::npos && m.find("SUBSCRIBE 10") != std::string::npos);
+    CHECK(m.find("data-c=\"TUNE\"") != std::string::npos && m.find("data-c=\"ACK\"") != std::string::npos);
+    size_t commands = 0;
+    for (size_t at = 0; (at = m.find("data-c=", at)) != std::string::npos; ++at) ++commands;
+    CHECK(commands == 2);
+    CHECK(std::string(web::kPage).find("href=\"/meter\"") != std::string::npos);
+}
+
+TEST(telemetry_always_fits_a_line) {
+    // Every field at its widest, past its clamp where it has one: the line still fits kLineMax, which
+    // sizes the buffers that send it (teensy/net.cpp).
+    proto::Telemetry t;
+    t.state = State::SelfTest;
+    t.mode = Mode::Commissioning;
+    t.mhz = -1e12;
+    t.carrier = true;
+    t.swr = 1e30;
+    t.fwd_w = 1e30;
+    t.at = {-1e30, -1e30, -1e30};
+    t.tank_c = -1e30;
+    t.over_temp = true;
+    t.latched_c = t.unacked_b = 0xFFFF;
+    t.permit = t.bypass = t.derate = t.bit_running = t.want = t.hold = true;
+    t.loss_w = t.limit_w = 1e30;
+    t.bit_failed = 0xFFFFFFFF;
+    t.next_event = 0xFFFFFFFF;
+    t.v_out = 1e30;
+    char out[proto::kLineMax];
+    const size_t n = proto::telemetry(t, out, sizeof out);
+    CHECK(n > 0 && n < sizeof out && std::string(out).find(" swr=99.99 ") != std::string::npos);
+    t.swr = std::nan("");
+    CHECK(proto::telemetry(t, out, sizeof out) > 0 && std::string(out).find(" swr=0.00 ") != std::string::npos);
+}
+

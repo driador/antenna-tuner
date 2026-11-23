@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // tnet.cpp against the validated Python solver: every band edge, the same choice, the same numbers.
+#include <algorithm>
 #include <cmath>
 
 #include "harness.hpp"
@@ -108,3 +109,25 @@ TEST(reference_settings_span_the_range) {
         CHECK(reference_settings(mhz * 1e6, kParts, s, 2) == 2);   // cap respected
     }
 }
+
+TEST(stresses_agree_with_the_solver_and_the_envelope) {
+    // At every band-edge match the stresses at 1500 W are the solver's own, and the largest output is
+    // the §8D.1 envelope: 4,191 V peak, terminal to terminal.
+    double most = 0;
+    for (const Vec& v : kVecs) {
+        if (!v.ok) continue;
+        const double f = v.mhz * 1e6;
+        const cplx z(v.r, v.x);
+        const Solution s = solve(f, z, kParts);
+        const Stress st = stresses(f, s.s, z, 1500);
+        check_rel(st.v_c1, s.v_c1, 1e-6);
+        check_rel(st.v_c2, s.v_c2, 1e-6);
+        check_rel(st.i_l, s.i_l, 1e-6);
+        check_rel(st.v_out, std::sqrt(2 * 1500 * std::norm(z) / z.real()), 1e-6);   // lossless: all of it arrives
+        most = std::max(most, st.v_out);
+    }
+    CHECK_NEAR(most, 4191, 5);
+    const Stress none = stresses(14e6, {100e-12, 2e-6, 100e-12}, cplx(-5, 0), 1500);   // a load no network makes
+    CHECK(none.v_out == 0 && none.i_l == 0);
+}
+

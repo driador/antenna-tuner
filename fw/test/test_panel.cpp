@@ -200,3 +200,32 @@ TEST(panel_policy_shows_the_qualification) {
     const PanelRequest r = p.take();
     CHECK(r.action == PanelAction::SetMode && r.arg == int(Mode::Permissive));
 }
+
+TEST(panel_asks_before_installing_firmware) {
+    // §8C.8: a staged, checked update takes the whole screen; only a push at the box answers it.
+    Panel p;
+    PanelView v;
+    v.update_ready = true;
+    v.update_bytes = 419840;
+    v.update_crc = 0x0DF6E497;
+    p.show(v);
+    CHECK(row(p, 0) == "FIRMWARE UPDATE READY" && row(p, 2) == "410 KB, CRC-32 0DF6E497");
+    CHECK(row(p, 7) == "left push:  install now" && row(p, 8) == "right push: discard it");
+    p.turn(0, 3);
+    p.turn(1, -2);
+    CHECK(p.take().action == PanelAction::None);       // turning does nothing
+    p.push(1);
+    CHECK(p.take().action == PanelAction::Discard);
+    p.push(0);
+    CHECK(p.take().action == PanelAction::Install);
+    v.update_ready = false;                            // installing: the last screen, deaf to the knobs
+    v.installing = true;
+    p.show(v);
+    CHECK(row(p, 0) == "INSTALLING FIRMWARE" && row(p, 2) == "Do not switch the tuner off.");
+    p.push(0);
+    p.turn(0, 1);
+    CHECK(p.take().action == PanelAction::None);
+    v.installing = false;                              // discarded instead: the panel is itself again
+    p.show(v);
+    CHECK(row(p, 0) != "FIRMWARE UPDATE READY" && row(p, 0) != "INSTALLING FIRMWARE");
+}

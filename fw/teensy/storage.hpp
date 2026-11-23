@@ -37,12 +37,12 @@ public:
     bool adopt(uint64_t tuner_id);                 // the explicit "this card is ours now" (§8B.5.4b)
     // /recovery.cfg (§8B.5.4c): applied to net once, then renamed. True when it changed something.
     bool recovery(tuner::NetConfig& net, char* report, size_t cap);
+    bool flush(const tuner::EventLog& log);       // appends the new events now, as poll() does in time
 
 private:
     bool mount();
     void lost();
     bool write(const char* path, const char* data, size_t n);   // a temporary file, then a rename
-    bool flush(const tuner::EventLog& log);
 
     uint64_t id_ = 0;
     bool present_ = false, foreign_ = false;

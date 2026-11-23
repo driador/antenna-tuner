@@ -3,7 +3,7 @@
 
 // The state machine in closed loop against a modeled tuner: elements whose true values are off their
 // encoder calibration, a bridge with residual errors, a motion layer and a 300 ms measurement. Every
-// tick also checks the PTT rules of §8B.3: no move with the vote up, none within 30 ms of it dropping,
+// tick also checks the PTT rules of §8B.3: no move with the vote up, none within 100 ms of it dropping,
 // none under the bypass key.
 #include <algorithm>
 #include <cmath>
@@ -55,10 +55,12 @@ struct Plant {
     bool mismatch = false, stall = false, self_test_ok = true;
     bool ack = false, local_clear = false, tune_request = false;   // one-tick pulses
     bool tune_path = true, relay_mismatch = false, jog = false;   // the last two one-tick
+    bool output_trip = false;                     // the arc and imbalance trip (§8D.7)
     uint16_t raise = 0;                           // one-tick
     Setting jog_target;
     bool preset = false;                          // one-tick
     double preset_mhz = 0;
+    double fwd_w = -1;                            // the forward detector (W); below zero: uncalibrated
     uint32_t now = 5000;
 
     uint32_t running = 0, done = 0;               // the motion layer
@@ -108,11 +110,13 @@ struct Plant {
         in.local_clear = local_clear;
         in.tune_path = tune_path;
         in.relay_mismatch = relay_mismatch;
+        in.output_trip = output_trip;
         in.raise = raise;
         in.jog = jog;
         in.jog_target = jog_target;
         in.preset = preset;
         in.preset_mhz = preset_mhz;
+        in.fwd_w = carrier ? fwd_w : 0;
         if (left == 0 && carrier) {
             if (--gate == 0) {
                 in.have_measurement = true;
@@ -147,7 +151,7 @@ struct Plant {
             left = kMoveTicks;
             ++moves;
             travel += setting_distance(pos, to, kParts);
-            if (o.mcu_permit || now - permit_down < 30 || bypass) ++violations;
+            if (o.mcu_permit || now - permit_down < 100 || bypass) ++violations;   // the step gate's 67 ms, and margin
         }
         if (left > 0) {
             if (o.mcu_permit) ++violations;
@@ -636,7 +640,7 @@ TEST(built_in_test_faults_are_raised_here) {
 }
 
 TEST(jog_moves_under_the_ptt_rules) {
-    // §7.5 manual override: one move, the vote down 30 ms first, back to IDLE, never under bypass.
+    // §7.5 manual override: one move, the vote down 100 ms first, back to IDLE, never under bypass.
     Tuner tu(config());
     Plant p;
     p.carrier = false;
@@ -809,3 +813,182 @@ TEST(cold_start_search_rescues_unsolvable_starts) {
                 faults[0], unsolved[0], faults[1], unsolved[1]);
     CHECK(cases[0] == cases[1] && unsolved[1] < unsolved[0] && faults[1] < faults[0] && violations == 0);
 }
+
+TEST(tune_power_window_holds_moves) {
+    // §8B.3b: nothing moves with the exciter over the tune window. A move waits for the power to come
+    // down; one still over it after tune_hold_ms is a class B fault, and the next tune is at low power.
+    Tuner tu(config());
+    Plant p;
+    p.load(vec_at(7.0));
+    p.fwd_w = 300;
+    Outputs o = key(tu, p);
+    CHECK(o.state == State::Fault && tu.faults().unacked(Fault::TunePower) && p.moves == 0 && !o.mcu_permit);
+    p.ack = true;
+    p.fwd_w = 60;
+    CHECK(key(tu, p).state == State::Matched && p.swr() < 1.25 && p.violations == 0);
+
+    Tuner t2(config());                           // over the window for less than the hold: the move waits
+    Plant q;
+    q.load(vec_at(7.0));
+    q.fwd_w = 300;
+    q.carrier = false;
+    run_for(t2, q, 2);
+    q.carrier = true;
+    o = run_until(t2, q, [](const Outputs& x, const Plant&) { return x.power_hold; });
+    CHECK(o.power_hold && q.moves == 0);
+    run_for(t2, q, 100);                          // a second, under the two-second hold
+    q.fwd_w = 80;
+    o = run_until(t2, q, settled);
+    CHECK(o.state == State::Matched && !t2.faults().unacked(Fault::TunePower) && q.moves > 0);
+
+    Tuner t3(config());                           // an uncalibrated band cannot be judged: it tunes
+    Plant r;
+    r.load(vec_at(7.0));
+    r.fwd_w = -1;
+    CHECK(key(t3, r).state == State::Matched);
+}
+
+TEST(over_power_faults_once_per_excursion) {
+    // §8B.3b: forward power over the rating drops the vote; ACK clears it, and only a new excursion
+    // raises it again.
+    Tuner tu(config());
+    Plant p;
+    p.load(vec_at(14.0));
+    p.fwd_w = 60;                                 // tuned on the exciter alone, then the amplifier keys
+    CHECK(key(tu, p).state == State::Matched);
+    p.fwd_w = 1000;
+    CHECK(run_for(tu, p, 50).state == State::Matched);
+    p.fwd_w = 1800;
+    run_for(tu, p, 20);                           // 200 ms: not yet
+    CHECK(tu.state() == State::Matched);
+    Outputs o = run_for(tu, p, 20);
+    CHECK(o.state == State::Fault && tu.faults().unacked(Fault::OverPower) && !o.mcu_permit);
+    CHECK(tu.faults().raised(Fault::OverPower) == 1);
+    p.ack = true;                                 // still over: the same excursion is not raised twice
+    run_for(tu, p, 50);
+    CHECK(tu.faults().raised(Fault::OverPower) == 1);
+    p.fwd_w = 900;
+    run_for(tu, p, 5);
+    p.fwd_w = 1800;
+    run_for(tu, p, 40);
+    CHECK(tu.faults().raised(Fault::OverPower) == 2);
+}
+
+TEST(want_carrier_asks_for_a_tune_carrier) {
+    // A TUNE with no carrier waits in IDLE and says so, for a CAT bridge to key a low-power carrier
+    // (§8C); the carrier ends it, and so does a fault or the timeout.
+    Tuner tu(config());
+    Plant p;
+    p.load(vec_at(14.0));
+    p.carrier = false;
+    Outputs o = run_for(tu, p, 3);
+    CHECK(!o.want_carrier);
+    p.tune_request = true;
+    o = run_for(tu, p, 2);
+    CHECK(o.state == State::Idle && o.want_carrier);
+    p.carrier = true;
+    o = p.tick(tu);
+    CHECK(!o.want_carrier);
+    o = run_until(tu, p, settled);
+    CHECK(o.state == State::Matched && !o.want_carrier);
+
+    p.carrier = false;                            // asked, and nobody answers for want_ms
+    run_for(tu, p, 3);
+    p.tune_request = true;
+    CHECK(run_for(tu, p, 2).want_carrier);
+    CHECK(!run_for(tu, p, 3000).want_carrier);
+
+    p.tune_request = true;                        // not off the TUNE path, nor under a fault
+    p.tune_path = false;
+    CHECK(!run_for(tu, p, 2).want_carrier);
+    p.tune_path = true;
+    p.raise = uint16_t(1u << unsigned(Fault::BuiltInTest));
+    CHECK(!run_for(tu, p, 2).want_carrier);
+}
+
+TEST(fine_recall_returns_to_a_proven_setting) {
+    // §8B.3c: a converged setting is kept by frequency. Back near it after the elements have moved away
+    // (another band, then back), the tune goes there first and measures: one move, no probe.
+    Tuner tu(config());
+    Plant p;
+    p.load(vec_at(7.0));
+    CHECK(key(tu, p).state == State::Matched);
+    const Setting proven = p.pos;
+    CHECK(tu.recall().count() == 1);
+
+    p.load(vec_at(14.0));                         // somewhere else, matched there
+    CHECK(key(tu, p).state == State::Matched);
+    p.load(vec_at(7.0));                          // and back, 0.1 % up the band
+    p.mhz *= 1.001;
+    p.visited.clear();
+    const int moves = p.moves;
+    const Outputs o = key(tu, p);
+    CHECK(o.state == State::Matched && p.swr() < 1.25 && p.violations == 0);
+    CHECK(p.moves - moves == 1 && !p.saw(State::Probe));
+    CHECK(setting_distance(p.pos, proven, kParts) < 0.01);
+
+    p.carrier = false;                            // a preset there uses it too
+    run_for(tu, p, 3);
+    p.load(vec_at(14.0));
+    CHECK(key(tu, p).state == State::Matched);
+    p.carrier = false;
+    run_for(tu, p, 3);
+    p.preset = true;
+    p.preset_mhz = 7.0;
+    run_until(tu, p, [](const Outputs& x, const Plant& q) { return x.state == State::Idle && q.left == 0; }, 400);
+    run_for(tu, p, 60);
+    CHECK(setting_distance(p.pos, proven, kParts) < 0.01);
+}
+
+TEST(over_voltage_watch_estimates_the_output) {
+    // §8D.7: once matched, the output's peak voltage from the de-embedded load and the forward power,
+    // within a few percent of the true lossless figure; over the limit for two gates is a fault, once
+    // per excursion.
+    Plant p;
+    p.load(vec_at(14.0));
+    const double want = std::sqrt(2 * 1500 * std::norm(p.z_load) / p.z_load.real());
+    {
+        Tuner tu(config());
+        p.fwd_w = 60;
+        CHECK(key(tu, p).state == State::Matched);
+        p.fwd_w = 1500;
+        const Outputs o = run_for(tu, p, 50);
+        CHECK(o.state == State::Matched && std::fabs(o.v_out - want) < 0.05 * want);
+        CHECK(tu.faults().raised(Fault::OverVoltage) == 0);
+        p.carrier = false;
+        CHECK(run_for(tu, p, 2).v_out < 0);       // no carrier, no estimate
+        p.carrier = true;
+    }
+    {
+        Config c = config();
+        c.over_volts = 0.8 * want;                // a limit this load crosses at 1500 W
+        Tuner tu(c);
+        p.fwd_w = 60;
+        CHECK(key(tu, p).state == State::Matched);
+        p.fwd_w = 1500;
+        run_for(tu, p, kGateTicks + 2);           // one gate over: not yet
+        CHECK(tu.state() == State::Matched);
+        const Outputs o = run_for(tu, p, 2 * kGateTicks);
+        CHECK(o.state == State::Fault && tu.faults().unacked(Fault::OverVoltage) && !o.mcu_permit);
+        p.ack = true;
+        run_for(tu, p, 3 * kGateTicks);
+        CHECK(tu.faults().raised(Fault::OverVoltage) == 1);
+    }
+}
+
+TEST(output_trip_is_a_fault_that_drops_the_vote) {
+    // §8D.7: the hardware trip holds the permit down until the vote drops; the fault drops it.
+    Tuner tu(config());
+    Plant p;
+    p.load(vec_at(14.0));
+    p.fwd_w = 60;
+    CHECK(key(tu, p).state == State::Matched);
+    p.output_trip = true;
+    Outputs o = p.tick(tu);
+    CHECK(o.state == State::Fault && !o.mcu_permit && tu.faults().unacked(Fault::OutputTrip));
+    p.output_trip = false;                        // the latch let go with the vote
+    p.ack = true;
+    o = run_for(tu, p, 3);
+    CHECK(!tu.faults().unacked(Fault::OutputTrip));
+}
+

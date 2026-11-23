@@ -53,6 +53,7 @@ python3 fw/tools/gen_tables.py
 | `faults` | Classes A/B/C, the COMMISSIONING/STRICT/PERMISSIVE policy, what survives a power cycle | §8B.4–§8B.4b |
 | `fsm` | The state machine, the sign of θ, PTT and move sequencing | §8B.1–§8B.3 |
 | `seed` | Factory priors per segment from the NEC model | §6A.7 option 2, §7.6 |
+| `recall` | The fine recall memory: the setting each tune proved, kept in 0.25 % bins and tried before the priors | §8B.3c |
 | `pins` | The Teensy pin map, from `kicad/board_control.py` `PINMAP` | §8B.0.4 |
 | `as5048` | AS5048A frames: commands with parity, replies, diagnostics | §7.1 |
 | `curve` | Element calibration (turns → F or H); the roller's default is the NEC model | §7.1, §9 item 54 |
@@ -70,8 +71,9 @@ python3 fw/tools/gen_tables.py
 | `bit` | The built-in test: the detectors' windows at rest, the active run (each axis, each relay, the hold latch, the permit), how each check is graded, and the permit term that holds the permit down | §8B.4g, §8B.4h |
 | `netcfg` | The network settings: the check a change must pass, and the key=value text the link, the console and `/recovery.cfg` share | §8B.5.3 |
 | `proto` | The line protocol: commands, refusals of local-only actions, telemetry and event lines with checksums | §8C.5 |
-| `web` | HTTP heads, the WebSocket handshake and frames, and the page | §8C.4 |
+| `web` | HTTP heads, the WebSocket handshake and frames, the page at `/` and the bench meter at `/meter` | §8C.4 |
 | `sntp` | One network-time request and its reply, to set the RTC | §8C |
+| `hexfile` | Intel HEX records, the image they build in rising order, CRC-32, the Teensy 4.1 boot header | §8C.8 |
 
 `test_tnet` matches `nec/cap_demand.py` at all 29 band-edge points to 1e-9. `test_bridge` reproduces
 the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V).
@@ -89,12 +91,15 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `panel_hw.*` | The Nextion on Serial8 (only changed rows are sent), the knobs and their pushes from the MCP23017 |
 | `storage.*` | The SD mirror: atomic writes, 20 versions, the event log, `/recovery.cfg`, tuner identity |
 | `net.*` | Ethernet through QNEthernet: the line port, the page and WebSocket, the subnet rule, mDNS, SNTP |
+| `recall_store.*` | The recall memory in LittleFS on 256 KB at the top of program flash, saved 10 s after the last change |
+| `update.*` | The firmware update: the staging area in program flash, its checks, and the install from RAM |
 
 **USB console:** the box's local interface, with the panel (§8B.4f):
 
 | Command | Does |
 |:--|:--|
 | `status` | One status line. One also prints every second |
+| `load` | The tick's average and worst time against its 10 ms, the loop rate, and the deepest the stack has been (§8B.7) |
 | `ack` | Acknowledge class B faults |
 | `clear` | Local clear of class B and C faults |
 | `tune` | Start a tune |
@@ -109,6 +114,7 @@ the §6A.6 round trips and the §6A.7 example (91 ± j65 Ω → 0.717 V, 1.470 V
 | `qual` | Show the PERMISSIVE qualification |
 | `backups`, `restore <n>`, `adopt` | List the card's versions, restore one, claim another tuner's card (§8B.5.4b) |
 | `net [key=value ...]` | Show the network settings, or change them as `NET` does (below) |
+| `update [install\|discard]` | Where a firmware update stands; install a staged one, or discard it (below) |
 
 **Calibrating a band** (§6A.8), from the console or the panel's Calibrate screen. Key a steady
 carrier of about 10 W on the band for each step; each averages five gates.
@@ -155,9 +161,11 @@ holds transmit off until the next reboot. Latched faults stay latched.
 
 - **Commands:** `TUNE`, `ACK`, `QUERY`, `SUBSCRIBE [hz]` (0.1–20 Hz; 0 stops it), `GET_LOG [from]`,
   `PATH TUNE|AUX|CAL`, `CAL LOAD|OPEN|SHORT|SAVE|WATTS <w>` (up to 2000 W), `PRESET <MHz>`, `SELFTEST`,
-  and `NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]`. A malformed number
-  (`NAN`, `5X`) is refused with the usage, never read as 0.
+  `NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]`, and
+  `UPDATE [BEGIN | END <bytes> <crc32> | ABORT]` with the Intel HEX records between (below). A malformed
+  number (`NAN`, `5X`) is refused with the usage, never read as 0.
 - **Refused by name:** mode changes, class C clears, the bypass and jogging, which are local only.
+  Installing a firmware update is local too: it has no command on the link at all.
 - **Checksums:** every line ends in an NMEA-style `*HH`. A command typed by hand may leave it off.
 - **What the tuner sends:**
   - `TLM` carries the state at the subscribed rate.
@@ -165,6 +173,37 @@ holds transmit off until the next reboot. Latched faults stay latched.
     `GET_LOG` for them, so a dropped link loses nothing that is still in the 128-event ring (§8C.6).
   - `NET` answers `NET` with the saved settings, the address in use and `pending=1` while saved
     settings wait for a restart.
+
+**Exciter awareness** (§8B.3b). With the band's forward detector calibrated, an element moves only
+with the forward power under 120 W (`hold=1` while it waits; TUNE POWER after 2 s), and over 1,650 W
+for 300 ms is OVER POWER, which drops the vote. A TUNE waiting for a carrier shows `want=1` for 30 s,
+which the CAT bridge (`host/catbridge.py`, §8C.9) answers with a low-power carrier.
+
+**The recall memory** (§8B.3c). Every converged match is kept by frequency in 0.25 % bins (175 of
+them, all kept) in LittleFS at the top of program flash. A TUNE or PRESET near a bin starts from its
+setting, then verifies.
+
+**The output** (§8D.7). Once matched, the firmware estimates the output's peak voltage from the
+de-embedded load and the forward power (`vout=` in telemetry); over 5,000 V for two gates is OUTPUT
+OVER-VOLTAGE. The control board's arc and imbalance trip holds HARD_OK down; seen as HARD_OK low with
+its four inputs high, it is OUTPUT TRIP, and dropping the vote releases its latch.
+
+**The bench meter** (§8C.4) is `http://tuner.local/meter`: SWR and forward power in large type for a
+tablet left on at the bench, with the faults, the prompts and TUNE and ACK. Set the tablet to stay
+awake.
+
+**Firmware updates over the network** (§8C.8). From the PC, on the tuner's subnet:
+
+```sh
+cd fw && pio run
+python3 ../host/fwupdate.py .pio/build/teensy41/firmware.hex --tuner tuner.local --wait
+```
+
+The tool checks the file, sends it, and prints its CRC-32. The tuner stages the image in its own flash,
+checks it, and shows FIRMWARE UPDATE READY with the size and the CRC. Compare the CRC, then push the
+left knob to install (about 6 s, then a restart) or the right one to discard. From `UPDATE BEGIN` until
+then the vote is down and nothing moves. A power cut mid-install needs the USB loader once, as at the
+first build.
 
 **Pre-positioning** (§8B.3a). After a band change on the rig, the page's Preset buttons (the band's
 center) or `PRESET <MHz>` drive the elements to the stored setting for that frequency while the rig
@@ -300,9 +339,10 @@ back. A class C clear needs the fault list scrolled to the end before Confirm ap
   with the steps commanded. It compares counts, which only it knows. Steppers run only while
   `motion_enable` is set, and a move in progress stops when it falls.
 - **PTT.** `mcu_permit` is down for the whole of PROBE and MOVE, and until the motion layer has
-  reported the last move stopped. A move goes out only after the vote has been down 30 ms (§5.5,
-  §7.4.5). The closed-loop tests check every tick that no move runs with the vote up, within 30 ms
-  of its dropping, or under the bypass key.
+  reported the last move stopped. A move goes out only after the vote has been down 100 ms: the RF's
+  30 ms (§5.5, §7.4.5) and the control board's step gate, which opens 39–67 ms after the permissive
+  falls (§7.4.6). The closed-loop tests check every tick that no move runs with the vote up, within
+  100 ms of its dropping, or under the bypass key.
 - **Measurements.** `have_measurement` is set only for a measurement whose gate started after the
   last move stopped. `carrier` means a steady count, so SSB speech never starts a tune (§6A.10).
 

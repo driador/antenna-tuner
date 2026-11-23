@@ -76,6 +76,8 @@ void PanelHw::draw(const tuner::Panel& p) {
     stale_ = false;
 }
 
+void PanelHw::flush() { Serial8.flush(); }
+
 void PanelHw::poll() {
     tuner::nextion::Event e;
     while (Serial8.available()) {

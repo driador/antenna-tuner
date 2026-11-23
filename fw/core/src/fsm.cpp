@@ -65,6 +65,15 @@ bool Tuner::prior_near(double mhz, Prior& p) const {
     return prior(best, p);
 }
 
+bool Tuner::stored_setting(double mhz, Setting& s) const {
+    // The fine recall's setting near mhz, else the segment prior's.
+    Prior p;
+    if (recall_.find(mhz, s)) return true;
+    if (!prior_near(mhz, p)) return false;
+    s = p.at;
+    return true;
+}
+
 int Tuner::prior_sign(const Measurement& m, const Setting& at, const Prior& p) {
     // The hypothesis whose load is clearly nearer the prior's, or 0 when neither is or the prior has
     // already had its say this tune: a wrong prior must not steer twice.
@@ -103,6 +112,7 @@ void Tuner::start_probe() {
 
 void Tuner::enter(State s) {
     if (s != State::Move) jogging_ = false;
+    if (s != State::Move && s != State::Probe) power_held_ = false;
     if (s != State::Move && s != State::Verify) searching_ = false;
     state_ = s;
     probed_ = false;
@@ -166,6 +176,14 @@ void Tuner::begin_tune(const Inputs& in) {
     prior_used_ = false;
     search_n_ = -1;
     search_i_ = 0;
+    Setting r;
+    if (recall_.find(in.m.mhz, r) && setting_distance(at_, r, cfg_.parts) > kAtSetting) {
+        enter(State::Move);                 // §8B.3c: matched near here before; measure there first
+        ++coarse_;
+        move_target_ = r;
+        move_pending_ = true;
+        return;
+    }
     Prior p;
     const bool have = prior_near(in.m.mhz, p);
     if (have && swr > cfg_.trust_swr && setting_distance(at_, p.at, cfg_.parts) > kAtSetting) {
@@ -195,6 +213,19 @@ bool Tuner::run_move(const Inputs& in) {
     // report true once it has stopped where it was sent.
     if (!move_issued_) {
         if (permit_up_ || in.now_ms - permit_down_ms_ < cfg_.rf_decay_ms) return false;
+        // §8B.3b: the exciter's carrier must be inside the tune window before anything moves. Wait for
+        // it to come down, and fault if it does not; an uncalibrated band (fwd_w < 0) cannot be judged.
+        if (in.fwd_w > cfg_.tune_max_w) {
+            if (!power_held_) {
+                power_held_ = true;
+                power_held_ms_ = in.now_ms;
+            } else if (in.now_ms - power_held_ms_ >= cfg_.tune_hold_ms) {
+                power_held_ = false;
+                fault(Fault::TunePower);
+            }
+            return false;
+        }
+        power_held_ = false;
         ++out_.move_id;
         out_.target = move_target_;
         move_issued_ = true;
@@ -218,12 +249,48 @@ Outputs Tuner::step(const Inputs& in) {
     faults_.condition(Fault::OverTemp, in.over_temp);
     if (in.ack) faults_.ack();
     if (in.local_clear) faults_.clear_local();
-    if (in.tune_request) pending_request_ = true;
+    if (in.tune_request) {
+        pending_request_ = true;
+        request_ms_ = in.now_ms;
+    }
+    // §8B.3b: forward power over the rating for over_power_ms, in any state and on any path, is a fault
+    // once per excursion; the vote goes down with it, so the amplifier drops out.
+    if (in.fwd_w > cfg_.over_power_w) {
+        if (!over_) {
+            over_ = true;
+            over_ms_ = in.now_ms;
+        } else if (!over_raised_ && state_ != State::SelfTest && in.now_ms - over_ms_ >= cfg_.over_power_ms) {
+            over_raised_ = true;
+            fault(Fault::OverPower);
+        }
+    } else {
+        over_ = over_raised_ = false;
+    }
     // A trip while tuning is expected: the tune starts from a mismatch and the comparator keeps the
     // amplifier off meanwhile. A trip once MATCHED, or on the AUX or CAL path, is §8B.4's over-SWR in
     // transmit.
     if ((state_ == State::Matched || !in.tune_path) && in.swr_trip && permit_up_) fault(Fault::OverSwr);
     if (in.relay_mismatch && state_ != State::SelfTest) fault(Fault::RelayMismatch);
+    // §8D.7: the arc and imbalance trip latches the permit down in hardware until the vote drops, which
+    // this fault does. The output's voltage is watched from the measurements once the network holds a
+    // setting: the load de-embedded from the bridge, the power going in, the network's stresses.
+    if (in.output_trip && state_ != State::SelfTest) fault(Fault::OutputTrip);
+    if (!in.carrier) {
+        v_out_ = -1;
+        over_v_ = 0;
+        over_v_raised_ = false;
+    } else if (in.have_measurement && in.fwd_w > 0 && (state_ == State::Matched || state_ == State::Verify)) {
+        const double f = in.m.mhz * 1e6;
+        const cplx z_load = load_from_input(f, in.position, z_from_gamma(gamma_of(in.m.gamma, sign_ ? sign_ : +1)));
+        v_out_ = stresses(f, in.position, z_load, in.fwd_w * (1 - in.m.gamma.mag * in.m.gamma.mag)).v_out;
+        if (v_out_ <= cfg_.over_volts) {
+            over_v_ = 0;
+            over_v_raised_ = false;
+        } else if (++over_v_ >= 2 && !over_v_raised_) {
+            over_v_raised_ = true;
+            fault(Fault::OverVoltage);
+        }
+    }
     for (unsigned i = 0; i < unsigned(Fault::Count); ++i)
         if (in.raise & (1u << i)) fault(Fault(i));
     if (state_ != State::SelfTest && state_ != State::Fault && in.limit_hit && !limit_was_hit_)
@@ -245,18 +312,18 @@ Outputs Tuner::step(const Inputs& in) {
 
         case State::Idle: {
             // Every tune starts on a fresh key-down: after a fault clears, "re-attempt on next carrier".
-            Prior p;
+            Setting r;
             if (in.jog && !in.bypass && !faults_.any_blocking()) {
                 enter(State::Move);
                 jogging_ = true;
                 move_target_ = in.jog_target;
                 move_pending_ = true;
             } else if (in.preset && !in.carrier && in.tune_path && !in.bypass && !in.limit_hit && !faults_.any_blocking() &&
-                       prior_near(in.preset_mhz, p) && setting_distance(in.position, p.at, cfg_.parts) > kAtSetting) {
+                       stored_setting(in.preset_mhz, r) && setting_distance(in.position, r, cfg_.parts) > kAtSetting) {
                 enter(State::Move);                 // §8B.3a: to the stored setting while still receiving
                 jogging_ = true;
                 solved_ = false;                    // the elements leave the solution they held
-                move_target_ = p.at;
+                move_target_ = r;
                 move_pending_ = true;
             } else if (!in.carrier) {
                 armed_ = true;
@@ -324,6 +391,7 @@ Outputs Tuner::step(const Inputs& in) {
                     solved_mhz_ = in.m.mhz;
                     solved_ = true;
                     set_prior(segment_of(in.m.mhz), {load_estimate(in.m, s ? s : +1, in.position), in.position});
+                    recall_.store(in.m.mhz, in.position, swr_of(in.m));
                     enter(State::Matched);
                 } else if (done) {
                     fault(Fault::TuneFailed);
@@ -412,6 +480,10 @@ Outputs Tuner::step(const Inputs& in) {
     out_.motion_enable = move_pending_ && move_issued_ && !in.bypass;
     out_.blower_full = faults_.blower_full();
     out_.attempt = attempts_;
+    out_.want_carrier = state_ == State::Idle && pending_request_ && !in.carrier && in.tune_path && !in.bypass &&
+                        !in.limit_hit && !faults_.any_blocking() && in.now_ms - request_ms_ < cfg_.want_ms;
+    out_.power_hold = power_held_;
+    out_.v_out = v_out_;
     return out_;
 }
 

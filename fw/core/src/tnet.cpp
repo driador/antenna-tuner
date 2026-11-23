@@ -111,6 +111,22 @@ cplx input_impedance(double f_hz, const Setting& s, cplx z_load) {
     return zc1 + zl * zb / (zl + zb);                  // the roller across it, then C1
 }
 
+Stress stresses(double f_hz, const Setting& s, cplx z_load, double p_in_w) {
+    Stress r;
+    const double w = 2 * kPi * f_hz;
+    const cplx zc1(0, -1 / (w * s.c1)), zc2(0, -1 / (w * s.c2)), zl(0, w * s.l);
+    const cplx zb = z_load + zc2, zm = zl * zb / (zl + zb);
+    const double r_in = (zc1 + zm).real();
+    if (!(r_in > 0) || !(p_in_w > 0)) return r;       // also a NaN from a bad de-embedding
+    const double i_in = std::sqrt(p_in_w / r_in);     // RMS, the phase reference
+    const cplx v_m = i_in * zm, i_out = v_m / zb;     // across the roller, and through C2 and the load
+    r.v_c1 = kSqrt2 * i_in * std::abs(zc1);
+    r.i_l = std::abs(v_m / zl);
+    r.v_c2 = kSqrt2 * std::abs(i_out * zc2);
+    r.v_out = kSqrt2 * std::abs(i_out * z_load);
+    return r;
+}
+
 cplx load_from_input(double f_hz, const Setting& s, cplx z_in) {
     const double w = 2 * kPi * f_hz;
     const cplx zc1(0, -1 / (w * s.c1)), zc2(0, -1 / (w * s.c2)), zl(0, w * s.l);

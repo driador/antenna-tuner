@@ -32,6 +32,10 @@ const char* explain(Fault f) {
         case Fault::SelfTestFail: return "see the USB console report";
         case Fault::RelayMismatch: return "K1/K2 did not follow command";
         case Fault::BuiltInTest: return "a detector is off at rest";
+        case Fault::TunePower: return "tune at under 100 W";
+        case Fault::OverPower: return "drive over 1500 W: reduce";
+        case Fault::OverVoltage: return "output over 5 kV: check antenna";
+        case Fault::OutputTrip: return "output trip: look for an arc";
         default: return "";
     }
 }
@@ -98,7 +102,7 @@ void Panel::request(PanelAction a, int arg, int detents) {
 }
 
 void Panel::turn(int knob, int detents) {
-    if (detents == 0) return;
+    if (detents == 0 || view_.update_ready || view_.installing) return;
     if (knob == 1) {                                   // right knob: jog the selected axis
         if (screen_ != Screen::Jog || cursor_ > 2) return;
         if (req_.action == PanelAction::Jog && req_.arg == cursor_) req_.detents += detents;
@@ -116,6 +120,11 @@ void Panel::turn(int knob, int detents) {
 
 void Panel::push(int knob) {
     ++presses_;
+    if (view_.installing) return;
+    if (view_.update_ready) {                          // §8C.8: only someone at the box installs
+        request(knob == 0 ? PanelAction::Install : PanelAction::Discard);
+        return;
+    }
     if (knob == 1) {                                   // right push: back
         open(screen_ == Screen::Menu || screen_ == Screen::Monitor ? Screen::Monitor : Screen::Menu);
         return;
@@ -174,6 +183,26 @@ PanelRequest Panel::take() {
 void Panel::render(char rows[kRows][kCols + 1], int& highlight) const {
     for (int r = 0; r < kRows; ++r) rows[r][0] = 0;
     const PanelView& v = view_;
+    if (v.installing) {                                // §8C.8: nothing runs again until the restart
+        highlight = -1;
+        put(rows[0], "INSTALLING FIRMWARE");
+        put(rows[2], "Do not switch the tuner off.");
+        put(rows[3], "It restarts by itself in about");
+        put(rows[4], "ten seconds.");
+        return;
+    }
+    if (v.update_ready) {                              // §8C.8: the only screen until it is answered
+        highlight = -1;
+        put(rows[0], "FIRMWARE UPDATE READY");
+        put(rows[2], "%lu KB, CRC-32 %08lX", static_cast<unsigned long>((v.update_bytes + 1023) / 1024),
+            static_cast<unsigned long>(v.update_crc));
+        put(rows[3], "Checked. Is it the CRC the");
+        put(rows[4], "sender printed? It restarts");
+        put(rows[5], "when done; no PTT till then.");
+        put(rows[7], "left push:  install now");
+        put(rows[8], "right push: discard it");
+        return;
+    }
     const Band* band = band_of(v.mhz);
     const char* band_name = band ? band->name : "--";
     char lines[2 * kMaxEntries + 1][kCols + 1] = {};

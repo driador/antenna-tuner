@@ -20,6 +20,7 @@ public:
     void input(uint16_t iox, uint32_t now_ms, tuner::Panel& p);
     void draw(const tuner::Panel& p);   // sends only the rows, and the highlight, that changed
     void poll();                        // drains the display's replies
+    void flush();                       // waits until what was drawn has gone out
 
 private:
     tuner::Quadrature knob_[2] = {tuner::Quadrature(kEdgesPerDetent), tuner::Quadrature(kEdgesPerDetent)};

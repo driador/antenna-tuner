@@ -4,11 +4,12 @@
 // The UI page served at / (§8C.4). It speaks the line protocol (proto.hpp) over the WebSocket at /ws:
 // SUBSCRIBE for telemetry, GET_LOG for the events it has not seen (so a dropped link loses nothing,
 // §8C.6), and only the commands the link may carry. The fault policy is shown, never set (§8B.4a-1).
+#include "tuner/flashdata.hpp"
 #include "tuner/web.hpp"
 
 namespace tuner::web {
 
-const char kPage[] = R"PAGE(<!doctype html>
+const char kPage[] TUNER_FLASH_DATA = R"PAGE(<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Antenna tuner</title>
 <style>
@@ -27,7 +28,8 @@ input{font:inherit;width:6em;padding:5px;border-radius:8px;border:1px solid var(
 input[type=radio]{width:auto}.addr{width:9em}label{white-space:nowrap}
 </style></head><body><main>
 <div class="card row"><h1>Antenna tuner</h1><span id="link" class="bad">connecting</span>
-<span class="mut">policy <b id="mode" class="v">-</b> (set at the box)</span><span id="derate" class="bad"></span></div>
+<span class="mut">policy <b id="mode" class="v">-</b> (set at the box)</span><a href="/meter">bench meter</a>
+<span id="derate" class="bad"></span></div>
 <div class="card row"><div><div class="mut">SWR</div><div id="swr" class="big">-</div></div>
 <div><div class="mut">state</div><div id="state" class="v">-</div></div>
 <div><div class="mut">path</div><div id="path" class="v">-</div></div>
@@ -35,7 +37,8 @@ input[type=radio]{width:auto}.addr{width:9em}label{white-space:nowrap}
 <div><div class="mut">forward</div><div id="fwd" class="v">-</div></div>
 <div><div class="mut">permit</div><div id="permit" class="v">-</div></div></div>
 <div class="card row"><span>C1 <b id="c1" class="v">-</b> pF</span><span>C2 <b id="c2" class="v">-</b> pF</span>
-<span>L <b id="l" class="v">-</b> &micro;H</span><span>tank <b id="tank" class="v">-</b> &deg;C</span></div>
+<span>L <b id="l" class="v">-</b> &micro;H</span><span>tank <b id="tank" class="v">-</b> &deg;C</span>
+<span>output <b id="vout" class="v">-</b> V peak (estimated)</span></div>
 <div class="card"><div class="row"><b>Faults</b><span id="faults" class="v">none</span></div>
 <div class="row"><span class="mut">self-test</span><span id="bit" class="v">-</span></div>
 <div class="row"><label><input type="checkbox" id="snd"> alarm sound here</label><button id="sil">Silence</button>
@@ -61,8 +64,8 @@ If the tuner cannot be reached then, hold the recovery button at power-up: DHCP 
 <p class="foot mut">Source: <a href="https://github.com/driador/antenna-tuner">github.com/driador/antenna-tuner</a>
 &middot; GPL-3.0-or-later, built with QNEthernet (AGPL-3.0-or-later)</p>
 </main><script>
-const F=["over-temperature","carrier lost","no solution","tune failed","over-SWR trip","limit switch hit","encoder mismatch","self-test failure","K1/K2 relay mismatch","built-in test"];
-const K=["expander","encoders","bridge reference","limits","permit stuck high","fault record","bridge idle","forward detector idle","cal-load detector idle","thermistor","C1 axis","C2 axis","roller axis","K1","K2","hold latch","permit rise"],KW=(1<<9)|(1<<16);
+const F=["over-temperature","carrier lost","no solution","tune failed","over-SWR trip","limit switch hit","encoder mismatch","self-test failure","K1/K2 relay mismatch","built-in test","tune power too high","forward power over rating","output over-voltage","output trip (arc or imbalance)"];
+const K=["expander","encoders","bridge reference","limits","permit stuck high","fault record","bridge idle","forward detector idle","cal-load detector idle","thermistor","C1 axis","C2 axis","roller axis","K1","K2","hold latch","permit rise","step gate"],KW=(1<<9)|(1<<16);
 let ws=null,next=1,netwait=false;const $=id=>document.getElementById(id);
 function cs(s){let c=0;for(const ch of s)c^=ch.charCodeAt(0);return c.toString(16).toUpperCase().padStart(2,"0")}
 function send(s){if(ws&&ws.readyState==1)ws.send(s+"*"+cs(s))}
@@ -78,7 +81,7 @@ function line(raw){const star=raw.lastIndexOf("*");if(star<0||cs(raw.slice(0,sta
   $("state").textContent=t.state;$("path").textContent=t.path;$("mode").textContent=t.mode;
   $("mhz").textContent=t.carrier=="1"?t.mhz+" MHz":"no carrier";$("fwd").textContent=t.fwd=="-"?"not calibrated":t.fwd+" W";
   $("permit").textContent=(t.permit=="1"?"up":"down")+(t.bypass=="1"?" (BYPASS)":"");$("permit").className="v "+(t.bypass=="1"?"bad":t.permit=="1"?"ok":"warn");
-  for(const k of["c1","c2","l","tank"])$(k).textContent=t[k];
+  for(const k of["c1","c2","l","tank","vout"])$(k).textContent=t[k]||"-";
   $("derate").textContent=t.derate=="1"?"DERATE: the RF bay averages "+t.loss+" W of loss against 200 W of cooling; keep under "+t.lim+" W here":"";
   const f=(t.hot=="1"?["A over-temperature"]:[]).concat(names(parseInt(t.c,16),"C"),names(parseInt(t.b,16),"B"));
   $("faults").textContent=f.length?f.join(", "):"none";

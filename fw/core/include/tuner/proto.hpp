@@ -8,11 +8,17 @@
 //   to the tuner     TUNE | ACK | QUERY | SUBSCRIBE [hz] | GET_LOG [from] | PATH TUNE|AUX|CAL
 //                    | CAL LOAD|OPEN|SHORT|SAVE | CAL WATTS <w>
 //                    | PRESET <MHz> | SELFTEST | NET [mode=dhcp|static] [hostname=] [ip=] [netmask=] [gateway=] [dns=]
+//                    | UPDATE [BEGIN | END <bytes> <crc32> | ABORT] | :<Intel HEX record>
 //   from the tuner   OK <command> | ERR <reason> | TLM <fields> | EVT <event> | NET <settings>
 //
 // PRESET moves the elements to the stored setting for a frequency while the rig still receives
 // (§8B.3a). NET alone asks for the network settings; with keys it changes the ones named. A change is checked,
 // saved as an administrative change (§8B.5.4) and used from the next restart.
+//
+// UPDATE BEGIN starts a firmware update (§8C.8); the image follows as Intel HEX records, one per line, each
+// with its own checksum and answered only when it is refused. UPDATE END gives the image's length and the
+// CRC-32 of its bytes, gaps as 0xFF, and the tuner checks what it staged against both. Only someone at the
+// box installs it. UPDATE alone reports where an update stands.
 //
 // A command may omit its checksum (typed by hand); one that has a checksum must match it. Deliberately
 // absent, and refused by name so the refusal is visible: mode changes (§8B.4a-1), class C clears
@@ -30,7 +36,8 @@
 namespace tuner::proto {
 
 enum class Cmd : uint8_t {
-    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Preset, SelfTest, Net, LocalOnly
+    Invalid, Tune, Ack, Query, Subscribe, GetLog, Path, CalLoad, CalOpen, CalShort, CalSave, CalWatts, Preset, SelfTest, Net,
+    UpdateStatus, UpdateBegin, UpdateEnd, UpdateAbort, UpdateRecord, LocalOnly
 };
 
 struct Request {
@@ -40,7 +47,12 @@ struct Request {
     const char* why = nullptr;     // for Invalid and LocalOnly: the reason to send back
     NetConfig net;                 // NET: the values given, and which fields they are (net::Field bits)
     uint8_t net_fields = 0;
+    uint32_t bytes = 0, crc = 0;   // UPDATE END
+    const char* record = nullptr;  // UpdateRecord: the line given to parse(), checked by hex::parse()
 };
+
+// The longest line the tuner sends, its checksum included: the widest TLM, every field at its clamp, fits.
+constexpr size_t kLineMax = 320;
 
 uint8_t checksum(const char* s, size_t n);
 // Appends "*HH" to the line of length len in buf; returns the new length, or 0 if it does not fit.
@@ -63,12 +75,15 @@ struct Telemetry {
     bool derate = false;           // the loss is over the 200 W the cooling carries: a warning only
     uint32_t bit_failed = 0;       // the built-in test's failed checks (bit.hpp), boot and last run
     bool bit_running = false;
+    bool want = false;             // a TUNE waits for a carrier (Outputs::want_carrier)
+    bool hold = false;             // a move waits for the forward power to come into the tune window
+    double v_out = -1;             // the output's estimated peak volts (§8D.7); below zero: none
     uint32_t next_event = 0;       // a client that has seen less than this asks GET_LOG
 };
 
 // "TLM state=MATCHED path=TUNE mode=STRICT mhz=14.2051 carrier=1 swr=1.12 fwd=812 c1=123.4 c2=456.7
 //  l=5.123 tank=31.2 hot=0 c=0000 b=0000 permit=1 bypass=0 loss=12 lim=1500 derate=0 bit=00000 bitrun=0
-//  ev=12*HH"
+//  want=0 hold=0 vout=2150 ev=12*HH"
 //  (pF, uH, W, °C)
 size_t telemetry(const Telemetry& t, char* out, size_t cap);
 size_t event(const EventRecord& e, char* out, size_t cap);         // "EVT seq=... *HH"

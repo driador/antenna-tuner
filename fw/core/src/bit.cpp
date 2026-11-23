@@ -15,7 +15,7 @@ const char* const kNames[] = {"expander",       "encoders",      "bridge referen
                               "permit stuck high", "fault record", "bridge idle",       "forward detector idle",
                               "cal-load detector idle", "thermistor", "C1 axis",         "C2 axis",
                               "roller axis",    "K1",            "K2",                    "hold latch",
-                              "permit rise"};
+                              "permit rise",    "step gate"};
 static_assert(sizeof kNames / sizeof kNames[0] == unsigned(Check::Count), "a name for every check");
 
 const Path kRelaySteps[] = {Path::Aux, Path::Cal, Path::Tune};
@@ -89,7 +89,7 @@ const char* permit_blocker(uint16_t iox_word) {
     static const Term kTerms[] = {{iox::SWR_OK, "SWR_OK"},       {iox::CALDET_OK, "CALDET_OK"},
                                   {iox::CALTH_OK, "CALTH_OK"},   {iox::PANEL_OK, "PANEL_OK"},
                                   {iox::LIMIT_OK, "LIMIT_OK"},   {iox::BYP_OK, "BYP_OK (vote gate)"},
-                                  {iox::HARD_OK, "HARD_OK (gate)"}};
+                                  {iox::HARD_OK, "OUT_OK (the output trip, §8D.7), or the HARD_OK gate"}};
     for (const Term& t : kTerms)
         if (!(iox_word & (1u << t.bit))) return t.name;
     return nullptr;
@@ -229,7 +229,7 @@ Active::Out Active::step(const In& in) {
                     phase_ = Phase::LatchOff;
                     t0_ = in.now_ms;
                 } else if (in.now_ms - t0_ >= kLatchMs) {   // it follows the vote within a tick or two
-                    untested_ |= mask(Check::Latch);
+                    untested_ |= mask(Check::Latch) | mask(Check::StepGate);
                     if (in.vote) failed_ |= mask(Check::PermitRise);
                     else untested_ |= mask(Check::PermitRise);
                     end(true);
@@ -249,7 +249,30 @@ Active::Out Active::step(const In& in) {
             break;
 
         case Phase::LatchOff:               // let a coil that wrongly drew let go
-            if (in.now_ms - t0_ >= kLatchMs) end(true);
+            if (in.now_ms - t0_ < kLatchMs) break;
+            phase_ = Phase::Gate;
+            issued_ = false;
+            break;
+
+        case Phase::Gate:                   // the permit still up: roller steps, and the gate must stop them
+            if (!(in.vote && in.permit)) {  // it fell: the gate opens in 39 ms, so the burst proves nothing
+                untested_ |= mask(Check::StepGate);
+                end(true);
+                break;
+            }
+            if (!issued_) {
+                o.gate_burst = true;
+                issued_ = true;
+                gate_runs_ = in.gate_runs;
+                t0_ = in.now_ms;
+            } else if (in.gate_runs != gate_runs_) {
+                if (!in.gate_judged) untested_ |= mask(Check::StepGate);
+                else if (in.gate_moved) failed_ |= mask(Check::StepGate);
+                end(true);
+            } else if (in.now_ms - t0_ > kGateMs) {
+                untested_ |= mask(Check::StepGate);
+                end(true);
+            }
             break;
 
         case Phase::Restore:

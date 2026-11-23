@@ -23,8 +23,10 @@
 #include "net.hpp"
 #include "panel_hw.hpp"
 #include "persist.hpp"
+#include "recall_store.hpp"
 #include "sensors.hpp"
 #include "storage.hpp"
+#include "update.hpp"
 #include "tuner/alarm.hpp"
 #include "tuner/bit.hpp"
 #include "tuner/derate.hpp"
@@ -47,6 +49,9 @@ tuner::Panel g_panel;
 tuner::PathSwitch g_path;
 alignas(tuner::Tuner) unsigned char g_tuner_mem[sizeof(tuner::Tuner)];
 tuner::Tuner* g_tuner = nullptr;
+hw::RecallStore g_recall_store;        // §8B.3c: the fine recall memory, in program flash
+hw::Updater g_update;                  // §8C.8: a firmware image arriving, or staged for the panel
+bool g_installing = false;
 hw::Authoritative g_auth;              // what the authoritative record should hold
 hw::Convenience g_conv;
 tuner::Outputs g_out;
@@ -78,8 +83,44 @@ uint16_t g_bit_relay0 = 0;
 uint16_t g_raise = 0;                  // what the last run found, raised on the next tick
 bool g_bit_due = hw::kBitAtPowerUp;    // the run at power-up, once the boot has settled
 uint32_t g_boot_ms = 0, g_last_rf_ms = 0;
+uint32_t g_tick_us_max = 0, g_tick_us_sum = 0, g_ticks = 0, g_loops = 0, g_load_ms = 0;   // `load` (§8B.7)
 tuner::Alarm g_alarm;                  // §8B.4i
 uint32_t g_presses = 0;                // the panel's knob presses seen so far: each silences the alarm
+
+}  // namespace
+
+extern "C" char _ebss[], _estack[];      // the stack: down from _estack to the core's 32-byte guard at _ebss
+
+namespace {
+// How deep the stack has been (§8B.7). The free stack is painted once at boot, and `load` finds the
+// deepest word anything has written since.
+constexpr uint32_t kPaint = 0xA5A5A5A5;
+uint32_t* stack_floor() { return reinterpret_cast<uint32_t*>(uintptr_t(_ebss) + 64); }
+uint32_t* stack_top() { return reinterpret_cast<uint32_t*>(uintptr_t(_estack)); }
+
+void paint_stack() {
+    uint32_t* p = stack_floor();
+    uint32_t* const below = static_cast<uint32_t*>(__builtin_frame_address(0)) - 128;   // 512 B under this frame
+    while (p < below) *p++ = kPaint;
+}
+
+uint32_t stack_used() {
+    const uint32_t* p = stack_floor();
+    while (p < stack_top() && *p == kPaint) ++p;
+    return uint32_t(uintptr_t(stack_top()) - uintptr_t(p));
+}
+
+// The tick's cost and the loop's rate since the last `load`, against the 10 ms tick, and the stack.
+void load() {
+    const uint32_t ms = millis() - g_load_ms, size = uint32_t(uintptr_t(stack_top()) - uintptr_t(stack_floor()));
+    Serial.printf("load over %.1f s: tick avg %lu us, worst %lu us, of %lu ms; loop %lu /s; stack %lu of %lu KB at most\n",
+                  ms / 1000.0, static_cast<unsigned long>(g_ticks ? g_tick_us_sum / g_ticks : 0),
+                  static_cast<unsigned long>(g_tick_us_max), static_cast<unsigned long>(hw::kTickMs),
+                  static_cast<unsigned long>(ms ? uint64_t(g_loops) * 1000 / ms : 0),
+                  static_cast<unsigned long>((stack_used() + 1023) / 1024), static_cast<unsigned long>(size / 1024));
+    g_tick_us_max = g_tick_us_sum = g_ticks = g_loops = 0;
+    g_load_ms = millis();
+}
 
 void note(const char* msg) {
     if (!msg) return;
@@ -115,9 +156,9 @@ const char* mode_name(tuner::Mode m) {
     return m == tuner::Mode::Commissioning ? "COMMISSIONING" : m == tuner::Mode::Strict ? "STRICT" : "PERMISSIVE";
 }
 
-// The MCU's vote in the permissive (§7.4): the state machine's, held down through a path change and in
-// recovery.
-bool vote() { return g_out.mcu_permit && !g_path_out.hold_vote && !g_recovery; }
+// The MCU's vote in the permissive (§7.4): the state machine's, held down through a path change, in
+// recovery, and while a firmware update arrives or waits (§8C.8).
+bool vote() { return g_out.mcu_permit && !g_path_out.hold_vote && !g_recovery && !g_update.busy(); }
 
 // Nothing in progress, so a path change or a jog may start.
 bool quiet() {
@@ -222,7 +263,8 @@ void restore(uint32_t n) {
 // bit: the built-in test's own request; anyone else's waits until its run is over.
 const char* set_path(tuner::Path p, bool bit = false) {   // allowed remotely too, like a band change (§6B.4)
     // §5.5: the relays switch with no RF at all, and the permit holds off only the amplifier.
-    const char* why = g_bit.running() && !bit ? "path: the self-test is running"
+    const char* why = g_update.busy() ? "path: a firmware update is under way"
+                      : g_bit.running() && !bit ? "path: the self-test is running"
                       : g_sensors.carrier() || g_sensors.rf_now() ? "path: only while receiving"
                       : !quiet() ? "path: finish what is running first"
                       : !g_path.request(p, millis()) ? "path: a change is under way" : nullptr;
@@ -237,6 +279,10 @@ void jog(int axis, double turns, bool bit = false) {   // §7.5 manual override,
     }
     if (g_bit.running() && !bit) {
         note("jog: the self-test is running");
+        return;
+    }
+    if (g_update.busy()) {
+        note("jog: a firmware update is under way");
         return;
     }
     if (g_out.state != tuner::State::Idle || g_motion.busy()) {
@@ -261,6 +307,7 @@ uint32_t axis_raised() {
 // few seconds for the rest (a move finishing, the RF gone long enough).
 const char* start_selftest() {
     if (g_bit.running()) return "self-test: already running";
+    if (g_update.busy()) return "self-test: a firmware update is under way";
     if (g_sensors.carrier() || g_sensors.rf_now()) return "self-test: only while receiving";
     if (g_sensors.iox(iox::BYPASS_KEY)) return "self-test: the bypass is engaged";
     if (!g_sensors.iox(iox::PANEL_OK)) return "self-test: the RF service panel is open";
@@ -299,6 +346,9 @@ tuner::bit::Active::In bit_in(uint32_t now) {
     b.vote = vote();
     b.permit = hw::permit();
     b.rest = g_sensors.rest();
+    b.gate_runs = g_motion.gate_runs();
+    b.gate_judged = g_motion.gate_judged();
+    b.gate_moved = g_motion.gate_moved();
     return b;
 }
 
@@ -370,6 +420,52 @@ const char* cal_save() {
     return g_cal.changes() != before ? nullptr : msg;
 }
 
+const char* tune() {                                   // the panel, the console and the link
+    if (g_update.busy()) {
+        note("tune: a firmware update is under way");
+        return "tune: a firmware update is under way";
+    }
+    g_tune = true;
+    return nullptr;
+}
+
+// What became of a firmware update (§8C.8): the event log, the console and the panel.
+void update_event(uint8_t step, const char* msg) {
+    log_event(tuner::EventKind::Update, step);
+    note(msg);
+}
+
+void discard_update(const char* msg) {
+    if (g_update.stage() == hw::Updater::Stage::Idle) return note("update: nothing to discard");
+    g_update.abort();
+    update_event(tuner::kUpdateDiscarded, msg);
+}
+
+tuner::PanelView view();
+
+// Only from the panel or the USB console, both at the box. Everything that waits for a quiet moment is
+// written first; then the last screen, and the copy, which ends in a restart.
+void install_update() {
+    if (g_update.stage() != hw::Updater::Stage::Ready) return note("update: nothing staged");
+    if (!quiet() || g_sensors.carrier() || g_sensors.rf_now()) return note("update: finish what is running first");
+    update_event(tuner::kUpdateInstalling, "update: installing; the tuner restarts by itself");
+    for (int i = 0; i < 10; ++i) {                     // the event out to the link, so the sender hears it
+        g_net.poll(millis());
+        delay(5);
+    }
+    persist();
+    g_recall_store.save(g_tuner->recall());
+    g_store.flush(g_events);
+    g_installing = true;
+    g_panel.show(view());
+    g_panel_hw.draw(g_panel);
+    g_panel_hw.flush();
+    Serial.flush();
+    hw::set_permit(false);
+    hw::set_drivers(false);
+    g_update.install();
+}
+
 tuner::PanelView view() {
     tuner::PanelView v;
     v.state = g_out.state;
@@ -392,7 +488,14 @@ tuner::PanelView view() {
     const tuner::Band* b = tuner::band_of(v.mhz);
     v.cal_valid = b && g_auth.bridge[b - tuner::kBands].valid;
     v.cal_have = g_cal.have(v.mhz);
-    v.note = g_note && millis() - g_note_ms < 4000 ? g_note : g_bit.running() ? "self-test running" : nullptr;
+    v.note = g_note && millis() - g_note_ms < 4000 ? g_note
+             : g_bit.running() ? "self-test running"
+             : g_update.stage() == hw::Updater::Stage::Receiving ? "receiving a firmware update"
+                                                                 : nullptr;
+    v.update_ready = g_update.stage() == hw::Updater::Stage::Ready;
+    v.update_bytes = g_update.bytes();
+    v.update_crc = g_update.crc();
+    v.installing = g_installing;
     v.card = g_store.present() ? (g_store.foreign() ? -1 : 1) : 0;
     v.q_tunes = g_qual.tunes;
     v.q_bands = g_qual.band_count();
@@ -408,7 +511,7 @@ void panel_request() {
         case tuner::PanelAction::None: break;
         case tuner::PanelAction::Ack: g_ack = true; break;
         case tuner::PanelAction::ClearLocal: g_clear = true; break;
-        case tuner::PanelAction::Tune: g_tune = true; break;
+        case tuner::PanelAction::Tune: tune(); break;
         case tuner::PanelAction::SetMode: set_mode(tuner::Mode(r.arg)); break;
         case tuner::PanelAction::SetPath: set_path(tuner::Path(r.arg)); break;
         case tuner::PanelAction::CalLoad: cal_step(hw::Calibration::Step::Load); break;
@@ -418,6 +521,8 @@ void panel_request() {
         case tuner::PanelAction::Jog: jog(r.arg, r.detents * hw::kJogTurns); break;
         case tuner::PanelAction::Inspected: inspected(); break;
         case tuner::PanelAction::SelfTest: selftest(); break;
+        case tuner::PanelAction::Install: install_update(); break;
+        case tuner::PanelAction::Discard: discard_update("update: discarded at the panel"); break;
     }
 }
 
@@ -426,6 +531,7 @@ void panel_request() {
 // real frequency, so a wrong preset only costs a longer move.
 const char* preset(double mhz) {
     if (!(mhz > 0) || tuner::segment_of(mhz) < 0) return "preset: not on an amateur band";
+    if (g_update.busy()) return "preset: a firmware update is under way";
     if (g_sensors.carrier()) return "preset: only while receiving";
     if (g_bit.running()) return "preset: the self-test is running";
     if (g_path.path() != tuner::Path::Tune) return "preset: on the TUNE path only";
@@ -455,7 +561,7 @@ const char* set_net(const tuner::proto::Request& r) {
 const char* link_command(const tuner::proto::Request& r) {
     using tuner::proto::Cmd;
     switch (r.cmd) {
-        case Cmd::Tune: g_tune = true; return nullptr;
+        case Cmd::Tune: return tune();
         case Cmd::Ack: g_ack = true; return nullptr;
         case Cmd::Path: return set_path(r.path);
         case Cmd::CalLoad: return cal_step(hw::Calibration::Step::Load);
@@ -471,6 +577,74 @@ const char* link_command(const tuner::proto::Request& r) {
 }
 
 void link_network(tuner::NetConfig& n) { n = g_auth.net; }
+
+// §8C.8: UPDATE and its records from the link. Installing is not here: only at the box.
+const char* link_update(const tuner::proto::Request& r, int who, bool& ok) {
+    using tuner::proto::Cmd;
+    using Stage = hw::Updater::Stage;
+    static char text[96];
+    const uint32_t now = millis();
+    const Stage before = g_update.stage();
+    ok = false;
+    switch (r.cmd) {
+        case Cmd::UpdateRecord: {
+            const char* why = g_update.record(who, r.record, now);
+            if (before == Stage::Receiving && g_update.stage() == Stage::Failed) update_event(tuner::kUpdateFailed, why);
+            return why;
+        }
+        case Cmd::UpdateBegin: {
+            const char* why = g_sensors.carrier() || g_sensors.rf_now() ? "update: only while receiving"
+                              : g_bit.running() || g_bit_due ? "update: the self-test is running"
+                              : !quiet() ? "update: finish what is running first"
+                                         : g_update.start(who, now);
+            if (why) return why;
+            hw::set_permit(vote());                    // down now: the first erase may come before the tick
+            update_event(tuner::kUpdateBegun, "update: receiving a firmware image");
+            ok = true;
+            std::snprintf(text, sizeof text, "UPDATE BEGIN: up to %lu KB",
+                          static_cast<unsigned long>(g_update.capacity() / 1024));
+            return text;
+        }
+        case Cmd::UpdateEnd: {
+            const char* why = g_update.finish(who, r.bytes, r.crc, now);
+            if (why) {
+                if (before == Stage::Receiving) update_event(tuner::kUpdateFailed, why);
+                return why;
+            }
+            update_event(tuner::kUpdateStaged, "update: staged and checked; install it at the panel");
+            ok = true;
+            std::snprintf(text, sizeof text, "UPDATE END: %lu bytes staged and checked; install it at the tuner's panel",
+                          static_cast<unsigned long>(g_update.bytes()));
+            return text;
+        }
+        case Cmd::UpdateAbort:
+            ok = true;
+            if (before == Stage::Idle) return "UPDATE ABORT: nothing to discard";
+            if (before == Stage::Failed) g_update.abort();   // already logged as failed
+            else discard_update("update: discarded from the link");
+            return "UPDATE ABORT";
+        case Cmd::UpdateStatus:
+            ok = true;
+            if (before == Stage::Receiving)
+                std::snprintf(text, sizeof text, "UPDATE receiving: %lu bytes so far",
+                              static_cast<unsigned long>(g_update.received()));
+            else if (before == Stage::Ready)
+                std::snprintf(text, sizeof text, "UPDATE ready: %lu bytes, waiting for the panel",
+                              static_cast<unsigned long>(g_update.bytes()));
+            else if (before == Stage::Failed)
+                std::snprintf(text, sizeof text, "UPDATE failed: %s", g_update.why() ? g_update.why() : "?");
+            else
+                std::snprintf(text, sizeof text, "UPDATE idle: room for %lu KB",
+                              static_cast<unsigned long>(g_update.capacity() / 1024));
+            return text;
+        default:
+            return "not on the link";
+    }
+}
+
+void link_closed(int who) {
+    if (g_update.closed(who)) update_event(tuner::kUpdateFailed, "update: the connection closed mid-transfer");
+}
 
 // "net" shows the saved settings and the address in use; "net key=value ..." changes them, as NET does.
 void net_console(const char* s) {
@@ -507,6 +681,9 @@ void link_telemetry(tuner::proto::Telemetry& t) {
     t.derate = g_derate.warning();
     t.bit_failed = g_bit_failed;
     t.bit_running = g_bit.running();
+    t.want = g_out.want_carrier;
+    t.hold = g_out.power_hold;
+    t.v_out = g_out.v_out;
 }
 
 void status() {
@@ -530,8 +707,9 @@ void status() {
 void command(const char* s) {
     if (!std::strcmp(s, "ack")) g_ack = true;
     else if (!std::strcmp(s, "clear")) g_clear = true;     // local clear of B and C, after a look (§8B.4f)
-    else if (!std::strcmp(s, "tune")) g_tune = true;
+    else if (!std::strcmp(s, "tune")) tune();
     else if (!std::strcmp(s, "status")) status();
+    else if (!std::strcmp(s, "load")) load();
     else if (!std::strcmp(s, "mode commissioning")) set_mode(tuner::Mode::Commissioning);
     else if (!std::strcmp(s, "mode strict")) set_mode(tuner::Mode::Strict);
     else if (!std::strcmp(s, "mode permissive")) set_mode(tuner::Mode::Permissive);
@@ -558,6 +736,13 @@ void command(const char* s) {
     } else if (!std::strncmp(s, "restore ", 8)) restore(uint32_t(std::atol(s + 8)));
     else if (!std::strcmp(s, "adopt")) note(g_store.adopt(g_auth.tuner_id) ? "card adopted" : "adopt: no card");
     else if (!std::strncmp(s, "net", 3) && (s[3] == 0 || s[3] == ' ')) net_console(s);
+    else if (!std::strcmp(s, "update")) {
+        bool ok;
+        tuner::proto::Request q;
+        q.cmd = tuner::proto::Cmd::UpdateStatus;
+        Serial.println(link_update(q, -1, ok));
+    } else if (!std::strcmp(s, "update install")) install_update();
+    else if (!std::strcmp(s, "update discard")) discard_update("update: discarded at the console");
     else if (!std::strncmp(s, "preset ", 7)) {
         const char* why = preset(std::atof(s + 7));
         note(why ? why : "preset: moving to the stored setting");
@@ -568,9 +753,9 @@ void command(const char* s) {
         if (axis < 0) note("jog c1|c2|l <turns>");
         else jog(axis, std::atof(a + (axis == 2 ? 2 : 3)));
     } else {
-        Serial.println("commands: status, ack, clear, tune, mode commissioning|strict, path tune|aux|cal,");
+        Serial.println("commands: status, load, ack, clear, tune, mode commissioning|strict, path tune|aux|cal,");
         Serial.println("          cal load|open|short|save, cal watts <W>, jog c1|c2|l <turns>, preset <MHz>, selftest,");
-        Serial.println("          inspected, qual, backups, restore <n>, adopt,");
+        Serial.println("          inspected, qual, backups, restore <n>, adopt, update [install|discard],");
         Serial.println("          net [mode=dhcp|static hostname= ip= netmask= gateway= dns=]");
     }
 }
@@ -622,6 +807,7 @@ void tick(uint32_t now) {
         if (b.jog_axis >= 0) jog(b.jog_axis, b.jog_turns, true);
         if (b.path_request) set_path(b.path, true);
         bit_k1 = b.drive_k1;
+        if (b.gate_burst) g_motion.gate_test(2, now);      // the roller: the part the gate protects most
         if (!g_bit.running()) bit_report();
     }
     hw::set_relays(g_path_out.k1 || bit_k1, g_path_out.k2);
@@ -631,6 +817,7 @@ void tick(uint32_t now) {
     in.self_test_ok = g_self_test;
     in.bypass = g_sensors.iox(iox::BYPASS_KEY);
     in.carrier = g_sensors.carrier();
+    in.fwd_w = g_sensors.forward_watts();
     uint32_t gate_start;
     if (g_sensors.take_gate(in.m, gate_start)) {           // only a gate that began after the last move
         in.have_measurement = !g_motion.busy() && int32_t(gate_start - g_motion.stopped_ms()) >= 0;
@@ -642,6 +829,9 @@ void tick(uint32_t now) {
     in.limit_hit = hw::limits() != 0;
     in.over_temp = g_sensors.over_temp();
     in.swr_trip = !g_sensors.iox(iox::SWR_OK);
+    // §8D.7: HARD_OK down while its four inputs read OK is the output trip, the term with no input of its own.
+    in.output_trip = !g_sensors.iox(iox::HARD_OK) && g_sensors.iox(iox::CALDET_OK) && g_sensors.iox(iox::CALTH_OK) &&
+                     g_sensors.iox(iox::PANEL_OK) && g_sensors.iox(iox::LIMIT_OK);
     in.tune_request = g_tune;
     in.ack = g_ack;
     in.local_clear = g_clear;
@@ -655,7 +845,9 @@ void tick(uint32_t now) {
     g_tune = g_ack = g_clear = g_jog = g_preset = false;
     g_raise = 0;
 
+    const bool held = g_out.power_hold;
     g_out = g_tuner->step(in);
+    if (g_out.power_hold && !held) note("tune: forward power over the tune window, waiting");   // §8B.3b
 
     // The event log: faults as they are raised, acknowledgements and clears, finished tunes and path
     // changes. A mechanical fault also starts the PERMISSIVE qualification over (§8B.4a-1).
@@ -723,6 +915,12 @@ void tick(uint32_t now) {
         persist();
     }
     panel_request();
+    {
+        const bool ready = g_update.stage() == hw::Updater::Stage::Ready;
+        if (g_update.poll(now))
+            update_event(ready ? tuner::kUpdateDiscarded : tuner::kUpdateFailed,
+                         ready ? "update: not installed within 10 minutes; discarded" : "update: no data for 30 s; dropped");
+    }
     if (now - g_last_panel >= hw::kPanelMs) {
         g_last_panel = now;
         g_panel.show(view());
@@ -759,6 +957,7 @@ void setup() {
     hw::watchdog_begin(hw::kWatchdogMs);                   // before MCU_PERMIT can first rise (§8B.0.3)
     const bool watchdog_reset = hw::reset_by_watchdog();
     Serial.begin(115200);
+    paint_stack();                                         // for `load`'s stack depth (§8B.7)
     hw::set_blower(1.0);
 
     // Step 2, self-test: the encoders and their magnets, the MCP23017, the measurement board (AD8302
@@ -798,6 +997,8 @@ void setup() {
     } else {
         tuner::seed_priors(*g_tuner);
     }
+    if (!g_recall_store.begin(g_tuner->recall())) note("recall: no flash area; the memory is kept in RAM only");
+    g_update.begin();
     g_sensors.use_calibration(&g_auth);
     g_cal.attach(&g_auth);
     g_panel_hw.begin();
@@ -821,7 +1022,7 @@ void setup() {
         log_event(tuner::EventKind::Recovery);
         Serial.println("RECOVERY MODE: DHCP as 'tuner', policy STRICT, transmit inhibited until a reboot");
     }
-    g_net.begin(g_auth.net, &g_events, hw::Net::Hooks{link_command, link_telemetry, link_network});   // never blocks
+    g_net.begin(g_auth.net, &g_events, hw::Net::Hooks{link_command, link_telemetry, link_network, link_update, link_closed});   // never blocks
     if (g_restorable && g_store.present()) {
         uint32_t n[64];
         const int k = g_store.list(n, 64);
@@ -858,8 +1059,15 @@ void loop() {
     g_panel_hw.poll();
     g_net.poll(now);
     console();
+    ++g_loops;
     if (now - g_last_tick >= hw::kTickMs) {
         g_last_tick = now;
+        const uint32_t t0 = micros();
         tick(now);
+        g_recall_store.tick(g_tuner->recall(), now);
+        const uint32_t us = micros() - t0;
+        g_tick_us_sum += us;
+        ++g_ticks;
+        if (us > g_tick_us_max) g_tick_us_max = us;
     }
 }

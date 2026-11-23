@@ -21,6 +21,10 @@ enum class Fault : uint8_t {
     SelfTestFail,     // C, always
     RelayMismatch,    // B: K1/K2 did not do what was commanded (§6B.2)
     BuiltInTest,      // B: a built-in check found a part degraded but safe (§8B.4h)
+    TunePower,        // B: a move was due with the exciter over the tune window (§8B.3b)
+    OverPower,        // B: forward power over the tuner's rating while transmitting (§8B.3b)
+    OverVoltage,      // B: the output's estimated voltage over its envelope while transmitting (§8D.7)
+    OutputTrip,       // B: the output's arc and imbalance trip opened the permissive (§8D.7)
     Count
 };
 

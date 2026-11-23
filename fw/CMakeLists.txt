@@ -26,6 +26,7 @@ add_library(tuner_core STATIC
   core/src/faults.cpp
   core/src/freq.cpp
   core/src/fsm.cpp
+  core/src/hexfile.cpp
   core/src/json.cpp
   core/src/mirror.cpp
   core/src/motion.cpp
@@ -35,18 +36,20 @@ add_library(tuner_core STATIC
   core/src/path.cpp
   core/src/proto.cpp
   core/src/qualify.cpp
+  core/src/recall.cpp
   core/src/seed.cpp
   core/src/sense.cpp
   core/src/sntp.cpp
   core/src/tnet.cpp
   core/src/web.cpp
-  core/src/web_page.cpp)
+  core/src/web_page.cpp
+  core/src/web_meter.cpp)
 target_include_directories(tuner_core PUBLIC core/include)
 target_compile_options(tuner_core PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Werror
   -fno-exceptions -fno-rtti)
 
 enable_testing()
-foreach(name tnet bridge freq_faults fsm hw panel store link bit alarm)
+foreach(name tnet bridge freq_faults fsm hw panel store link bit alarm recall hexfile)
   add_executable(test_${name} test/test_${name}.cpp test/test_main.cpp)
   target_link_libraries(test_${name} PRIVATE tuner_core)
   target_compile_options(test_${name} PRIVATE -Wall -Wextra)

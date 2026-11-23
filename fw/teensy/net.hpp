@@ -26,6 +26,10 @@ public:
         const char* (*command)(const tuner::proto::Request& r);
         void (*telemetry)(tuner::proto::Telemetry& t);
         void (*network)(tuner::NetConfig& saved);    // the saved settings, which NET reports
+        // The firmware update (§8C.8), from session `who`: the UPDATE commands and the records. Returns
+        // the reply, OK or ERR by ok, or nullptr for none (a record taken).
+        const char* (*update)(const tuner::proto::Request& r, int who, bool& ok);
+        void (*closed)(int who);                     // a session went away
     };
 
     void begin(const tuner::NetConfig& cfg, const tuner::EventLog* log, const Hooks& h);

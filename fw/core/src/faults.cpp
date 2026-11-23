@@ -21,6 +21,10 @@ const char* fault_name(Fault f) {
         case Fault::SelfTestFail: return "self-test failure";
         case Fault::RelayMismatch: return "K1/K2 relay mismatch";
         case Fault::BuiltInTest: return "built-in test";
+        case Fault::TunePower: return "tune power too high";
+        case Fault::OverPower: return "forward power over rating";
+        case Fault::OverVoltage: return "output over-voltage";
+        case Fault::OutputTrip: return "output trip";
         default: return "?";
     }
 }
@@ -37,6 +41,10 @@ FaultClass FaultPolicy::raise(Fault f) {
         case Fault::OverSwr:
         case Fault::RelayMismatch:
         case Fault::BuiltInTest:
+        case Fault::TunePower:
+        case Fault::OverPower:
+        case Fault::OverVoltage:
+        case Fault::OutputTrip:
             unacked_b_ |= mask(f);
             return FaultClass::B;
         case Fault::SelfTestFail:

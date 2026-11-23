@@ -27,13 +27,21 @@ public:
     // Runs the move's phases. enable false stops a move in progress, ramping down (Outputs::motion_enable).
     void service(uint32_t now_ms, bool enable);
 
+    // The built-in test's step-gate check (§8B.4h, §7.4.6): with the permit up, a burst of steps on one
+    // axis that the control board's gate must stop. It is not a move: no plan, no move id, no mismatch.
+    // gate_runs() counts the bursts finished; gate_moved() is whether the last one moved the axis.
+    void gate_test(int axis, uint32_t now_ms);
+    uint32_t gate_runs() const { return gate_runs_; }
+    bool gate_judged() const { return gate_judged_; }
+    bool gate_moved() const { return gate_moved_; }
+
     bool busy() const { return phase_ != Phase::Idle; }
     uint32_t done_id() const { return done_id_; }
     bool mismatch() const { return mismatch_; }
     uint32_t stopped_ms() const { return stopped_ms_; }   // when the last move finished, verify included
 
 private:
-    enum class Phase : uint8_t { Idle, Waking, Running, Settling };
+    enum class Phase : uint8_t { Idle, Waking, Running, Settling, GateWaking, GateSettling };
     void finish(uint32_t now_ms, bool mismatch);
 
     double turns_[3] = {};
@@ -41,6 +49,10 @@ private:
     Phase phase_ = Phase::Idle;
     uint32_t id_ = 0, done_id_ = 0, phase_ms_ = 0, stopped_ms_ = 0;
     bool mismatch_ = false;
+    int gate_axis_ = 0;
+    double gate_from_ = 0;
+    uint32_t gate_runs_ = 0;
+    bool gate_judged_ = false, gate_moved_ = false;
 };
 
 }  // namespace hw

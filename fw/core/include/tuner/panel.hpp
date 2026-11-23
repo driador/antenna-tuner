@@ -42,10 +42,15 @@ struct PanelView {                         // what the panel shows; the Teensy l
     int q_bands = 0;
     double q_hours = 0;
     bool q_inspected = false, q_met = false;
+    // A firmware update staged and checked (§8C.8): the panel asks for the go-ahead, and nothing else.
+    bool update_ready = false;
+    uint32_t update_bytes = 0, update_crc = 0;    // the CRC the sender printed, to compare at the box
+    bool installing = false;       // the last screen before the restart
 };
 
 enum class PanelAction : uint8_t {
-    None, Ack, ClearLocal, Tune, SetMode, SetPath, CalLoad, CalOpen, CalShort, CalSave, Jog, Inspected, SelfTest
+    None, Ack, ClearLocal, Tune, SetMode, SetPath, CalLoad, CalOpen, CalShort, CalSave, Jog, Inspected, SelfTest,
+    Install, Discard                       // the staged firmware: left push installs, right push discards
 };
 
 struct PanelRequest {

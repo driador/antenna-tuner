@@ -15,10 +15,12 @@ namespace tuner {
 
 enum class EventKind : uint8_t {
     Boot, WatchdogReset, Fault, Ack, Clear, Mode, Path, Tuned, CalSaved, Inspected, CardIn, CardOut, Restore, Recovery,
-    Network, Derate, SelfTest
+    Network, Derate, SelfTest, Update
 };
 
 constexpr uint8_t kSelfTestPassed = 255, kSelfTestStopped = 254;
+// Update's argument (§8C.8): what became of a firmware update.
+enum UpdateStep : uint8_t { kUpdateBegun, kUpdateStaged, kUpdateFailed, kUpdateDiscarded, kUpdateInstalling };
 
 struct EventRecord {
     uint32_t seq = 0;
@@ -26,7 +28,8 @@ struct EventRecord {
     bool wall = false;         // which of the two time_s is
     EventKind kind = EventKind::Boot;
     uint8_t arg = 0;           // the fault, mode or path, by kind; for Network, 1 for DHCP; for SelfTest,
-                               // the check that failed (bit.hpp), or kSelfTestPassed / kSelfTestStopped
+                               // the check that failed (bit.hpp), or kSelfTestPassed / kSelfTestStopped;
+                               // for Update, an UpdateStep
     State state = State::SelfTest;
     float mhz = 0;
 };
