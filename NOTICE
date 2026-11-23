@@ -6,10 +6,12 @@ Copyright 2026 Reuben A. Popp, KF0OWR.
 This repository is the design of a 1500 W automated antenna tuner. It is open
 hardware, and its firmware is free software:
 
-  Hardware and design   CERN-OHL-W-2.0     everything outside fw/, except the
-                                           third-party material listed below;
-                                           full text in LICENSE
+  Hardware and design   CERN-OHL-W-2.0     everything outside fw/ and host/,
+                                           except the third-party material listed
+                                           below; full text in LICENSE
   Firmware (fw/)        GPL-3.0-or-later   full text in fw/LICENSE
+  Bench PC tools        GPL-3.0-or-later   host/; the same text, in fw/LICENSE
+  (host/)
 
 
 Hardware and design: CERN-OHL-W-2.0
@@ -48,6 +50,10 @@ later version. It is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
 details.
+
+The programs in host/ (the CAT bridge and the firmware update tool) run on the
+bench PC and speak to the tuner only over its documented link protocol (design
+log section 8C.5). They are free software under the same terms as the firmware.
 
 The firmware is a separate work. It meets the hardware only through interfaces
 the design documents: the pin map in design log section 8B.0.4 (PINMAP in
