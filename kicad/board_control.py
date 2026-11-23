@@ -16,6 +16,10 @@ Scope (Sections 5.5, 6B, 7.1-7.5, 8, 8A, 8B, 8C):
   - /1024 frequency on RG-316 to an SMA jack, 1 k (7.3 frequency grade)
   - K1/K2 low-side drivers with coil-current sense, fed from a latch that only
     follows the MCU after the permissive has been down >= 30 ms (5.5)
+  - the three STEP lines gated by the same signal, so no element moves while
+    the permissive is up or for 39-67 ms after it falls (7.4.6)
+  - the output trip (8D.7): the imbalance CT's level against a trimmer, latched
+    while the MCU's vote is up, as a fifth never-bypassed term of HARD_OK
   - the hardware permissive (7.4): (SWR AND MCU) OR the bypass key, AND the
     cal-load window, cal-load thermal, RF panel and limit conditions, gating a
     10 kHz hardware tone into the HFBR-1521Z. The bypass therefore works with a
@@ -186,8 +190,9 @@ block('ja')
 LOGIC = ('STEP1', 'STEP2', 'STEP3', 'DIR1', 'DIR2', 'DIR3', 'DRV_EN',
          'ENC_SCK', 'ENC_MOSI', 'ENC_MISO', 'ENC_CS1', 'ENC_CS2', 'ENC_CS3')
 LIMS = tuple(f'LIM{i}' for i in range(1, 7))
+GATED = {'STEP1': 'STEP1_G', 'STEP2': 'STEP2_G', 'STEP3': 'STEP3_G'}   # through U14, below
 for net in LOGIC + LIMS:
-    R('47', net, net + '_X')                   # 7.3 logic grade: 47 ohm, board side
+    R('47', GATED.get(net, net), net + '_X')   # 7.3 logic grade: 47 ohm, board side
 # Limit senses: NC contacts to ground, so a trip OR a broken wire reads high.
 # A Schottky OR of all six feeds the permissive's limit term (7.4).
 for net in LIMS:
@@ -229,7 +234,7 @@ R('100k', 'CAL_DET_X', 'CAL_DET_IN')
 C('1n', 'CAL_DET_IN', 'GND')
 u12 = chip('Amplifier_Operational:MCP6002-xSN', 'U12', 'MCP6002', 420, 200, (1, 2, 3), SOIC[8])
 s.net(u12[0], '+', 'CAL_DET_IN'); s.net(u12[0], '-', 'CAL_BUF'); s.net(u12[0], '1', 'CAL_BUF')
-s.net(u12[1], '+', 'GND');        s.net(u12[1], '-', 'OPB_OUT');  s.net(u12[1], '7', 'OPB_OUT')
+s.net(u12[1], '+', 'CT_DC');      s.net(u12[1], '-', 'OUT_TH');   s.net(u12[1], '7', 'OUT_CMP5')   # 8D.7 comparator
 s.net(u12[2], 'V+', '+5V');       s.net(u12[2], 'V-', 'GND')
 R('10k', 'CAL_BUF', 'CAL_ADC'); R('10k', 'CAL_ADC', 'GND'); C('10n', 'CAL_ADC', 'GND')
 # LM393 on 5 V so the 60 W threshold (~2.1 V) is inside its 0-3.5 V common-mode range;
@@ -338,7 +343,7 @@ R('4k7', '+3V3', 'I2C_SDA'); R('4k7', '+3V3', 'I2C_SCL')
 
 # ================= the hardware permissive (7.4) =================
 #   BYP_OK  = SWR_OK AND MCU_PERMIT          (what the bypass key may override)
-#   HARD_OK = CALDET_OK AND CALTH_OK AND PANEL_OK AND LIMIT_OK   (never bypassed)
+#   HARD_OK = CALDET_OK AND CALTH_OK AND PANEL_OK AND LIMIT_OK AND OUT_OK   (never bypassed)
 #   PERMIT  = (BYP_OK OR BYPASS) AND HARD_OK
 #   LED     = PERMIT AND 10 kHz tone         (7.4.2: no tone, no permissive)
 # MCU_PERMIT is pulled down, so a hung MCU drops out when its watchdog resets it.
@@ -347,16 +352,18 @@ u4 = chip('74xx:74LS08', 'U4', '74HC08', 30, 200, (1, 2, 3, 4, 5), SOIC[14])
 s.net(u4[0], '1', 'SWR_OK_L'); s.net(u4[0], '2', 'MCU_PERMIT'); s.net(u4[0], '3', 'BYP_OK')
 s.net(u4[1], '4', 'BYP_OR');   s.net(u4[1], '5', 'HARD_OK');    s.net(u4[1], '6', 'PERMIT')
 s.net(u4[2], '9', 'PERMIT');   s.net(u4[2], '10', 'TONE');      s.net(u4[2], '8', 'LED_DRV')
-unused_gate(u4[3], ('12', '13'), '11')
+s.net(u4[3], '12', 'OUT_TRIP'); s.net(u4[3], '13', 'MCU_PERMIT'); s.net(u4[3], '11', 'OUT_HOLD')   # 8D.7 latch
 s.net(u4[4], 'VCC', '+3V3');   s.net(u4[4], 'GND', 'GND')
 u5 = chip('74xx:74LS32', 'U5', '74HC32', 175, 200, (1, 2, 3, 4, 5), SOIC[14])
 s.net(u5[0], '1', 'BYP_OK');   s.net(u5[0], '2', 'BYPASS');     s.net(u5[0], '3', 'BYP_OR')
-unused_gate(u5[1], ('4', '5'), '6'); unused_gate(u5[2], ('9', '10'), '8'); unused_gate(u5[3], ('12', '13'), '11')
+s.net(u5[1], '4', 'OUT_CMP');  s.net(u5[1], '5', 'OUT_HOLD');   s.net(u5[1], '6', 'OUT_TRIP')     # 8D.7 latch
+unused_gate(u5[2], ('9', '10'), '8'); unused_gate(u5[3], ('12', '13'), '11')
 s.net(u5[4], 'VCC', '+3V3');   s.net(u5[4], 'GND', 'GND')
 u6 = chip('74xx:74LS21', 'U6', '74HC21', 320, 200, (1, 2, 3), SOIC[14])
-for p_, net in (('1', 'CALDET_OK'), ('2', 'CALTH_OK'), ('4', 'PANEL_OK'), ('5', 'LIMIT_OK'), ('6', 'HARD_OK')):
+for p_, net in (('1', 'CALDET_OK'), ('2', 'CALTH_OK'), ('4', 'PANEL_OK'), ('5', 'LIMIT_OK'), ('6', 'HARD_A')):
     s.net(u6[0], p_, net)
-unused_gate(u6[1], ('9', '10', '12', '13'), '8')
+for p_, net in (('9', 'HARD_A'), ('10', 'OUT_OK'), ('12', '+3V3'), ('13', '+3V3'), ('8', 'HARD_OK')):
+    s.net(u6[1], p_, net)                                  # the fifth term, 8D.7
 s.net(u6[2], 'VCC', '+3V3');   s.net(u6[2], 'GND', 'GND')
 # Schmitt inverters: switch inputs to OK levels, the limit OR, and the relay blanking timer
 u7 = chip('74xx:74HC14', 'U7', '74HC14', 30, 240, (1, 2, 3, 4, 5, 6, 7), SOIC[14])
@@ -364,7 +371,8 @@ s.net(u7[0], '1', 'CALTH_L'); s.net(u7[0], '2', 'CALTH_OK')
 s.net(u7[1], '3', 'PANEL_L'); s.net(u7[1], '4', 'PANEL_OK')
 s.net(u7[2], '5', 'LIM_ANY'); s.net(u7[2], '6', 'LIMIT_OK')
 s.net(u7[3], '9', 'BLANK');   s.net(u7[3], '8', 'SWITCH_OK')
-unused_gate(u7[4], ('11',), '10'); unused_gate(u7[5], ('13',), '12')
+s.net(u7[4], '11', 'OUT_TRIP'); s.net(u7[4], '10', 'OUT_OK')                                       # 8D.7
+unused_gate(u7[5], ('13',), '12')
 s.net(u7[6], 'VCC', '+3V3');  s.net(u7[6], 'GND', 'GND')
 
 # ---- 10 kHz tone: hardware, so the bypass works with a dead controller ----
@@ -424,6 +432,31 @@ Q5 = A(NFET, 'Q5', 'IRLL2705TRPBF', (445, 100), footprint=FP_FET)
 s.net(Q5, 'G', 'Q5_G'); s.net(Q5, 'D', 'SND_LO'); s.net(Q5, 'S', 'GND')
 R('100', 'SOUNDER', 'Q5_G'); R('10k', 'Q5_G', 'GND')
 D('BAT42W', 'SND_LO', '+12V')
+
+# ---- motion lockout (7.4.6), last so that no earlier reference designator moves ----
+block('ja')
+# Each STEP line ANDed with SWITCH_OK, the K1/K2 latch's enable: a step reaches the
+# drivers only once the permissive has been down 39-67 ms, so nothing moves under
+# RF even if the firmware tries. DIR and DRV_EN pass, so the motors keep holding.
+u14 = chip('74xx:74LS08', 'U14', '74HC08', 240, 172, (1, 2, 3, 4, 5), SOIC[14])
+for g, (a, b, y) in enumerate((('1', '2', '3'), ('4', '5', '6'), ('9', '10', '8'))):
+    s.net(u14[g], a, f'STEP{g + 1}'); s.net(u14[g], b, 'SWITCH_OK'); s.net(u14[g], y, f'STEP{g + 1}_G')
+unused_gate(u14[3], ('12', '13'), '11')
+s.net(u14[4], 'VCC', '+3V3'); s.net(u14[4], 'GND', 'GND')
+C('100n', '+3V3', 'GND')
+
+# ---- output trip (8D.7), last so that no earlier reference designator moves ----
+block('cal')
+# U12's second half compares the imbalance CT's detected level with RV2's threshold
+# (0.28-3.03 V). Its 5 V output is divided to 3.2 V for the logic. The trip seals
+# itself in while the MCU's vote is up (U5 OR, U4 AND), so an arc that the dropped
+# RF puts out cannot key the amplifier straight back; the vote dropping lets it go.
+# With the MCU dead the latch is held clear and the trip simply follows the CT.
+R('15k', 'OUT_CMP5', 'OUT_CMP'); R('27k', 'OUT_CMP', 'GND')
+R('1k', '+3V3', 'OUT_TH_T')
+RV2 = A('Device:R_Potentiometer_Trim', 'RV2', '10k 3296W', (560, 270), footprint=FP_POT)
+s.net(RV2, '1', 'OUT_TH_T'); s.net(RV2, '3', 'OUT_TH_B'); s.net(RV2, '2', 'OUT_TH')
+R('1k', 'OUT_TH_B', 'GND'); C('100n', 'OUT_TH', 'GND')
 
 # ================= power flags =================
 block('none')
